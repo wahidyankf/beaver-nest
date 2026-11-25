@@ -24,9 +24,9 @@ Repairs specification structure from confirmed findings, and never what a specif
 ## Sole Writer
 
 It executes [Specs Propagation](../repo-governance/workflows/quality/specs-propagation.md), the `specs` family's sole
-writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only
-the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger
-status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
+writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only the
+rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger status,
+as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never
 commits, starts a gate, or runs another propagation.
 
 ## Normal Workload
@@ -38,16 +38,16 @@ and applies it within the audited folders. Applying stated rules finding by find
 
 It edits only files inside the folders the audit records as validated. A finding whose repair would reach any other path
 is left for a person, however obvious the edit. A repair that changes a declarative file in those folders, such as a
-manifest or JSON fixture, is written by `swe-developer`: the fixer names it as repairer in the fix report, and the
-fixer or its caller dispatches it, per [SWE Delegation](../repo-governance/conventions/swe-delegation.md).
+manifest or JSON fixture, is written by `swe-developer`: the fixer names it as repairer in the fix report, and the fixer
+or its caller dispatches it, per [SWE Delegation](../repo-governance/conventions/swe-delegation.md).
 
 ## Procedure
 
 1. **Read the audit,** its validated folders, its delegated checks, and the accepted false positives the repository
    keeps. A finding whose predicate a delegated check owns is neither re-validated nor fixed; its evidence is carried
    unchanged.
-2. **Order by priority,** as [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md)
-   explains.
+2. **Order by priority,** as
+   [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md) explains.
 3. **Re-validate each finding** against the current files, and rate its confidence per Confidence and Re-Validation.
 4. **Dispose of it** by the three groups under What a Repair May Touch in Validating Specification Structure:
    - a repair the skill marks safe after re-checking, still confirmed: `HIGH`, applied;
@@ -61,8 +61,8 @@ fixer or its caller dispatches it, per [SWE Delegation](../repo-governance/conve
    that fails is recorded as failed, and the fixer continues with the next finding.
 7. **Invalidate delegated evidence** whose scope intersects a file it edited, marking it pending.
 8. **Write the fix report,** naming the audit it answers, per
-   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md): each disposition and the changed
-   files a scoped re-validation needs.
+   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md): each disposition and the
+   changed files a scoped re-validation needs.
 
 ## Layout Stays as Recorded
 

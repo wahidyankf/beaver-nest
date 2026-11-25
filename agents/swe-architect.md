@@ -28,10 +28,9 @@ source; the only files it writes are architecture decision records.
 
 It reads the goal, the code around the change, and the decisions already recorded, then chooses boundaries,
 dependencies, and tradeoffs whose consequences cascade through every later task. Inventing that approach and making
-cascading judgement is `plan` work, per
-[Portable Tiers][catalog-003-portable-tiers]. Its other two
-modes judge against a design or a written charter, and run at the same tier because a wrong structural verdict is
-expensive to detect and to undo.
+cascading judgement is `plan` work, per [Portable Tiers][catalog-003-portable-tiers]. Its other two modes judge against
+a design or a written charter, and run at the same tier because a wrong structural verdict is expensive to detect and to
+undo.
 
 ## Modes
 
@@ -43,8 +42,8 @@ Before implementation, when a task touches a module boundary, adds a dependency,
 settles.
 
 The rest of this section is in
-[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#design); read
-it in full before acting.
+[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#design); read it in
+full before acting.
 
 ### Final Review
 
@@ -55,27 +54,24 @@ property no deterministic check yet holds; a preference with no consequence is a
 ### Lens
 
 When [PR Review Checker](pr-review-checker.md) selects the architecture discipline. It owns the architecture row of
-[Discipline Roster][catalog-001-discipline-roster], and routes
-away what that row routes. Rulings (a) and (e) of
-[Boundary Rulings][catalog-002-boundary-rulings] settle most
-borderline cases. When a finding could be either a structural decision or domain behaviour, it raises it, states the
-ambiguity, and accepts the coordinator's placement. A new tradeoff also names the rule that would settle the next
-occurrence. On a plan-only change under
-[Plan Document Route][catalog-005-plan-document-route], it judges
-the design decisions the plan makes.
+[Discipline Roster][catalog-001-discipline-roster], and routes away what that row routes. Rulings (a) and (e) of
+[Boundary Rulings][catalog-002-boundary-rulings] settle most borderline cases. When a finding could be either a
+structural decision or domain behaviour, it raises it, states the ambiguity, and accepts the coordinator's placement. A
+new tradeoff also names the rule that would settle the next occurrence. On a plan-only change under [Plan Document
+Route][catalog-005-plan-document-route], it judges the design decisions the plan makes.
 
 The rest of this section is in
-[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#lens); read
-it in full before acting.
+[SWE Architect Modes](../repo-governance/conventions/swe-agent-procedures/swe-architect-modes.md#lens); read it in full
+before acting.
 
 ## Adopter Decision: ADR location
 
 Where the decision records Design mode writes live. Record the choice once in the repository adapter.
 
-| Option            | Records live at                                              | Trade-off                                               |
-| ----------------- | ------------------------------------------------------------ | ------------------------------------------------------- |
-| default           | `docs/explanation/decisions/NNN-<slug>.md`                   | one predictable place; a repository adopting it adds it |
-| an existing place | the path where the repository already keeps decision records | no move; the adapter names the path                     |
+| Option            | Records live at                            | Trade-off                                           |
+| ----------------- | ------------------------------------------ | --------------------------------------------------- |
+| default           | `docs/explanation/decisions/NNN-<slug>.md` | one predictable place; adopting repositories add it |
+| an existing place | where the repository already keeps them    | no move; the adapter names the path                 |
 
 A repository with no `docs/` tree chooses explicitly rather than taking the default silently. Record form, numbering,
 and immutability follow Architecture Decision Records under either option.
@@ -83,9 +79,8 @@ and immutability follow Architecture Decision Records under either option.
 ## Shell and Network
 
 `shell` reads history and traces imports and call paths across modules; it changes no tracked file. `network` serves a
-single fetch of a dependency's or standard's documentation page whose address is already known, exception 1 of
-[Web Research Delegation][catalog-web-research-delegation]. Research needing more
-returns to the caller as a research need.
+single fetch of a dependency's or standard's documentation page whose address is already known, exception 1 of [Web
+Research Delegation][catalog-web-research-delegation]. Research needing more returns to the caller as a research need.
 
 ## Stopping Rule
 

@@ -40,8 +40,8 @@ The caller names the mode. Findings in the input mean Apply Findings; otherwise 
 New or changed behaviour, test-first, reusing what the repository holds.
 
 The rest of this section is in
-[SWE Developer Build](../repo-governance/conventions/swe-agent-procedures/swe-developer-build.md#build); read
-it in full before acting.
+[SWE Developer Build](../repo-governance/conventions/swe-agent-procedures/swe-developer-build.md#build); read it in full
+before acting.
 
 ### Apply Findings
 
@@ -49,7 +49,8 @@ Re-validate each finding from a review, a tester, or a frozen quality-gate ledge
 test-first or record why not.
 
 The rest of this section is in
-[SWE Developer Apply Findings](../repo-governance/conventions/swe-agent-procedures/swe-developer-apply-findings.md#apply-findings);
+[SWE Developer
+Apply Findings](../repo-governance/conventions/swe-agent-procedures/swe-developer-apply-findings.md#apply-findings);
 read it in full before acting.
 
 ## Adopter Decision: Stack skills
@@ -58,13 +59,15 @@ Developing Applications applies to every project. Each stack the project lists a
 [stack standard](../repo-governance/development/quality/stacks/README.md), resolved as
 [Stack Packs](../repo-governance/conventions/structure/stack-packs.md) defines; a React or Next.js pack brings
 [Developing Frontend UI](../.agents/skills/developing-frontend-ui/SKILL.md), a browser end-to-end suite brings
-[Writing Browser End-to-End Tests](../.agents/skills/writing-browser-e2e-tests/SKILL.md), and a schema or migration change
-brings [Evolving Database Schemas](../.agents/skills/evolving-database-schemas/SKILL.md).
+[Writing Browser End-to-End Tests](../.agents/skills/writing-browser-e2e-tests/SKILL.md), and a schema or migration
+change brings [Evolving Database Schemas](../.agents/skills/evolving-database-schemas/SKILL.md).
 
-| Option                   | The developer                                                                      | Trade-off                                                        |
-| ------------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| declared                 | lists, in its adopted copy's `skills`, the skill of each stack the repository uses | the harness loads exactly those; a new stack edits this file     |
-| read on demand (default) | loads each listed stack's local skill and standard before the first test           | no edit per stack; a listed stack with no local copy is reported |
+- **declared**
+  - The developer: lists, in its adopted copy's `skills`, the skill of each stack the repository uses
+  - Trade-off: the harness loads exactly those; a new stack edits this file
+- **read on demand (default)**
+  - The developer: loads each listed stack's local skill and standard before the first test
+  - Trade-off: no edit per stack; a listed stack with no local copy is reported
 
 A project whose stack has neither a skill nor a standard is built under the language-neutral standards alone, and the
 hand-off says so.

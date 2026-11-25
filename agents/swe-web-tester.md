@@ -35,20 +35,25 @@ judgement about what a difference means, so this is `plan` work.
 
 The caller names one charter per pass. With none named, it asks rather than guessing.
 
-| Charter       | Judges                                                                                           | Inside                                                                                                          |
-| ------------- | ------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `spec`        | behaviour, design fidelity, and accessibility no scanner settles, against the specification      | [UI Web Quality Gate](../repo-governance/workflows/quality/ui-web-quality-gate.md), as its judge                |
-| `design`      | the render against approved designs, runtime tokens, primitives, and cited design practice       | [UX Review Fix Planning][catalog-ux-review-fix-planning], third pass                                            |
-| `exploratory` | behaviour against specifications, contracts, and designs, within charters frozen before the pass | [Exploratory and Usability Review](../repo-governance/workflows/quality/exploratory-usability-review.md), first |
+- **`spec`**
+  - Judges: behaviour, design fidelity, and accessibility no scanner settles, against the specification
+  - Inside: [UI Web Quality Gate](../repo-governance/workflows/quality/ui-web-quality-gate.md), as its judge
+- **`design`**
+  - Judges: the render against approved designs, runtime tokens, primitives, and cited design practice
+  - Inside: [UX Review Fix Planning][catalog-ux-review-fix-planning], third pass
+- **`exploratory`**
+  - Judges: behaviour against specifications, contracts, and designs, within charters frozen before the pass
+  - Inside: [Exploratory and Usability
+    Review](../repo-governance/workflows/quality/exploratory-usability-review.md), first
 
 ## Before the First Action
 
 Confirm the exact origin, the routes, the viewport classes, every supported locale, the themes, the sources the charter
 judges against, and the synthetic identities allowed by
-[Test Data Isolation](../repo-governance/development/test-identities.md). Confirm whether
-state-changing actions are authorized, and that a browser-driving integration responds, as
-[Behaviour Change Verification][catalog-006-behaviour-change-verification]
-requires. An unreachable origin, an unresolved specification, or no browser ends the pass as not run, never as clean.
+[Test Data Isolation](../repo-governance/development/test-identities.md). Confirm whether state-changing actions are
+authorized, and that a browser-driving integration responds, as [Behaviour Change
+Verification][catalog-006-behaviour-change-verification] requires. An unreachable origin, an unresolved specification,
+or no browser ends the pass as not run, never as clean.
 
 ## Procedure
 
@@ -65,19 +70,18 @@ build and smoke-tests what the repair touched. It never rates confidence, gives 
 
 ## Where Findings Go
 
-One findings record, at the location the caller names or else under the temporary-report location of
-[Temporary Files][catalog-temporary-files], plus the sanitized captures
-[Evidence Safety][catalog-005-evidence-safety] requires. The
-record opens in progress, gains each finding as confirmed, and closes with totals, per
-[Agent Authoring][catalog-agent-authoring-reports-are-written-as-findings-are-confirmed].
-Under the gate, findings also return to the gate for its ledger.
+One findings record, at the location the caller names or else under the temporary-report location of [Temporary
+Files][catalog-temporary-files], plus the sanitized captures [Evidence Safety][catalog-005-evidence-safety] requires.
+The record opens in progress, gains each finding as confirmed, and closes with totals, per [Agent
+Authoring][catalog-agent-authoring-reports-are-written-as-findings-are-confirmed]. Under the gate, findings also return
+to the gate for its ledger.
 
 ## Shell and Network
 
 `shell` runs the repository's browser automation. `network` reaches the served origin and makes single fetches of a
-standard or design source whose address is already known, exception 1 of
-[Web Research Delegation][catalog-web-research-delegation]; more research returns to
-the caller, and the observation stays an open question meanwhile.
+standard or design source whose address is already known, exception 1 of [Web Research
+Delegation][catalog-web-research-delegation]; more research returns to the caller, and the observation stays an open
+question meanwhile.
 
 ## Stopping Rule
 

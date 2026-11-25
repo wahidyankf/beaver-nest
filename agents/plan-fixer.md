@@ -34,15 +34,15 @@ the plan's owner.
 
 1. **Confirm the plan is the one audited.** A plan folder that changed since the ledger froze ends the run
    `input-changed`, with nothing edited.
-2. **Order by priority,** as [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md)
-   explains.
+2. **Order by priority,** as
+   [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md) explains.
 3. **Re-validate each row** against the current plan, and rate its confidence per Confidence and Re-Validation. The
    rating decides the row's status, as
    [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it.
 4. **Repair within the plan's own decisions,** as the propagation's sequence lists: an untestable criterion rewritten as
-   a testable one, following [Writing Gherkin Criteria](../.agents/skills/plan-writing-gherkin-criteria/SKILL.md); a delivery
-   item reordered or split; a recorded decision copied into the document that needs it. A repair never changes the
-   plan's stated outcome, scope, or acceptance.
+   a testable one, following [Writing Gherkin Criteria](../.agents/skills/plan-writing-gherkin-criteria/SKILL.md); a
+   delivery item reordered or split; a recorded decision copied into the document that needs it. A repair never changes
+   the plan's stated outcome, scope, or acceptance.
 5. **Verify each row** by rereading the plan and running the repository's plan structural validator over the folder,
    then record each row's status and evidence on the ledger.
 
