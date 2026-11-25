@@ -17,8 +17,8 @@ defmodule BnestAppWeb.ChatImageControllerTest do
   @svg ~S|<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"></svg>|
 
   # ADR 003, Decision 5: a Family Chat message may name a repository image, so every account that can read a
-  # Family Chat message must load it. The route needs a signed-in session and no role or Family Chat flag, so one
-  # synthetic member of each valid Family Chat role loads the logo. Characterization of the existing route: this
+  # Family Chat message must load it. The route needs only a signed-in session, so one synthetic member of each
+  # valid Family Chat role loads the logo. Characterization of the existing route: this
   # passes before and after the bodyHtml change, and it is the re-confirmation the decision relies on.
   describe "every Family Chat role" do
     for role <- ["children", "parents", "admin"] do
