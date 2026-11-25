@@ -4,6 +4,8 @@ Feature: Repository gates
   value enforced here is declared in repo-config.yml at the repository root.
 
   # Carries BN-GATE-01: test:repo runs the pre-push surface.
+  # Exemption(integration): the pre-push surface is executed by the pinned RHINO release in CI, no integration-globbed file re-enters it; alternative-proof: rhino-consumer:test:repo / The pre-push gate runs the entries repo-config.yml lists for it
+  @integration-exempt
   # Exemption(e2e): a repository tool with no application boundary; alternative-proof: rhino-consumer:test:repo / rhino-consumer test:repo runs the pre-push gate surface over the checkout
   @e2e-exempt
   Scenario: rhino-consumer test:repo runs the pre-push gate surface over the checkout
@@ -13,6 +15,8 @@ Feature: Repository gates
     And its Nx inputs are the governed content, rhino, rhino.lock and repo-config.yml
 
   # Carries BN-GATE-02: test:bootstrap runs the RHINO bootstrap proofs.
+  # Exemption(integration): the RHINO bootstrap proofs are the whole-file harness binding; alternative-proof: rhino-consumer:test:integration
+  @integration-exempt
   # Exemption(e2e): repository tool with no application boundary; alternative-proof: rhino-consumer:test:bootstrap / rhino-consumer test:bootstrap runs the RHINO bootstrap proofs
   @e2e-exempt
   Scenario: rhino-consumer test:bootstrap runs the RHINO bootstrap proofs
@@ -74,6 +78,8 @@ Feature: Repository gates
 
   # Carries BN-GATE-06: Conventional Commit lint.
   # Integration is bound by scripts/check-commit-message.sh with RHINO_GATE_MESSAGE per row.
+  # Exemption(integration): commit lint runs over the PR range in CI via the commit-message gate entry; alternative-proof: scripts/check-commit-message.sh
+  @integration-exempt
   # Exemption(e2e): a Git hook with no application boundary; alternative-proof: rhino-consumer:test:repo / A commit message must be a Conventional Commit
   @e2e-exempt
   Scenario Outline: A commit message must be a Conventional Commit
@@ -94,6 +100,10 @@ Feature: Repository gates
   # Integration is bound by test/behaviour/verify.exs against a temp corpus holding one unbound scenario.
   # E2E is bound by construction for the E2E adapters: Playwright BDD fails on an undefined step, and
   # check-behaviour-compliance.mts has its own test.
+  # Exemption(integration): the corpus proof runs as a whole-file verify; alternative-proof: bnest-app:test:behaviour:verify
+  @integration-exempt
+  # Exemption(e2e): the bindings-coverage proof runs below every e2e boundary; e2e steps exercise the product while the proof that they cover the corpus is the verify run itself; alternative-proof: bnest-app:test:behaviour:verify / test:coverage:behaviour proves the adapters cover the whole scenario corpus
+  @e2e-exempt
   Scenario Outline: test:coverage:behaviour proves the adapters cover the whole scenario corpus
     Given the corpus and bindings are "<state>"
     When test:coverage:behaviour runs
