@@ -213,7 +213,7 @@ harness:
         path: ".opencode/agents/{name}.md"
         format: front-matter
         route-field: body
-        route: "Before acting, read the complete canonical agent definition at the repository-root path {path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
+        route: "Before acting, read the complete canonical agent definition at the repository-root path\n{path} and follow it as authoritative. If it cannot be read, stop and report the missing path."
         identity: { description: description }
         fixed: { mode: subagent }
         dispatches: { field: permission.task, format: allow-map }
