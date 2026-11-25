@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
@@ -8,6 +10,7 @@ import {
 } from "../support/family-chat-delivery";
 import { waitForRoomReady } from "../support/family-chat-resume";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
+import { repositoryRoot } from "../support/routed-rollout-env";
 import { messageById } from "../support/family-chat-gestures";
 import {
   expectMenuOpenFor,
@@ -29,6 +32,11 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 // ones loaded before the route moved, and everything the Thens judge is that
 // held bundle talking to the newly routed revision.
 //
+// The held bundle's wire is judged against the frozen contract in
+// apps/bnest-app/assets/test/support/family_chat_previous_revision.json. The older page sends the previous bundle's
+// documents, and the rolled-back slot must accept the reply-aware documents. Both promoted candidates are one build,
+// so the fixture is the only earlier contract these scenarios can see.
+//
 // Everything is driven from the visitor's own page. An earlier version seeded
 // through a second browser context, which had to log in against a slot that
 // had just booted; that returned `Internal Server Error` often enough to make
@@ -40,10 +48,84 @@ let floorReplyId = "";
 let heldRevision = "";
 let routedRevision = "";
 
+interface FrozenDocument {
+  document: string;
+  variables: string[];
+}
+
+const PREVIOUS_REVISION = JSON.parse(
+  readFileSync(
+    path.join(
+      repositoryRoot,
+      "apps/bnest-app/assets/test/support/family_chat_previous_revision.json",
+    ),
+    "utf8",
+  ),
+) as {
+  previousClient: { documents: Record<string, FrozenDocument> };
+  rolledBackSlot: { documents: Record<string, FrozenDocument> };
+};
+/** Requests the older page sent as the previous bundle's documents. */
+let previousDocumentsSent = 0;
+/** Requests the held page sent that the frozen rolled-back slot does not accept, by operation. */
+let floorRefusals: string[] = [];
+
 const { Given, Then, When } = createBdd();
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
+
+const GRAPHQL_ROUTE = "**/api/graphql";
+
+function operationOf(query: string): string {
+  return /^\s*(?:query|mutation|subscription)\s+(\w+)/u.exec(query)?.[1] ?? "";
+}
+
+function declaredOnly(
+  variables: Record<string, unknown>,
+  declared: string[],
+): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(variables).filter(([name]) => declared.includes(name)),
+  );
+}
+
+/**
+ * The page's GraphQL requests go out as the frozen previous bundle sends them, so the routed revision answers
+ * the documents an older browser really holds. A release that stops accepting one fails the scenario here.
+ */
+async function sendPreviousBundleDocuments(page: Page): Promise<void> {
+  await page.route(GRAPHQL_ROUTE, async (route) => {
+    const sent = JSON.parse(route.request().postData() ?? "{}") as {
+      query?: string;
+      variables?: Record<string, unknown>;
+    };
+    const frozen =
+      PREVIOUS_REVISION.previousClient.documents[operationOf(sent.query ?? "")];
+    if (!frozen) return route.continue();
+    previousDocumentsSent += 1;
+    return route.continue({
+      postData: JSON.stringify({
+        query: frozen.document,
+        variables: declaredOnly(sent.variables ?? {}, frozen.variables),
+      }),
+    });
+  });
+}
+
+/** Records each request the page sends that the frozen rolled-back slot would not accept. */
+async function judgeAgainstRolledBackSlot(page: Page): Promise<void> {
+  await page.route(GRAPHQL_ROUTE, async (route) => {
+    const sent = JSON.parse(route.request().postData() ?? "{}") as {
+      query?: string;
+    };
+    const operation = operationOf(sent.query ?? "");
+    const accepted = PREVIOUS_REVISION.rolledBackSlot.documents[operation];
+    if (accepted && accepted.document !== sent.query)
+      floorRefusals.push(operation);
+    return route.continue();
+  });
+}
 
 function navigationCount(page: Page): Promise<number> {
   return page.evaluate(() => performance.getEntriesByType("navigation").length);
@@ -149,6 +231,8 @@ When(
     // Already open, from before the promotion: the held page is the browser.
     expect(new URL(page.url()).pathname).toBe(route);
     expect(await navigationCount(page)).toBe(1);
+    previousDocumentsSent = 0;
+    await sendPreviousBundleDocuments(page);
     await waitForRoomReady(page);
     await waitForRoutedReads(page, routedRevision);
   },
@@ -171,6 +255,10 @@ Then("the visitor can send a message normally", async ({ page }) => {
   await sendThroughComposer(page, uniqueBody("Compatibility send"));
   // Answered by the newly routed revision, through the held bundle.
   expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
+  expect(
+    previousDocumentsSent,
+    "the older page sent no previous-bundle document",
+  ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
   expect(await navigationCount(page)).toBe(1);
 });
@@ -216,6 +304,8 @@ Given(
 );
 
 When("the app is rolled back to the previous version", async ({ page }) => {
+  floorRefusals = [];
+  await judgeAgainstRolledBackSlot(page);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
   }));
@@ -247,6 +337,10 @@ When(
     );
     await sendThroughComposer(page, uniqueBody("Floor reply"));
     expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
+    expect(
+      floorRefusals,
+      "the rolled-back slot does not accept the held bundle's documents",
+    ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
     expect(sendAttempts(page).at(-1)?.replyToMessageId).toBe(scenario.targetId);
   },
