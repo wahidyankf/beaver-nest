@@ -168,19 +168,6 @@ jobs:
           restore-keys: |
             plt-bnest-app-otp29.1.2-ex1.20.4-
 
-      # DIAGNOSTIC (temporary, for CI root-cause diagnosis, reverted before merge).
-      # Runs the child command of the test-quick-bnest-app entry in repo-config.yml outside the gate,
-      # so its output reaches this log. The step never fails the job.
-      - name: DIAGNOSTIC quick suite output (temporary)
-        if: matrix.project == 'bnest-app'
-        run: |
-          status=0
-          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
-            npm exec --no -- nx run -p bnest-app -t test:quick > "$RUNNER_TEMP/quick-suite.log" 2>&1 || status=$?
-          cat "$RUNNER_TEMP/quick-suite.log"
-          echo "quick suite child exit status: $status"
-          exit 0
-
       - name: Run the project's quick suite
         run: |
           set -eu
@@ -214,18 +201,6 @@ jobs:
 
       - name: Install Chromium and system dependencies
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
-
-      # DIAGNOSTIC (temporary, for CI root-cause diagnosis, reverted before merge).
-      # Runs the child command of the test-integration entry in repo-config.yml outside the gate,
-      # so its output reaches this log. The step never fails the job.
-      - name: DIAGNOSTIC integration suite output (temporary)
-        run: |
-          status=0
-          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
-            npm exec --no -- nx run-many -t test:integration > "$RUNNER_TEMP/integration-suite.log" 2>&1 || status=$?
-          cat "$RUNNER_TEMP/integration-suite.log"
-          echo "integration child exit status: $status"
-          exit 0
 
       - name: Run the integration suites
         run: |
