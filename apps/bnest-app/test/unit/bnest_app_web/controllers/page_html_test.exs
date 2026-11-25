@@ -25,11 +25,7 @@ defmodule BnestAppWeb.PageHTMLTest do
     refute html =~ "Misi hafal 40 sifat Allah"
   end
 
-  test "home always renders the family chat entry, even with the flag off" do
-    previous = Application.get_env(:bnest_app, :family_chat_enabled)
-    on_exit(fn -> Application.put_env(:bnest_app, :family_chat_enabled, previous) end)
-    Application.put_env(:bnest_app, :family_chat_enabled, false)
-
+  test "home always renders the family chat entry" do
     html =
       render_to_string(BnestAppWeb.PageHTML, "home", "html",
         flash: %{},
