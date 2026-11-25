@@ -39,14 +39,15 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationTest do
     assert RuntimeSettings.fixture_runner?("", "f", fn _, _ -> true end) == false
     assert Model.port_for("(unset)") == 4000
 
-    assert_raise RuntimeError, "PORT must be a positive integer", fn ->
-      RuntimeSettings.http_port(%{"PORT" => "not-a-port"})
+    # origin/main reads PORT with String.to_integer/1: no trimming and no positivity
+    # check, so an empty or non-integer PORT stops the boot with ArgumentError.
+    for raw <- ["", " 4001", "4001 ", "abc", "not-a-port"] do
+      assert_raise ArgumentError, fn -> RuntimeSettings.http_port(%{"PORT" => raw}) end
     end
 
-    # origin/main reads PORT with String.to_integer/1, so an empty PORT stops the boot.
-    assert_raise RuntimeError, "PORT must be a positive integer", fn ->
-      RuntimeSettings.http_port(%{"PORT" => ""})
-    end
+    # Zero and negative integers are returned as-is, as origin/main does.
+    assert RuntimeSettings.http_port(%{"PORT" => "0"}) == 0
+    assert RuntimeSettings.http_port(%{"PORT" => "-5"}) == -5
 
     # An empty value is set, not unset: origin/main passes "" to Path.expand/1, which
     # resolves it to the working directory. A double records the argument, so the test

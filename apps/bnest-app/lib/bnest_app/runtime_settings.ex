@@ -29,18 +29,14 @@ defmodule BnestApp.RuntimeSettings do
   @doc "Reads the deployment environment into a plain map (release seam only)."
   def system_env, do: SystemEnvironment.snapshot()
 
-  @doc "The HTTP port: `PORT` or 4000 when unset."
+  @doc """
+  The HTTP port: `PORT` or 4000 when unset. Any other value goes through
+  `String.to_integer/1`, so a non-integer raises ArgumentError.
+  """
   def http_port(env) do
     case Map.get(env, "PORT") do
       nil -> 4000
-      raw -> parse_port!(raw)
-    end
-  end
-
-  defp parse_port!(raw) do
-    case Integer.parse(String.trim(raw)) do
-      {port, ""} when port > 0 -> port
-      _ -> raise "PORT must be a positive integer"
+      raw -> String.to_integer(raw)
     end
   end
 
