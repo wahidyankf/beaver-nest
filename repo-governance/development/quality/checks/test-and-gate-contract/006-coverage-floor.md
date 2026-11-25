@@ -37,8 +37,9 @@ Empty, stale, or partial reports fail: a report that measured nothing is not a p
 Code a hermetic unit test cannot reach is not excluded and not left to integration coverage. It is moved behind a port
 until a unit test backed by a [test double](../../testing/test-doubles.md) reaches it, following
 [Hexagonal Architecture](../../code/hexagonal-architecture.md) and
-[Functional Core, Imperative Shell](../../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell). With adapters kept thin
-behind ports, 99% is reachable at the unit level.
+[Functional Core, Imperative
+Shell](../../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell).
+With adapters kept thin behind ports, 99% is reachable at the unit level.
 
 ## Choosing an Instrument
 

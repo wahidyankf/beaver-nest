@@ -18,15 +18,28 @@ It implements Explicit Over Implicit, Fail Closed, and
 [Progressive Disclosure](../../../principles/progressive-disclosure.md). It holds the language-neutral rule. Each stack
 standard maps it to its own tools and states no second copy.
 
-## The Rule in One Table
+## The Rule in One List
 
-| Layer                | Holds                                                                               | Depends on                                     | Never                                                                   |
-| -------------------- | ----------------------------------------------------------------------------------- | ---------------------------------------------- | ----------------------------------------------------------------------- |
-| Domain               | entities, value objects, policies, invariants                                       | the language's standard library                | performs an effect, reads a clock or the environment, knows a framework |
-| Ports                | the interfaces the application needs from outside                                   | domain                                         | contains an implementation                                              |
-| Application (facade) | use cases: validate, authorize, load, decide, save, publish                         | domain, its own ports, other contexts' facades | calls infrastructure, chooses an adapter, chooses a transport status    |
-| Outbound adapters    | port implementations over a database, file, network, process, clock, or message bus | domain, ports, infrastructure libraries        | holds a business rule                                                   |
-| Inbound adapters     | web, API, CLI, scheduler task, release entry point                                  | facades and exported types                     | reaches a port, an adapter, or a store                                  |
+- **Domain**
+  - Holds: entities, value objects, policies, invariants
+  - Depends on: the language's standard library
+  - Never: performs an effect, reads a clock or the environment, knows a framework
+- **Ports**
+  - Holds: the interfaces the application needs from outside
+  - Depends on: domain
+  - Never: contains an implementation
+- **Application (facade)**
+  - Holds: use cases: validate, authorize, load, decide, save, publish
+  - Depends on: domain, its own ports, other contexts' facades
+  - Never: calls infrastructure, chooses an adapter, chooses a transport status
+- **Outbound adapters**
+  - Holds: port implementations over a database, file, network, process, clock, or message bus
+  - Depends on: domain, ports, infrastructure libraries
+  - Never: holds a business rule
+- **Inbound adapters**
+  - Holds: web, API, CLI, scheduler task, release entry point
+  - Depends on: facades and exported types
+  - Never: reaches a port, an adapter, or a store
 
 Source dependencies point inward. Configuration, the composition root, is the only place that names which adapter
 implements which port.
@@ -52,5 +65,5 @@ than waiting for a reviewer. The stack standard names that mechanism and its gat
 - a compile-time or lint-time boundary check for module dependencies;
 - a source scan for the effects such a check cannot see, typically calls into the standard library.
 
-Review covers what neither sees: whether a context's language is coherent, whether a rule sits in the domain rather
-than in an adapter, and whether a new context or port is warranted at all.
+Review covers what neither sees: whether a context's language is coherent, whether a rule sits in the domain rather than
+in an adapter, and whether a new context or port is warranted at all.

@@ -1,8 +1,12 @@
 # Principles
 
-Principles translate the repository [vision](../vision/README.md) into durable constraints and values that guide decisions across technologies and tools. They are subordinate to vision and outrank conventions, development standards, and workflows.
+Principles translate the repository [vision](../vision/README.md) into durable constraints and values that guide
+decisions across technologies and tools. They are subordinate to vision and outrank conventions, development standards,
+and workflows.
 
-No principle may contradict the vision. No convention, development standard, or workflow may contradict a principle. When a conflict exists, change the lower-level document. Amend a principle only through an explicit governance change, not by adding an exception elsewhere.
+No principle may contradict the vision. No convention, development standard, or workflow may contradict a principle.
+When a conflict exists, change the lower-level document. Amend a principle only through an explicit governance change,
+not by adding an exception elsewhere.
 
 A principle should describe:
 
@@ -11,11 +15,16 @@ A principle should describe:
 - the decisions it governs; and
 - the consequences of following it.
 
-Keep procedural steps in [workflows](../workflows/README.md), repository-wide choices in [conventions](../conventions/README.md), and engineering standards in [development](../development/README.md).
+Keep procedural steps in [workflows](../workflows/README.md), repository-wide choices in
+[conventions](../conventions/README.md), and engineering standards in [development](../development/README.md).
 
 ## Directory Map
 
-- [Consumer correctness](consumer-correctness.md) chooses the surface that most helps the consumer be correct: descriptive errors, exact names, and no silent behaviour.
-- [Governance continuity](governance-continuity.md) preserves rule-governed repository behaviour across context compaction and handoffs.
-- [Minimal sufficiency](minimal-sufficiency.md) treats every line and mechanism as a liability and requires the smallest necessary solution.
-- [Progressive disclosure](progressive-disclosure.md) keeps entry points concise while making canonical detail easy to reach.
+- [Consumer correctness](consumer-correctness.md) chooses the surface that most helps the consumer be correct:
+  descriptive errors, exact names, and no silent behaviour.
+- [Governance continuity](governance-continuity.md) preserves rule-governed repository behaviour across context
+  compaction and handoffs.
+- [Minimal sufficiency](minimal-sufficiency.md) treats every line and mechanism as a liability and requires the smallest
+  necessary solution.
+- [Progressive disclosure](progressive-disclosure.md) keeps entry points concise while making canonical detail easy to
+  reach.

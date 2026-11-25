@@ -3,12 +3,12 @@
 Every delivery item that changes behaviour routes to at least one named verification layer. The routing is closed: there
 is no general "review" bucket.
 
-| Layer           | Establishes                                                     | Cannot establish                    |
-| --------------- | --------------------------------------------------------------- | ----------------------------------- |
-| automated       | that a stated property holds, repeatably                        | that the property was the right one |
-| exploratory     | that nothing unexpected happens in normal use                   | coverage                            |
-| usability       | that a correct result is also usable                            | correctness                         |
-| device-specific | that it holds on real targets, where rendering and input differ | anything about targets not tested   |
+| Layer           | Establishes                                                     | Cannot establish                |
+| --------------- | --------------------------------------------------------------- | ------------------------------- |
+| automated       | that a stated property holds, repeatably                        | that it was the right property  |
+| exploratory     | that nothing unexpected happens in normal use                   | coverage                        |
+| usability       | that a correct result is also usable                            | correctness                     |
+| device-specific | that it holds on real targets, where rendering and input differ | anything about untested targets |
 
 An item may route to several. It may not route to none, and it may not route to something unnamed.
 
@@ -27,8 +27,9 @@ Where a change has a user-facing surface, automation is necessary and not suffic
 false while a required layer is unresolved.
 
 What each layer proves, what an assertion must state before it runs, and how interface alternatives are chosen belong to
-the layer's owning standard -- the [exploratory and usability review](../../workflows/quality/exploratory-usability-review.md)
-workflow for the interface layers, and [end-to-end](../end-to-end-testing.md), [API](../api-testing.md) and
+the layer's owning standard -- the
+[exploratory and usability review](../../workflows/quality/exploratory-usability-review.md) workflow for the interface
+layers, and [end-to-end](../end-to-end-testing.md), [API](../api-testing.md) and
 [behaviour-driven development](../behaviour-driven-development.md) for the automated ones. This module owns only the
 routing rule: every behaviour-changing item names its layer.
 

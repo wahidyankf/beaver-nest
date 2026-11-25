@@ -12,15 +12,20 @@ when_to_use: >-
 The modules below are read in sequence and carry the full statement of each rule indexed by the
 [Test and Gate Contract](../test-and-gate-contract.md) entrypoint.
 
-| Module                                                    | Holds                                                                                 |
-| --------------------------------------------------------- | ------------------------------------------------------------------------------------- |
-| [Registry and Dispatch](001-registry-and-dispatch.md)     | C1 to C5: one declaration, no dead entries, installed hooks, pins, offline gates      |
-| [Surface Placement](002-surface-placement.md)             | C6, C8 to C11: each surface's work, allowed lists, landing gate, messages, leaks      |
-| [Pull-Request Scope](003-pull-request-scope.md)           | C7: affected-project, changed-file, and global scope, with a classification table     |
-| [Test Levels and Targets](004-test-levels-and-targets.md) | C12, C14, C17, C18, C21: levels, targets, automatic homes, hermetic enforcement       |
-| [Behaviour Corpus](005-behaviour-corpus.md)               | C13: corpus layout, binding convention, exemptions, spec review, behaviour inventory  |
-| [Coverage Floor](006-coverage-floor.md)                   | C15: the 99% unit floor, uncombined levels, categories, and instrument choice         |
-| [Conformance Record](007-conformance-record.md)           | C16, C19, C20, C22 to C24: lint, inventory, delivery, required check, diagrams, scope |
+- **[Registry and Dispatch](001-registry-and-dispatch.md)**
+  - Holds: C1 to C5: one declaration, no dead entries, installed hooks, pins, offline gates
+- **[Surface Placement](002-surface-placement.md)**
+  - Holds: C6, C8 to C11: each surface's work, allowed lists, landing gate, messages, leaks
+- **[Pull-Request Scope](003-pull-request-scope.md)**
+  - Holds: C7: affected-project, changed-file, and global scope, with a classification table
+- **[Test Levels and Targets](004-test-levels-and-targets.md)**
+  - Holds: C12, C14, C17, C18, C21: levels, targets, automatic homes, hermetic enforcement
+- **[Behaviour Corpus](005-behaviour-corpus.md)**
+  - Holds: C13: corpus layout, binding convention, exemptions, spec review, behaviour inventory
+- **[Coverage Floor](006-coverage-floor.md)**
+  - Holds: C15: the 99% unit floor, uncombined levels, categories, and instrument choice
+- **[Conformance Record](007-conformance-record.md)**
+  - Holds: C16, C19, C20, C22 to C24: lint, inventory, delivery, required check, diagrams, scope
 
 ## Directory Map
 

@@ -56,8 +56,8 @@ These run in the pull-request workflow, outside the registry, because their inpu
   `test:quick` (C14).
 - **`bnest-app` has no `test:e2e`.** End-to-end proof lives in the two dedicated homes, `bnest-app-be-e2e` and
   `bnest-app-fe-e2e`.
-- **`bnest-app-be-e2e` has no `test:integration`.** The backend e2e home owns no integration suite; integration proof for
-  its corpus lives in `bnest-app:test:integration`.
+- **`bnest-app-be-e2e` has no `test:integration`.** The backend e2e home owns no integration suite; integration proof
+  for its corpus lives in `bnest-app:test:integration`.
 - **E2E homes carry no numeric coverage.** Behaviour coverage is their only static gate; `test:unit` in those homes
   checks support code and carries no floor.
 - **`test:live` is dev-only.** Its scenarios carry `ci-exempt`; the pull-request gate never runs it (C12).

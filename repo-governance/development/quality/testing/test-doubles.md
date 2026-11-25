@@ -12,25 +12,23 @@ A test double stands in for a collaborator so a test runs fast and gives the sam
 freezes a different part of the collaborator in place, and the wrong kind produces a test that passes against the double
 while the system itself is broken.
 
-This standard implements Reproducibility,
-Explicit Over Implicit, and
-Simplicity Over Complexity.
+This standard implements Reproducibility, Explicit Over Implicit, and Simplicity Over Complexity.
 
 ## The Kinds
 
-| Double | What it is                                                       | A test using it asserts on                    |
-| ------ | ---------------------------------------------------------------- | --------------------------------------------- |
-| fake   | a working, simplified implementation, such as an in-memory store | the state the code under test leaves          |
-| stub   | an object returning fixed, deterministic answers                 | the result the code under test returns        |
-| spy    | an object recording the calls it receives                        | the interaction itself                        |
-| mock   | an object programmed in advance with the calls it expects        | the calls the code under test happens to make |
+| Double | What it is                                                  | A test using it asserts on                    |
+| ------ | ----------------------------------------------------------- | --------------------------------------------- |
+| fake   | a simplified working implementation, say an in-memory store | the state the code under test leaves          |
+| stub   | an object returning fixed, deterministic answers            | the result the code under test returns        |
+| spy    | an object recording the calls it receives                   | the interaction itself                        |
+| mock   | an object programmed in advance with the calls it expects   | the calls the code under test happens to make |
 
 ## Prefer an In-Memory Fake to a Mock
 
 Where the collaborator is something the application owns and persists through, such as a repository, use an in-memory
-implementation instead of a mock. [Hexagonal Architecture](../code/hexagonal-architecture.md) already requires
-such an adapter for every output port used in unit tests, and runs the port's contract suite against it; that suite is
-what makes the fake trustworthy.
+implementation instead of a mock. [Hexagonal Architecture](../code/hexagonal-architecture.md) already requires such an
+adapter for every output port used in unit tests, and runs the port's contract suite against it; that suite is what
+makes the fake trustworthy.
 
 A mock of the same collaborator encodes how the code currently calls it. Rename a method, merge two saves into one, or
 read before writing, and the test fails although the behaviour is unchanged. A fake checks the outcome, so the test

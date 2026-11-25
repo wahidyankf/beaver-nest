@@ -3,11 +3,8 @@
 This standard is canonical for Elixir. It holds the choices Elixir and Mix leave open, and an Elixir programming skill
 defers here for each rule it applies.
 
-It implements Explicit Over Implicit,
-Immutability, Pure Functions, and
-Automation Over Manual. Version files and `mix.lock` follow
-Native-First Toolchain and
-Reproducibility.
+It implements Explicit Over Implicit, Immutability, Pure Functions, and Automation Over Manual. Version files and
+`mix.lock` follow Native-First Toolchain and Reproducibility.
 
 ## Gates
 
@@ -54,16 +51,18 @@ to `nil`, as the [anti-patterns guide](https://elixir.hexdocs.pm/code-anti-patte
 
 A process exists for state that changes over time, concurrent work, or failure isolation, never to organise code. A
 GenServer callback stays thin: it passes the message and state to a pure function and returns what that function
-decides, as [Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell) requires. Dynamic
-processes are named through a registry with a `:via` tuple, never through generated atoms. A supervisor's restart
-strategy follows how its children depend on one another.
+decides, as
+[Functional Core, Imperative
+Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
+requires. Dynamic processes are named through a registry with a `:via` tuple, never through generated atoms. A
+supervisor's restart strategy follows how its children depend on one another.
 
 ## Tests
 
 ExUnit is the test framework. Integration tests carry a tag that the test helper excludes from the unit run, keeping the
-layers apart as [Quality Gates](../../quality-gates.md) requires. A module is `async: true`
-only when it touches no application environment, named process, shared file, or unsandboxed database; each database test
-runs in its own sandboxed transaction. Doctests belong to the unit layer.
+layers apart as [Quality Gates](../../quality-gates.md) requires. A module is `async: true` only when it touches no
+application environment, named process, shared file, or unsandboxed database; each database test runs in its own
+sandboxed transaction. Doctests belong to the unit layer.
 
 `mix test --cover` measures lines only, with no branch data. Coverage follows
 [Meaningful Coverage](../testing/meaningful-coverage.md): generated modules are listed under `:ignore_modules` with
@@ -75,8 +74,7 @@ their reason, partitioned runs are merged with `mix test.coverage` before judgin
 Each public module carries `@moduledoc` and each public function `@doc`, and examples are written as doctests so they
 stay true ([writing documentation](https://elixir.hexdocs.pm/writing-documentation.html)). `@doc false` hides an
 implementation detail from the reference but never makes it private. A behaviour change updates these with the code, as
-[Specification Maintenance](../../specification-maintenance.md) and
-Public Contract require.
+[Specification Maintenance](../../specification-maintenance.md) and Public Contract require.
 
 ## Enforcement
 

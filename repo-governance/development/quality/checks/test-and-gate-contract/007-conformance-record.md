@@ -11,8 +11,8 @@ when_to_use: >-
 
 ## C16 Lint
 
-Every stack has a real linter that fails at warning severity and above, per Lint Strictness,
-running in the pull-request gate. A formatter check is not a linter.
+Every stack has a real linter that fails at warning severity and above, per Lint Strictness, running in the pull-request
+gate. A formatter check is not a linter.
 
 ## C19 Gate Inventory
 
@@ -23,9 +23,9 @@ infeasible network denial, each with its reason.
 ## C20 Remote-Backed Delivery
 
 A remote-backed repository delivers through a worktree, a pull request, the green aggregate check, merge, and cleanup,
-per [Pull Request Merge](../../../../conventions/pull-request-merge.md). The leak review of the head runs before the push; for
-the pull request, the delivery harness acts on it as [PR Leak Review](../../../../workflows/quality/pr-leak-review.md)
-defines.
+per [Pull Request Merge](../../../../conventions/pull-request-merge.md). The leak review of the head runs before the
+push; for the pull request, the delivery harness acts on it as
+[PR Leak Review](../../../../workflows/quality/pr-leak-review.md) defines.
 
 ## C22 Required Check
 

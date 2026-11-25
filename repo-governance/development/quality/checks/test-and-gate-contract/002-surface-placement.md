@@ -9,9 +9,8 @@ when_to_use: >-
 
 # Surface Placement
 
-A surface is the moment a gate runs, as
-Surfaces and Mutation
-defines. Under this contract each surface holds exactly one kind of work.
+A surface is the moment a gate runs, as Surfaces and Mutation defines. Under this contract each surface holds exactly
+one kind of work.
 
 ## C6 What Each Surface Holds
 
@@ -56,8 +55,8 @@ hosted side.
 ## C10 Commit Messages
 
 The format lint runs at `commit-msg`, and again over the range in the pull-request gate, per
-[Thematic Commits](../../../../conventions/thematic-commits.md). Every repository has one; a message-safety scan is not a
-substitute.
+[Thematic Commits](../../../../conventions/thematic-commits.md). Every repository has one; a message-safety scan is not
+a substitute.
 
 ## C11 Leaks
 

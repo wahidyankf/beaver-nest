@@ -12,12 +12,19 @@ when_to_use: >-
 Not every context needs every layer. Choose the smallest shape that holds its behaviour, and grow it when the behaviour
 grows. A layer with nothing in it is not drawn.
 
-| Shape                  | Use when                                                                     | Layers                                                                                                                               |
-| ---------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Pure library           | the context computes and keeps no state and performs no effect               | domain, plus a facade if it has more than one caller                                                                                 |
-| Port-backed context    | the context reads or writes state, or performs an effect                     | facade, domain, ports, adapters                                                                                                      |
-| Process-backed context | the context also owns a long-lived process: a cache, a scheduler, a session  | as port-backed; the process belongs to the application layer, delegates decisions to the domain and effects to ports, and stays thin |
-| Supporting context     | the context exists to serve other contexts' adapters, such as a record store | as port-backed; consumers depend on its facade only from their own adapters                                                          |
+- **Pure library**
+  - Use when: the context computes and keeps no state and performs no effect
+  - Layers: domain, plus a facade if it has more than one caller
+- **Port-backed context**
+  - Use when: the context reads or writes state, or performs an effect
+  - Layers: facade, domain, ports, adapters
+- **Process-backed context**
+  - Use when: the context also owns a long-lived process: a cache, a scheduler, a session
+  - Layers: as port-backed; the process belongs to the application layer, delegates decisions to the domain and effects
+    to ports, and stays thin
+- **Supporting context**
+  - Use when: the context exists to serve other contexts' adapters, such as a record store
+  - Layers: as port-backed; consumers depend on its facade only from their own adapters
 
 A pure library becomes port-backed the first time one of its callers wants it to remember something. Move the
 persistence out of the caller and into a port of the context, rather than letting each caller persist the library's

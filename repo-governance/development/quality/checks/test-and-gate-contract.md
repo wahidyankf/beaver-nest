@@ -17,10 +17,9 @@ registry and validators are the recommended adapter; a repository with its own r
 Rule identifiers C1 to C24 are stable, so plans, audits, and acceptance criteria can cite them. This entrypoint indexes
 the rules; each module holds the full statement and its reasons.
 
-This standard implements Automation Over Manual and
-Fail Closed. What a surface is belongs to
-[Surface Placement](test-and-gate-contract/002-surface-placement.md); which
-kind of check runs on each surface belongs to [Surface Placement](test-and-gate-contract/002-surface-placement.md).
+This standard implements Automation Over Manual and Fail Closed. What a surface is belongs to
+[Surface Placement](test-and-gate-contract/002-surface-placement.md); which kind of check runs on each surface belongs
+to [Surface Placement](test-and-gate-contract/002-surface-placement.md).
 
 ## Surfaces at a Glance
 
@@ -37,32 +36,32 @@ gate.
 
 ## Rules and Enforcement
 
-| Rule                                                         | States                               | Disposition: check or reason                          |
-| ------------------------------------------------------------ | ------------------------------------ | ----------------------------------------------------- |
-| [C1](test-and-gate-contract/001-registry-and-dispatch.md)    | one gate declaration, dispatched     | gated: wiring rules W01–W06                           |
-| [C2](test-and-gate-contract/001-registry-and-dispatch.md)    | no dead entries or unwired artefacts | gated: wiring rules W01–W06                           |
-| [C3](test-and-gate-contract/001-registry-and-dispatch.md)    | the bootstrap installs hooks         | gated: the bootstrap health check                     |
-| [C4](test-and-gate-contract/001-registry-and-dispatch.md)    | every gate tool pinned               | gated: wiring rule W06, or a runner pin check         |
-| [C5](test-and-gate-contract/001-registry-and-dispatch.md)    | offline and deterministic            | unenforced: judgement; network-denied run as evidence |
-| [C6](test-and-gate-contract/002-surface-placement.md)        | one kind of work per surface         | gated: wiring rules W01–W05 and W07                   |
-| [C7](test-and-gate-contract/003-pull-request-scope.md)       | scope by dependence                  | unenforced: a per-check judgement                     |
-| [C8](test-and-gate-contract/002-surface-placement.md)        | superset, parallel, one aggregate    | gated: wiring rules W01–W05, composition              |
-| [C9](test-and-gate-contract/002-surface-placement.md)        | local landing gate                   | unenforced: review reads the landing evidence         |
-| [C10](test-and-gate-contract/002-surface-placement.md)       | commit-message lint twice            | gated: the message-lint entries                       |
-| [C11](test-and-gate-contract/002-surface-placement.md)       | leak scan and leak review            | gated: the leak-scanner entries                       |
-| [C12](test-and-gate-contract/004-test-levels-and-targets.md) | levels by strongest boundary         | gated: through C21                                    |
-| [C13](test-and-gate-contract/005-behaviour-corpus.md)        | bound behaviour corpus               | gated: behaviour-coverage rules B01–B09               |
-| [C14](test-and-gate-contract/004-test-levels-and-targets.md) | standard targets                     | gated: behaviour-coverage rules B01–B09               |
-| [C15](test-and-gate-contract/006-coverage-floor.md)          | 99% unit floor                       | gated: the coverage gate, failing at 98.9%            |
-| [C16](test-and-gate-contract/007-conformance-record.md)      | a real linter per stack              | gated: the lint entries, no advisory tier             |
-| [C17](test-and-gate-contract/004-test-levels-and-targets.md) | every layer runs automatically       | gated: wiring rule W01                                |
-| [C18](test-and-gate-contract/004-test-levels-and-targets.md) | no placeholders                      | gated: the skip and focus bans                        |
-| [C19](test-and-gate-contract/007-conformance-record.md)      | gate inventory                       | unenforced: review against the registry               |
-| [C20](test-and-gate-contract/007-conformance-record.md)      | remote-backed delivery               | unenforced: review reads the merge record             |
-| [C21](test-and-gate-contract/004-test-levels-and-targets.md) | hermetic units, mechanically         | gated: the stack mechanism                            |
-| [C22](test-and-gate-contract/007-conformance-record.md)      | required `quality-gate` check        | gated: a recorded hosting-service read                |
-| [C23](test-and-gate-contract/007-conformance-record.md)      | diagram rule and validation          | gated: the Mermaid validator                          |
-| [C24](test-and-gate-contract/007-conformance-record.md)      | per project, product scope           | covered: per-project checks of C13, C15, C21          |
+| Rule                  | States                               | Disposition: check or reason                          |
+| --------------------- | ------------------------------------ | ----------------------------------------------------- |
+| [C1][registry]        | one gate declaration, dispatched     | gated: wiring rules W01–W06                           |
+| [C2][registry]        | no dead entries or unwired artefacts | gated: wiring rules W01–W06                           |
+| [C3][registry]        | the bootstrap installs hooks         | gated: the bootstrap health check                     |
+| [C4][registry]        | every gate tool pinned               | gated: wiring rule W06, or a runner pin check         |
+| [C5][registry]        | offline and deterministic            | unenforced: judgement; network-denied run as evidence |
+| [C6][surfaces]        | one kind of work per surface         | gated: wiring rules W01–W05 and W07                   |
+| [C7][pr-scope]        | scope by dependence                  | unenforced: a per-check judgement                     |
+| [C8][surfaces]        | superset, parallel, one aggregate    | gated: wiring rules W01–W05, composition              |
+| [C9][surfaces]        | local landing gate                   | unenforced: review reads the landing evidence         |
+| [C10][surfaces]       | commit-message lint twice            | gated: the message-lint entries                       |
+| [C11][surfaces]       | leak scan and leak review            | gated: the leak-scanner entries                       |
+| [C12][levels]         | levels by strongest boundary         | gated: through C21                                    |
+| [C13][corpus]         | bound behaviour corpus               | gated: behaviour-coverage rules B01–B09               |
+| [C14][levels]         | standard targets                     | gated: behaviour-coverage rules B01–B09               |
+| [C15][coverage-floor] | 99% unit floor                       | gated: the coverage gate, failing at 98.9%            |
+| [C16][conformance]    | a real linter per stack              | gated: the lint entries, no advisory tier             |
+| [C17][levels]         | every layer runs automatically       | gated: wiring rule W01                                |
+| [C18][levels]         | no placeholders                      | gated: the skip and focus bans                        |
+| [C19][conformance]    | gate inventory                       | unenforced: review against the registry               |
+| [C20][conformance]    | remote-backed delivery               | unenforced: review reads the merge record             |
+| [C21][levels]         | hermetic units, mechanically         | gated: the stack mechanism                            |
+| [C22][conformance]    | required `quality-gate` check        | gated: a recorded hosting-service read                |
+| [C23][conformance]    | diagram rule and validation          | gated: the Mermaid validator                          |
+| [C24][conformance]    | per project, product scope           | covered: per-project checks of C13, C15, C21          |
 
 ## Modules
 
@@ -76,3 +75,11 @@ gate.
 
 An adopter records adopted, adapted, or not applicable for each module, per
 [Conformance Record](test-and-gate-contract/007-conformance-record.md).
+
+[registry]: test-and-gate-contract/001-registry-and-dispatch.md
+[surfaces]: test-and-gate-contract/002-surface-placement.md
+[pr-scope]: test-and-gate-contract/003-pull-request-scope.md
+[levels]: test-and-gate-contract/004-test-levels-and-targets.md
+[corpus]: test-and-gate-contract/005-behaviour-corpus.md
+[coverage-floor]: test-and-gate-contract/006-coverage-floor.md
+[conformance]: test-and-gate-contract/007-conformance-record.md

@@ -39,8 +39,8 @@ own owns leaves the table and becomes judgeable.
 
 Each cycle is one full audit by the judge, `swe-api-tester` under its `contract` charter, and one repair by
 [API HTTP Propagation](api-http-propagation.md), run by `swe-developer` in its Apply Findings mode, per
-[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge sends real requests against the contract and behaviour
-specifications, and judges:
+[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge sends
+real requests against the contract and behaviour specifications, and judges:
 
 - status codes, and response and error shapes, where no schema test already pins them;
 - authorization boundaries: what each role can and cannot reach;

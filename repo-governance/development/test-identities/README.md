@@ -4,4 +4,5 @@ Read in order with the [Test identities](../test-identities.md) entrypoint, whic
 
 ## Directory Map
 
-- [001 Test instance layout and teardown](001-test-instances.md) gives the instance directories, their marker, and which actor removes each instance and when.
+- [001 Test instance layout and teardown](001-test-instances.md) gives the instance directories, their marker, and which
+  actor removes each instance and when.

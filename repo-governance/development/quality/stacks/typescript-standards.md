@@ -15,17 +15,14 @@ and a TypeScript programming skill defers here for every rule it applies.
 The compiler proves only what its configuration asks: a permissive option, an `any`, or an assertion in place of a check
 lets a program type-check and still fail at runtime.
 
-It implements Explicit Over Implicit,
-Immutability, Reproducibility, and
-Automation Over Manual. React code also follows
+It implements Explicit Over Implicit, Immutability, Reproducibility, and Automation Over Manual. React code also follows
 React Standards, and Next.js code Next.js Standards.
 
 ## Compiler Version
 
 Each project declares a minimum compiler version, and its lockfile pins the exact compiler every contributor and
 pipeline runs. A new project starts on the current stable release line. Raising the floor is a deliberate change,
-because checking behaviour differs between releases. Declaring and pinning follow
-Native-First Toolchain.
+because checking behaviour differs between releases. Declaring and pinning follow Native-First Toolchain.
 
 ## Strict Compiler Options
 
@@ -53,8 +50,10 @@ An option is never relaxed to make a change compile; the code is fixed instead.
   same primitive is branded and created only by a validating factory.
 
 Code is organised by feature; no technical layer spans features. Business logic is functions over readonly data,
-structured as [Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell) or, where ports
-exist, [Hexagonal Architecture](../code/hexagonal-architecture.md).
+structured as
+[Functional Core, Imperative
+Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
+or, where ports exist, [Hexagonal Architecture](../code/hexagonal-architecture.md).
 
 ## Expected Failures Are Returned
 
@@ -74,8 +73,8 @@ returned, or given a rejection handler, because a floating promise's rejection e
 
 Findings fail at the threshold [Quality Gates](../../quality-gates.md) sets, and each gate is a named target as
 [Quality Gates](../../quality-gates.md) requires. Behaviour is built test-first per
-[Test-Driven Development](../../test-driven-development.md). A test that intercepts network requests in process is
-a unit test, never integration evidence. Whether coverage has a floor is recorded under
+[Test-Driven Development](../../test-driven-development.md). A test that intercepts network requests in process is a
+unit test, never integration evidence. Whether coverage has a floor is recorded under
 [Quality Gates](../../quality-gates.md).
 
 ## Illustrative Example

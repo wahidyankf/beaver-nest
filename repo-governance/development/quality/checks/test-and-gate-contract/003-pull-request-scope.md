@@ -23,20 +23,20 @@ Each repository records the scope of every check in its gate inventory, per
 
 ## Classification
 
-| Check                                                 | Scope         | Why                                                |
-| ----------------------------------------------------- | ------------- | -------------------------------------------------- |
-| typecheck                                             | affected      | reads one project and the dependencies it declares |
-| lint                                                  | affected      | reads one project's sources                        |
-| unit and BDD unit tests, with their coverage          | affected      | hermetic; nothing outside the project reaches them |
-| `test:integration`                                    | affected      | runs one project's integration suite               |
-| formatting, line length, and other single-file checks | changed files | the result reads only the changed file             |
-| internal-link and anchor checks                       | global        | deleting a target breaks a link in another project |
-| README-index and directory-map checks                 | global        | a move in one directory orphans or ghosts an entry |
-| registry and wiring validation                        | global        | a surface's caller can sit anywhere in the tree    |
-| harness-adapter parity                                | global        | one source regenerates adapters in many places     |
-| `test:behaviour:coverage`                             | global        | a binding and its scenario can sit in any project  |
-| the leak scan                                         | global        | it screens the tree, the range, and the messages   |
-| any check with a cross-file part                      | global        | an edit outside the change can flip its result     |
+| Check                                          | Scope         | Why                                                |
+| ---------------------------------------------- | ------------- | -------------------------------------------------- |
+| typecheck                                      | affected      | reads one project and the dependencies it declares |
+| lint                                           | affected      | reads one project's sources                        |
+| unit and BDD unit tests, with their coverage   | affected      | hermetic; nothing outside the project reaches them |
+| `test:integration`                             | affected      | runs one project's integration suite               |
+| formatting, line length, other one-file checks | changed files | the result reads only the changed file             |
+| internal-link and anchor checks                | global        | deleting a target breaks a link in another project |
+| README-index and directory-map checks          | global        | a move in one directory orphans or ghosts an entry |
+| registry and wiring validation                 | global        | a surface's caller can sit anywhere in the tree    |
+| harness-adapter parity                         | global        | one source regenerates adapters in many places     |
+| `test:behaviour:coverage`                      | global        | a binding and its scenario can sit in any project  |
+| the leak scan                                  | global        | it screens the tree, the range, and the messages   |
+| any check with a cross-file part               | global        | an edit outside the change can flip its result     |
 
 "Affected" is derived from the repository's dependency graph or changed paths, so a change to a shared library also runs
 the checks of every project that depends on it.

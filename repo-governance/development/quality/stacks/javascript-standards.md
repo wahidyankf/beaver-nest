@@ -14,11 +14,8 @@ including those inside a TypeScript project. It holds the choices the language l
 skill defers here for each rule it applies. Code written in TypeScript follows
 [TypeScript Standards](typescript-standards.md) instead.
 
-It implements Explicit Over Implicit,
-Fail Closed, and
-Automation Over Manual. The runtime version, lockfile, and every tool
-below follow Native-First Toolchain and
-Reproducibility.
+It implements Explicit Over Implicit, Fail Closed, and Automation Over Manual. The runtime version, lockfile, and every
+tool below follow Native-First Toolchain and Reproducibility.
 
 ## Gates
 
@@ -61,28 +58,36 @@ In JavaScript:
 
 ## Tests
 
-Tests follow [Quality Gates](../../quality-gates.md): a test that intercepts network
-requests in process is a unit test, never integration evidence. A gate relies only on a coverage instrument its runtime
-or runner marks stable, and measures branches where the instrument can, per
-[Meaningful Coverage](../testing/meaningful-coverage.md). Example: Vitest with V8 coverage
-([coverage](https://vitest.dev/guide/coverage)). Any floor is recorded under
+Tests follow [Quality Gates](../../quality-gates.md): a test that intercepts network requests in process is a unit test,
+never integration evidence. A gate relies only on a coverage instrument its runtime or runner marks stable, and measures
+branches where the instrument can, per [Meaningful Coverage](../testing/meaningful-coverage.md). Example: Vitest with V8
+coverage ([coverage](https://vitest.dev/guide/coverage)). Any floor is recorded under
 [Quality Gates](../../quality-gates.md).
 
 ## Documentation
 
 The JSDoc on an exported function is both its type and its reference documentation, so it states behaviour and thrown
 errors as well as types. A change to observable behaviour updates it per
-[Specification Maintenance](../../specification-maintenance.md) and
-Public Contract.
+[Specification Maintenance](../../specification-maintenance.md) and Public Contract.
 
 ## Adopter Decisions
 
-| Decision    | Option                            | Gains                                 | Costs                                          |
-| ----------- | --------------------------------- | ------------------------------------- | ---------------------------------------------- |
-| check scope | project-wide `checkJs`            | no file escapes by omission           | an existing backlog is cleaned before the gate |
-|             | per-file `// @ts-check`           | adoption file by file                 | an unmarked file is unchecked, silently        |
-| test runner | the runtime's built-in runner     | no dependency                         | coverage may still be marked experimental      |
-|             | a runner package; example: Vitest | stable branch coverage and watch mode | a dependency to pin and upgrade                |
+- **check scope**
+  - Option: project-wide `checkJs`
+  - Gains: no file escapes by omission
+  - Costs: an existing backlog is cleaned before the gate
+- **check scope**
+  - Option: per-file `// @ts-check`
+  - Gains: adoption file by file
+  - Costs: an unmarked file is unchecked, silently
+- **test runner**
+  - Option: the runtime's built-in runner
+  - Gains: no dependency
+  - Costs: coverage may still be marked experimental
+- **test runner**
+  - Option: a runner package; example: Vitest
+  - Gains: stable branch coverage and watch mode
+  - Costs: a dependency to pin and upgrade
 
 Record each choice in the repository adapter [Stack Packs](../../../conventions/structure/stack-packs.md) defines. A
 per-file choice records how an unmarked file is found.
