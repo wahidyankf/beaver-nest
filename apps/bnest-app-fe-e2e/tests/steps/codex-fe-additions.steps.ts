@@ -15,7 +15,7 @@ const { Given, Then, When, After } = createBdd();
 
 // E2E bindings for the phase-8 FE ADD rows about the chat room itself:
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
-// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home links to the Sifat Allah revision activity
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
 // --- Second session (BN-DOC-01) --------------------------------------------

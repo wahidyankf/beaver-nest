@@ -226,11 +226,11 @@ Feature: Beaver Nest chat
     Then the other tab shows the visitor message "Remember the river"
     And the other tab shows a completed Codex response
 
-  Scenario: Home links to the Sifat Allah revision activity
+  Scenario: Home hides the Sifat Allah mission entry and keeps the chat entry
     When a visitor opens "/"
     Then the page displays the heading "Beaver Nest"
-    And the page offers the "Misi hafal 40 sifat Allah" link to "/apps/sifat-allah"
     And the page offers the "Start chatting" link to "/chat"
+    And the page does not offer the "Misi hafal 40 sifat Allah" link to "/apps/sifat-allah"
 
   Scenario Outline: Home shows Family chat only when the room is enabled
     Given family chat is "<setting>"

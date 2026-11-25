@@ -212,7 +212,7 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A smaller screen from the soft keyboard keeps the Codex composer on screen
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
-// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home links to the Sifat Allah revision activity
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged

@@ -1,8 +1,9 @@
 defmodule BnestAppWeb.HomeLinksTest do
-  # The home page offers the Sifat Allah revision activity beside Start
+  # The home page hides the Sifat Allah mission entry and keeps Start
   # chatting, and the Family chat entry only while the room is enabled.
   #
-  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home links to the Sifat Allah revision activity
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
@@ -30,13 +31,14 @@ defmodule BnestAppWeb.HomeLinksTest do
     :ok
   end
 
-  test "offers the Sifat Allah revision activity beside Start chatting" do
+  test "hides the Sifat Allah mission entry and keeps the chat entry" do
     Application.put_env(:bnest_app, :family_chat_enabled, true)
     page = render_home()
 
-    assert page =~ "Misi hafal 40 sifat Allah"
-    assert page =~ "/apps/sifat-allah"
+    refute page =~ "Misi hafal 40 sifat Allah"
+    refute page =~ "/apps/sifat-allah"
     assert page =~ "Start chatting"
+    assert page =~ ~s(href="/chat")
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
