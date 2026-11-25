@@ -4022,3 +4022,33 @@ test("development commands: each Nx target runs the checks it names, in order", 
     assert.equal(target.options?.parallel, parallel, `${name} parallelism`);
   }
 });
+
+// The integration suite's arguments and its bwrap denial live only in the
+// script that runs them, so the script itself is read and pinned here.
+test("integration suite: the denied runner pins its arguments and runs under bwrap", () => {
+  const script = readFileSync(
+    join(worktreeRoot, "apps/bnest-app/tools/test-integration-denied.sh"),
+    "utf8",
+  );
+  const suiteArgs = /suite_args=\(\n([\s\S]*?)\n\)/.exec(script);
+  assert.ok(suiteArgs, "test-integration-denied.sh declares suite_args");
+  assert.deepEqual(suiteArgs[1].trim().split(/\s+/), [
+    "--warnings-as-errors",
+    "--exclude",
+    "integration-exempt",
+    "--exclude",
+    "ci-exempt",
+    "--max-cases",
+    "1",
+    "test/integration",
+  ]);
+  const bwrapBranch = [
+    "if command -v bwrap >/dev/null 2>&1; then",
+    "  exec bwrap --unshare-net --bind / / --proc /proc --dev /dev \\",
+    '    mix do compile --warnings-as-errors + test "${suite_args[@]}" "$@"',
+  ].join("\n");
+  assert.ok(
+    script.includes(bwrapBranch),
+    "the bwrap branch runs the suite with the network denied",
+  );
+});
