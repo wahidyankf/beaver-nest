@@ -165,7 +165,7 @@ defmodule BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter do
 
   def sign_in_roles(context, roles_string) do
     roles = parse_roles(roles_string)
-    previous_identity = Application.fetch_env!(:bnest_app, BnestApp.Identity)
+    {previous_identity, real_store} = identity_before_roles_swap()
 
     Application.put_env(
       :bnest_app,
@@ -173,10 +173,7 @@ defmodule BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter do
       Keyword.put(previous_identity, :identity_store, InvalidRolesStore)
     )
 
-    Application.put_env(:bnest_app, InvalidRolesStore,
-      real: Keyword.fetch!(previous_identity, :identity_store),
-      roles: roles
-    )
+    Application.put_env(:bnest_app, InvalidRolesStore, real: real_store, roles: roles)
 
     ExUnit.Callbacks.on_exit(fn ->
       Application.put_env(:bnest_app, BnestApp.Identity, previous_identity)
@@ -315,6 +312,22 @@ defmodule BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter do
 
   defp owner_from(context) do
     (context[:test_identity] && context[:test_identity].user_id) || context[:user_id]
+  end
+
+  # A scenario may sign in more than once, so the identity config may already
+  # name InvalidRolesStore. Reading it as the real store would make the
+  # store wrap itself, so recover the config from before the first swap.
+  defp identity_before_roles_swap do
+    identity = Application.fetch_env!(:bnest_app, BnestApp.Identity)
+
+    case Keyword.fetch!(identity, :identity_store) do
+      InvalidRolesStore ->
+        real_store = Application.fetch_env!(:bnest_app, InvalidRolesStore)[:real]
+        {Keyword.put(identity, :identity_store, real_store), real_store}
+
+      real_store ->
+        {identity, real_store}
+    end
   end
 
   defp parse_roles("(empty)"), do: []
