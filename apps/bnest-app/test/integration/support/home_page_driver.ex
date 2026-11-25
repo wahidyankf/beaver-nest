@@ -114,20 +114,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   def open(%{conn: conn} = context, "/family-chat") do
     response = get(conn, "/family-chat")
+    route = redirected_to(response)
+    followed = get(conn, route)
 
-    if response.status == 302 do
-      route = redirected_to(response)
-      followed = get(conn, route)
-
-      context
-      |> Map.put(:route, route)
-      |> Map.put(:page, LazyHTML.from_fragment(followed.resp_body))
-    else
-      # The flag is off, so the pipeline answers Not found instead of redirecting.
-      context
-      |> Map.put(:route, "/family-chat")
-      |> Map.put(:page, LazyHTML.from_fragment(response.resp_body))
-    end
+    context
+    |> Map.put(:route, route)
+    |> Map.put(:page, LazyHTML.from_fragment(followed.resp_body))
   end
 
   def open(%{conn: conn} = context, "/family-chat/" <> _slug = route) do
