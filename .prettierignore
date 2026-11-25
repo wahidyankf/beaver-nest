@@ -26,3 +26,11 @@ specs/fixtures/
 .agents/agents/*/AGENT.md
 .agents/agents/catalog.json
 .agents/agents/provenance.json
+
+# Generated build output fails prettier and is never hand-edited.
+# `cover/` and `tmp/` match at any level; the slashed paths need `**/` to
+# match nested Phoenix output (verified with `prettier --check .`).
+cover/
+tmp/
+**/priv/static/assets/
+**/assets/coverage/
