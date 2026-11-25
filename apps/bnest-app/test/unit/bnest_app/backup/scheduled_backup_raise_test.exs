@@ -5,7 +5,6 @@ defmodule BnestApp.Backup.ScheduledBackupRaiseTest do
   use ExUnit.Case, async: false
 
   alias BnestApp.Backup
-  alias BnestApp.Backup.Adapters.ScheduledBackupTask
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Scheduler
   alias BnestApp.Test.InMemory.ArtifactStore
@@ -53,11 +52,18 @@ defmodule BnestApp.Backup.ScheduledBackupRaiseTest do
     {:ok, first_claim} =
       Scheduler.claim_setup("prod-sqlite-backup-daily", context.location.destination_id, @before)
 
-    assert {:ok, first} = ScheduledBackupTask.execute(first_claim, @before)
+    # The scheduled run goes through the Scheduler facade, which dispatches the claim
+    # to its registered task; the recorded run then names the first artifact.
+    :ok = Scheduler.execute(first_claim, @before)
+
+    assert %{artifact_basename: first_basename} =
+             "prod_sqlite_backup"
+             |> Scheduler.verified_runs()
+             |> Enum.find(&(&1.run_id == first_claim.run_id))
 
     # Without its receipt the first artifact is read by reconciliation alone: backup,
     # receipt writing and retention never look at it. It cannot be read, as by a disk error.
-    first_artifact = artifact_path(context, first)
+    first_artifact = artifact_key(context, first_basename)
     :ok = ArtifactStore.remove(context.artifacts, Receipt.path(first_artifact))
     :ok = UnreadableArtifactStore.install!(first_artifact)
 
@@ -84,11 +90,12 @@ defmodule BnestApp.Backup.ScheduledBackupRaiseTest do
 
     on_exit(fn -> :telemetry.detach("scheduled-backup-raise-proof") end)
 
-    assert {:ok, receipt} = ScheduledBackupTask.execute(second_claim, @now)
+    # The recorded receipt names the claim's run, so the claim's ID selects this run.
+    :ok = Scheduler.execute(second_claim, @now)
 
     runs = Scheduler.verified_runs("prod_sqlite_backup")
 
-    assert Enum.any?(runs, &(&1.run_id == receipt["runId"]))
+    assert Enum.any?(runs, &(&1.run_id == second_claim.run_id))
 
     # The pattern selects only this run's raised check: healthy checks from
     # backups other tests run concurrently carry exit status zero in their metadata.
@@ -100,6 +107,6 @@ defmodule BnestApp.Backup.ScheduledBackupRaiseTest do
     assert metadata.problems == []
   end
 
-  defp artifact_path(context, receipt),
-    do: Path.join(context.location.directory, receipt["artifactBasename"])
+  # The key addresses the in-memory artifact store, never the disk.
+  defp artifact_key(context, basename), do: context.location.directory <> "/" <> basename
 end
