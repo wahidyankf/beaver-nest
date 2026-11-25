@@ -3,7 +3,8 @@ name: PR Quality Gate
 # The pull-request surface of the registry in `repo-config.yml` runs here, from
 # any checkout (C8). This workflow is a superset of the local hooks: it replays
 # every hook check, and it runs every other pull-request entry in parallel jobs.
-# One aggregate job named `quality-gate` is the single required result.
+# One aggregate job is the single required result. Its display name is
+# `Quality gate`; its job id is `quality-gate`.
 #
 # The gates come only from the registry (C1). Each job selects its entries with
 # `--entry`, so no job copies a gate's command, and every pull-request entry runs
@@ -252,7 +253,7 @@ jobs:
   # The single required status check. A skipped or cancelled dependency is not a
   # pass, so only an explicit success from every job may open the merge button.
   quality-gate:
-    name: quality-gate
+    name: Quality gate
     needs:
       - global-checks
       - commit-messages

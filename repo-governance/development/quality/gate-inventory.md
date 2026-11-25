@@ -55,7 +55,8 @@ Each `./rhino <command>` in the registry is shown here without its prefix. The r
 
 These run in the pull-request workflow, outside the registry, because their input is not a repository gate input.
 
-- **Aggregate `quality-gate` job** (global): the single required result over every pull-request entry.
+- **Aggregate job `quality-gate`**, displayed as `Quality gate` (global): the single required result over every
+  pull-request entry.
 - **PR leak review** (not in CI): the judgement review that runs and passes before an agent push (C11).
 
 ## Exempt layers and infeasible checks
