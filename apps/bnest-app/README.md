@@ -1,107 +1,267 @@
 # bnest-app
 
-`bnest-app` is the Phoenix LiveView application that serves Beaver Nest's local Codex chat. See the [repository README](../../README.md) for the product purpose, shared setup, privacy boundaries, and repository layout.
+`bnest-app` is the Phoenix LiveView application that serves Beaver Nest's local Codex chat. See the
+[repository README](../../README.md) for the product purpose, shared setup, privacy boundaries, and repository layout.
 
 ## Scope
 
-This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI, browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters for Bnest's canonical Gherkin behaviour. It includes the child-friendly `/apps/sifat-allah` revision activity, the SQLite-backed daily scheduler, independently verified production SQLite backups, a read-only check that the retained backups are still in the backup folder, and a restore drill that proves one of them restores. It also owns the authenticated family chat feature: an Absinthe GraphQL schema/resolver layer (`family_chat_rooms`/`family_chat_room`/`family_chat_messages` queries, `send_family_chat_message` mutation, `family_chat_message_committed` subscription), the `FamilyChatController` route that renders the GraphQL-driven room shell (not a LiveView), and Web Push delivery with retry and a retention task the Scheduler runs as a second registered task. A message may answer one earlier message in the same room: `send_family_chat_message` accepts an optional `replyToMessageId`, and every message type exposes a nullable `replyTo` carrying the answered message's id, sender, and a bounded preview of its text. The whole feature is implemented and tested behind the `BNEST_FAMILY_CHAT_ENABLED` flag, which still defaults to off; quoting is gated independently by `BNEST_FAMILY_CHAT_REPLY_ENABLED`, which also defaults to off. Browser-level acceptance belongs to [bnest-app-be-e2e](../bnest-app-be-e2e/README.md) (backend boundary, no reverse proxy) and [bnest-app-fe-e2e](../bnest-app-fe-e2e/README.md) (frontend/PWA, full Caddy rollout); the reusable Elixir BDD engine is [ex-bdd](https://github.com/wahidyankf/ex-bdd), extracted from this repository and tag-pinned at v0.1.0.
+This project owns the OTP application, Phoenix endpoint and router, LiveViews, Codex process bridge, server-rendered UI,
+browser assets, Progressive Web App (PWA) manifest and service worker, and the unit and local-only integration adapters
+for Bnest's canonical Gherkin behaviour. It includes the child-friendly `/apps/sifat-allah` revision activity, the
+SQLite-backed daily scheduler, independently verified production SQLite backups, a read-only check that the retained
+backups are still in the backup folder, and a restore drill that proves one of them restores. It also owns the
+authenticated family chat feature: an Absinthe GraphQL schema/resolver layer
+(`family_chat_rooms`/`family_chat_room`/`family_chat_messages` queries, `send_family_chat_message` mutation,
+`family_chat_message_committed` subscription), the `FamilyChatController` route that renders the GraphQL-driven room
+shell (not a LiveView), and Web Push delivery with retry and a retention task the Scheduler runs as a second registered
+task. A message may answer one earlier message in the same room: `send_family_chat_message` accepts an optional
+`replyToMessageId`, and every message type exposes a nullable `replyTo` carrying the answered message's id, sender, and
+a bounded preview of its text. The whole feature is implemented and tested behind the `BNEST_FAMILY_CHAT_ENABLED` flag,
+which still defaults to off; quoting is gated independently by `BNEST_FAMILY_CHAT_REPLY_ENABLED`, which also defaults to
+off. Browser-level acceptance belongs to [bnest-app-be-e2e](../bnest-app-be-e2e/README.md) (backend boundary, no reverse
+proxy) and [bnest-app-fe-e2e](../bnest-app-fe-e2e/README.md) (frontend/PWA, full Caddy rollout); the reusable Elixir BDD
+engine is [ex-bdd](https://github.com/wahidyankf/ex-bdd), extracted from this repository and tag-pinned at v0.1.0.
 
-The generic scheduler persists contextual definitions and run claims in authoritative SQLite, dispatches only the tasks its configuration registers through one supervised task pool, renews leases, and fences file publication by attempt. The production backup handler reads the active SQLite source, resolves the ignored `data/backup/` default from the permanent runtime checkout rather than the temporary release-build worktree, and accepts a safe absolute override through private `~/.config/bnest/backup.json`. Tests never resolve a checkout's `data/backup`: `config/test.exs` gives each run its own `:backup_repository_root` below `~/bnest/data/test/backup-repository/`, which wins over an inherited `BNEST_REPOSITORY_ROOT` and is no git repository, so an unconfigured test backup fails closed; tests that need a working default install an isolated git repository, and the E2E runtime no longer creates that root (ADR 001 moves each test instance's backup repository beneath its own directory). Each scheduled backup is followed by a read-only check that the backups retention keeps are still in the backup folder, and the Production database backup row of `/admin/settings/schedules` shows the same check as a `Backup files` item. The page runs it on the connected mount and after each successful save, off the render path and under a ceiling of 5000 ms by default (`config :bnest_app, BnestAppWeb.AdminScheduleSettingsLive, integrity_ceiling_ms: <ms>`); it shows checking, all present, needs attention (one line per affected date, file missing or changed), could not be checked, or nothing to check yet, stores nothing, and shows no path or identifier. Only admins can open `/admin/settings` or `/admin/settings/schedules`; configuration panels remain code-owned and each domain validates and saves only its allowlisted fields.
+The generic scheduler persists contextual definitions and run claims in authoritative SQLite, dispatches only the tasks
+its configuration registers through one supervised task pool, renews leases, and fences file publication by attempt. The
+production backup handler reads the active SQLite source, resolves the ignored `data/backup/` default from the permanent
+runtime checkout rather than the temporary release-build worktree, and accepts a safe absolute override through private
+`~/.config/bnest/backup.json`. Tests never resolve a checkout's `data/backup`: `config/test.exs` gives each run its own
+`:backup_repository_root` below `~/bnest/data/test/backup-repository/`, which wins over an inherited
+`BNEST_REPOSITORY_ROOT` and is no git repository, so an unconfigured test backup fails closed; tests that need a working
+default install an isolated git repository, and the E2E runtime no longer creates that root (ADR 001 moves each test
+instance's backup repository beneath its own directory). Each scheduled backup is followed by a read-only check that the
+backups retention keeps are still in the backup folder, and the Production database backup row of
+`/admin/settings/schedules` shows the same check as a `Backup files` item. The page runs it on the connected mount and
+after each successful save, off the render path and under a ceiling of 5000 ms by default
+(`config :bnest_app, BnestAppWeb.AdminScheduleSettingsLive, integrity_ceiling_ms: <ms>`); it shows checking, all
+present, needs attention (one line per affected date, file missing or changed), could not be checked, or nothing to
+check yet, stores nothing, and shows no path or identifier. Only admins can open `/admin/settings` or
+`/admin/settings/schedules`; configuration panels remain code-owned and each domain validates and saves only its
+allowlisted fields.
 
 ## Setup and Development
 
-The project requires Elixir `~> 1.18` with Erlang/OTP and Mix, Node.js 18 or newer, and Codex authentication available to the local account. From this directory, install its dependencies and assets once:
+The project requires Elixir `~> 1.18` with Erlang/OTP and Mix, Node.js 18 or newer, and Codex authentication available
+to the local account. From this directory, install its dependencies and assets once:
 
 ```sh
 mix setup
 ```
 
-The chat Markdown renderer uses the [MDEx](https://hex.pm/packages/mdex) package (ADR 002). Its native library is a precompiled NIF from the `mdex_native` package. The first compile on a machine downloads that file once from github.com, checks it against the checksum in the package, and caches it in `~/.cache/rustler_precompiled`; later builds use the cache and need no network. A host with no github.com access needs a warm cache. Set `MDEX_NATIVE_BUILD=1` to build the NIF from source with a Rust toolchain on a platform that has no precompiled file.
+The chat Markdown renderer uses the [MDEx](https://hex.pm/packages/mdex) package (ADR 002). Its native library is a
+precompiled NIF from the `mdex_native` package. The first compile on a machine downloads that file once from github.com,
+checks it against the checksum in the package, and caches it in `~/.cache/rustler_precompiled`; later builds use the
+cache and need no network. A host with no github.com access needs a warm cache. Set `MDEX_NATIVE_BUILD=1` to build the
+NIF from source with a Rust toolchain on a platform that has no precompiled file.
 
 Run project tasks from the repository root:
 
-| Task                                            | Command                                                                                        |
-| ----------------------------------------------- | ---------------------------------------------------------------------------------------------- |
-| Build browser assets for tests                  | `npm exec -- nx run -p bnest-app -t assets:build`                                              |
-| Start the stable development server             | `npm exec -- nx run -p bnest-app -t serve`                                                     |
-| Install the stable local Caddy proxy            | `npm exec -- nx run -p bnest-app -t proxy:install`                                             |
-| Inspect deployment routing                      | `npm exec -- nx run -p bnest-app -t proxy:status`                                              |
-| Build an immutable candidate release            | `npm exec -- nx run -p bnest-app -t release:build`                                             |
-| Test the release transaction                    | `npm exec -- nx run -p bnest-app -t release:test`                                              |
-| Run one deterministic release                   | `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`                           |
-| Start an inactive release slot                  | `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>`           |
-| Gracefully promote a release slot               | `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`                            |
-| Route back to the previous slot                 | `npm exec -- nx run -p bnest-app -t deploy:rollback`                                           |
-| Stop a drained inactive slot                    | `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`                              |
-| Enable persistent tailnet HTTPS                 | `npm exec -- nx run -p bnest-app -t tailnet:up`                                                |
-| Inspect the tailnet proxy                       | `npm exec -- nx run -p bnest-app -t tailnet:status`                                            |
-| Disable the tailnet proxy                       | `npm exec -- nx run -p bnest-app -t tailnet:down`                                              |
-| Run the complete quick suite                    | `npm exec -- nx run -p bnest-app -t test:quick`                                                |
-| Run unit scenarios with coverage                | `npm exec -- nx run -p bnest-app -t test:unit`                                                 |
-| Run integration scenarios and the layering scan | `npm exec -- nx run -p bnest-app -t test:integration`                                          |
-| Prove real Codex consumption (dev only)         | `npm exec -- nx run -p bnest-app -t test:live`                                                 |
-| Run the behaviour binding checks                | `npm exec -- nx run -p bnest-app -t test:behaviour:verify`                                     |
-| Check the behaviour corpus statically           | `npm exec -- nx run -p bnest-app -t test:behaviour:coverage`                                   |
-| Run type and module-boundary checks             | `npm exec -- nx run -p bnest-app -t typecheck`                                                 |
-| Run all linters                                 | `npm exec -- nx run -p bnest-app -t lint`                                                      |
-| Check Elixir and HEEx formatting                | `npm exec -- nx run -p bnest-app -t format`                                                    |
-| Audit runtime schemas without values            | `npm exec -- nx run -p bnest-app -t schema:audit`                                              |
-| Benchmark the password verifier                 | `npm exec -- nx run -p bnest-app -t identity:benchmark`                                        |
-| Relocate authoritative SQLite data              | `npm exec -- nx run -p bnest-app -t storage:relocate`                                          |
-| Retire verified legacy storage                  | `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>` |
-| Purge legacy production test records            | `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`      |
-| Clean stale isolated test data                  | `npm exec -- nx run -p bnest-app -t test-data:cleanup`                                         |
+- **Build browser assets for tests**
+  - Command: `npm exec -- nx run -p bnest-app -t assets:build`
+- **Start the stable development server**
+  - Command: `npm exec -- nx run -p bnest-app -t serve`
+- **Install the stable local Caddy proxy**
+  - Command: `npm exec -- nx run -p bnest-app -t proxy:install`
+- **Inspect deployment routing**
+  - Command: `npm exec -- nx run -p bnest-app -t proxy:status`
+- **Build an immutable candidate release**
+  - Command: `npm exec -- nx run -p bnest-app -t release:build`
+- **Test the release transaction**
+  - Command: `npm exec -- nx run -p bnest-app -t release:test`
+- **Run one deterministic release**
+  - Command: `npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>`
+- **Start an inactive release slot**
+  - Command: `npm exec -- nx run -p bnest-app -t deploy:prepare -- --slot green --revision <sha>`
+- **Gracefully promote a release slot**
+  - Command: `npm exec -- nx run -p bnest-app -t deploy:promote -- --slot green`
+- **Route back to the previous slot**
+  - Command: `npm exec -- nx run -p bnest-app -t deploy:rollback`
+- **Stop a drained inactive slot**
+  - Command: `npm exec -- nx run -p bnest-app -t deploy:retire -- --slot blue`
+- **Enable persistent tailnet HTTPS**
+  - Command: `npm exec -- nx run -p bnest-app -t tailnet:up`
+- **Inspect the tailnet proxy**
+  - Command: `npm exec -- nx run -p bnest-app -t tailnet:status`
+- **Disable the tailnet proxy**
+  - Command: `npm exec -- nx run -p bnest-app -t tailnet:down`
+- **Run the complete quick suite**
+  - Command: `npm exec -- nx run -p bnest-app -t test:quick`
+- **Run unit scenarios with coverage**
+  - Command: `npm exec -- nx run -p bnest-app -t test:unit`
+- **Run integration scenarios and the layering scan**
+  - Command: `npm exec -- nx run -p bnest-app -t test:integration`
+- **Prove real Codex consumption (dev only)**
+  - Command: `npm exec -- nx run -p bnest-app -t test:live`
+- **Run the behaviour binding checks**
+  - Command: `npm exec -- nx run -p bnest-app -t test:behaviour:verify`
+- **Check the behaviour corpus statically**
+  - Command: `npm exec -- nx run -p bnest-app -t test:behaviour:coverage`
+- **Run type and module-boundary checks**
+  - Command: `npm exec -- nx run -p bnest-app -t typecheck`
+- **Run all linters**
+  - Command: `npm exec -- nx run -p bnest-app -t lint`
+- **Check Elixir and HEEx formatting**
+  - Command: `npm exec -- nx run -p bnest-app -t format`
+- **Audit runtime schemas without values**
+  - Command: `npm exec -- nx run -p bnest-app -t schema:audit`
+- **Benchmark the password verifier**
+  - Command: `npm exec -- nx run -p bnest-app -t identity:benchmark`
+- **Relocate authoritative SQLite data**
+  - Command: `npm exec -- nx run -p bnest-app -t storage:relocate`
+- **Retire verified legacy storage**
+  - Command: `npm exec -- nx run -p bnest-app -t storage:retire -- --root <root> --generation <generation>`
+- **Purge legacy production test records**
+  - Command: `npm exec -- nx run -p bnest-app -t storage:purge-test-data -- --generation <generation>`
+- **Clean stale isolated test data**
+  - Command: `npm exec -- nx run -p bnest-app -t test-data:cleanup`
 
-Run compute-bearing rows through `./hippo run --class ephemeral --resource-tier standard --disk-path . -- <command>` and the repository [HIPPO](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
+Run compute-bearing rows through `./hippo run --class ephemeral --resource-tier standard --disk-path . -- <command>` and
+the repository [HIPPO](../../repo-governance/development/resource-aware-development.md); `serve`, managed release, and
+pre-push enter it automatically. Use the `transactional` class for storage mutations so admitted work is never killed
+mid-transaction. Recovery, proxy status, rollback, retire, and tailnet controls remain direct.
 
-`test:quick` runs type checking, linting, unit execution, unit coverage, the behaviour binding checks (`test:behaviour:verify`), and the static behaviour check (`test:behaviour:coverage`), in that order. It intentionally excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%; integration runtime and coverage share stale isolated-data cleanup and run one ExUnit case at a time because migration modules and SQLite repository lifecycle are process-global within the test VM.
+`test:quick` runs type checking, linting, unit execution, unit coverage, the behaviour binding checks
+(`test:behaviour:verify`), and the static behaviour check (`test:behaviour:coverage`), in that order. It intentionally
+excludes integration runtime and E2E execution. Both numeric coverage slices use Mix line coverage and fail below 99%;
+integration runtime and coverage share stale isolated-data cleanup and run one ExUnit case at a time because migration
+modules and SQLite repository lifecycle are process-global within the test VM.
 
-`test:live` proves real Codex consumption through the production port-session adapter and the bundled runner: one test completes a real turn against the current models and one test lists the real models. It needs a logged-in system `codex` CLI on PATH and never runs in CI — its tests carry the `ci-exempt` tag, the PR gate runs only `test:quick`, and `test:integration` excludes the tag — so run it by hand from the repository root before trusting a Codex-related change:
+`test:live` proves real Codex consumption through the production port-session adapter and the bundled runner: one test
+completes a real turn against the current models and one test lists the real models. It needs a logged-in system `codex`
+CLI on PATH and never runs in CI — its tests carry the `ci-exempt` tag, the PR gate runs only `test:quick`, and
+`test:integration` excludes the tag — so run it by hand from the repository root before trusting a Codex-related change:
 
 ```sh
 rtk ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p bnest-app -t test:live
 ```
 
-When resolving the host CLI, Bnest deliberately ignores `codex` binaries found inside `node_modules`, because that shim is the SDK's bundled fallback.
+When resolving the host CLI, Bnest deliberately ignores `codex` binaries found inside `node_modules`, because that shim
+is the SDK's bundled fallback.
 
-Dependabot raises one grouped `@openai/codex*` bump a week so the pinned SDK fallback cannot rot silently; it still merges only through the normal PR quality gate. Browser E2E never catches a Codex contract change — the E2E servers deliberately fail closed to the fixture runner and session — so drift is caught locally by the integration contract tests in `test/integration/bnest_app/codex_chat/chat_instructions_test.exs` and the `ci-exempt` live suite; before merging a Codex-bump PR, run that contract file through the integration layer and `npm run test:live` locally.
+Dependabot raises one grouped `@openai/codex*` bump a week so the pinned SDK fallback cannot rot silently; it still
+merges only through the normal PR quality gate. Browser E2E never catches a Codex contract change — the E2E servers
+deliberately fail closed to the fixture runner and session — so drift is caught locally by the integration contract
+tests in `test/integration/bnest_app/codex_chat/chat_instructions_test.exs` and the `ci-exempt` live suite; before
+merging a Codex-bump PR, run that contract file through the integration layer and `npm run test:live` locally.
 
-The deployment targets require machine-local `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, `BNEST_DEPLOY_SECRET_KEY_BASE_FILE`, and a bare-HTTPS `BNEST_PRODUCTION_ORIGIN` outside this repository; the managed release target also requires `HIPPO_BIN`, and a direct `release:build` also requires `BNEST_DEPLOY_WORKTREE`. The [release how-to guide](../../docs/how-to-guides/releasing-bnest.md) derives every one of them from the running deployment. Candidate preparation derives `PHX_HOST` from that validated origin and injects the permanent checkout as `BNEST_REPOSITORY_ROOT`, so routed WebSocket checks stay strict and runtime backups never inherit the disposable build path. The managed release target accepts only a clean `origin/main` revision, owns release and shared resource locks, checks capacity and exact port ownership, runs a fixed uncached gate manifest, builds once in a detached worktree, records a digest and checksum-bound migration manifest, proves the inactive slot and routed revision, qualifies ten distinct synthetic identities in three groups at an isolated exact origin, exercises 10 anonymous routed LiveViews without reload, drains for five minutes, and retains only the active and previous artifacts. Its schema-v5 evidence records an available non-compressed estimate, exported macOS pressure, compressor availability and payload, interval CPU utilization, service RSS, disk, swap-in/out and free space, explicit local-health latency, and exact routed-user-surface latency without recording origins, paths, arguments, or user data. Admission requires normal pressure, at least 9 GiB estimated availability, compressor availability, six CPU units of release/safety headroom, and 13 GiB disk. Final proof preserves a 2 GiB floor, two p95 CPU units, zero local or routed health failures, routed p95 at or below 500 ms, and every routed sample at or below 2 seconds; swap activity is additional pressure below 4 GiB. Compressor payload is never interpreted as fullness. A non-empty migration set fails closed until an approved expand–migrate–verify adapter exists.
+The deployment targets require machine-local `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`,
+`BNEST_DEPLOY_SECRET_KEY_BASE_FILE`, and a bare-HTTPS `BNEST_PRODUCTION_ORIGIN` outside this repository; the managed
+release target also requires `HIPPO_BIN`, and a direct `release:build` also requires `BNEST_DEPLOY_WORKTREE`. The
+[release how-to guide](../../docs/how-to-guides/releasing-bnest.md) derives every one of them from the running
+deployment. Candidate preparation derives `PHX_HOST` from that validated origin and injects the permanent checkout as
+`BNEST_REPOSITORY_ROOT`, so routed WebSocket checks stay strict and runtime backups never inherit the disposable build
+path. The managed release target accepts only a clean `origin/main` revision, owns release and shared resource locks,
+checks capacity and exact port ownership, runs a fixed uncached gate manifest, builds once in a detached worktree,
+records a digest and checksum-bound migration manifest, proves the inactive slot and routed revision, qualifies ten
+distinct synthetic identities in three groups at an isolated exact origin, exercises 10 anonymous routed LiveViews
+without reload, drains for five minutes, and retains only the active and previous artifacts. Its schema-v5 evidence
+records an available non-compressed estimate, exported macOS pressure, compressor availability and payload, interval CPU
+utilization, service RSS, disk, swap-in/out and free space, explicit local-health latency, and exact routed-user-surface
+latency without recording origins, paths, arguments, or user data. Admission requires normal pressure, at least 9 GiB
+estimated availability, compressor availability, six CPU units of release/safety headroom, and 13 GiB disk. Final proof
+preserves a 2 GiB floor, two p95 CPU units, zero local or routed health failures, routed p95 at or below 500 ms, and
+every routed sample at or below 2 seconds; swap activity is additional pressure below 4 GiB. Compressor payload is never
+interpreted as fullness. A non-empty migration set fails closed until an approved expand–migrate–verify adapter exists.
 
-The launcher preserves its executable search path, gives each Phoenix slot enough file descriptors for long-lived connections, and points Codex model discovery at the permanent main checkout, so the temporary build worktree can be deleted immediately after the immutable release is built. Release slots remain independent; Caddy preserves the healthy slot during candidate readiness and cutover without requiring an Erlang peer connection. Caddy binds only to loopback, accepts the Host header forwarded by Tailscale Serve, and forwards the HTTPS scheme to Phoenix so its secure cookies and redirects remain correct. Their safe creation, promotion, and rollback sequence is defined by the [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md).
+The launcher preserves its executable search path, gives each Phoenix slot enough file descriptors for long-lived
+connections, and points Codex model discovery at the permanent main checkout, so the temporary build worktree can be
+deleted immediately after the immutable release is built. Release slots remain independent; Caddy preserves the healthy
+slot during candidate readiness and cutover without requiring an Erlang peer connection. Caddy binds only to loopback,
+accepts the Host header forwarded by Tailscale Serve, and forwards the HTTPS scheme to Phoenix so its secure cookies and
+redirects remain correct. Their safe creation, promotion, and rollback sequence is defined by the
+[Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md).
 
-The serve target defaults to stable development compile mode because the family uses Bnest continuously. The read-only schema audit and password-verifier benchmark use the same mode, so they remain safe while the backend serves. Do not replace it with a command that recompiles the active backend for code reloading; a deliberately isolated, non-routed experiment must opt in to `BNEST_STABLE=false`.
+The serve target defaults to stable development compile mode because the family uses Bnest continuously. The read-only
+schema audit and password-verifier benchmark use the same mode, so they remain safe while the backend serves. Do not
+replace it with a command that recompiles the active backend for code reloading; a deliberately isolated, non-routed
+experiment must opt in to `BNEST_STABLE=false`.
 
 ## Shared behaviour and boundaries
 
-The canonical [Bnest specifications](../../specs/apps/bnest/README.md) define Bnest's current system, container, component, data, and process boundaries, split into [`app-be`](../../specs/apps/bnest/app-be/README.md) (server boundary) and [`app-fe`](../../specs/apps/bnest/app-fe/README.md) (browser/PWA boundary); `bnest-app` aggregates both roots' unit and local-only integration adapters. The same recursively discovered features, expanded scenarios, and shared step bindings run at every application level:
+The canonical [Bnest specifications](../../specs/apps/bnest/README.md) define Bnest's current system, container,
+component, data, and process boundaries, split into [`app-be`](../../specs/apps/bnest/app-be/README.md) (server
+boundary) and [`app-fe`](../../specs/apps/bnest/app-fe/README.md) (browser/PWA boundary); `bnest-app` aggregates both
+roots' unit and local-only integration adapters. The same recursively discovered features, expanded scenarios, and
+shared step bindings run at every application level:
 
-- The unit adapter calls the subject directly without starting the OTP application. Filesystem, database, process, network, and other system resources must be replaced by test doubles.
-- The integration adapter uses real in-process Phoenix components and isolated local resources. It may start a loopback endpoint on a leased port when a scenario needs a real socket, and must stop it in the same test. Browsers, non-loopback network access, and the routed public origin remain forbidden.
-- The browser adapter for `app-be` lives in `bnest-app-be-e2e`; the browser adapter for `app-fe` lives in `bnest-app-fe-e2e`. Each exercises exactly the root it owns.
+- The unit adapter calls the subject directly without starting the OTP application. Filesystem, database, process,
+  network, and other system resources must be replaced by test doubles.
+- The integration adapter uses real in-process Phoenix components and isolated local resources. It may start a loopback
+  endpoint on a leased port when a scenario needs a real socket, and must stop it in the same test. Browsers,
+  non-loopback network access, and the routed public origin remain forbidden.
+- The browser adapter for `app-be` lives in `bnest-app-be-e2e`; the browser adapter for `app-fe` lives in
+  `bnest-app-fe-e2e`. Each exercises exactly the root it owns.
 
-`test:behaviour:verify` runs the binding checks this project owns: the unit and integration adapters, checked against the aggregate of both roots, and the boundary-policy scan. Each E2E project's `test:behaviour:verify` checks its browser adapter against the one root it owns. It rejects empty features, scenarios without explicit `When` and `Then`, undefined or ambiguous steps, unused bindings, incomplete drivers, invalid exemption tags, and unit or integration boundary-policy violations. `test:behaviour:coverage` runs RHINO's static check of the corpus that `repo-config.yml` declares. It runs no test, and it covers the whole repository, so every project's target reports the same result. Unit runs every scenario. Integration skips only scenarios carrying a valid scenario-level `@integration-exempt`; the browser projects apply `@e2e-exempt`, and both may annotate one scenario when independently justified. Static completeness does not prove that a binding is substantive, so changes to behaviour or adapters also follow the repository's [one-by-one implementation review](../../repo-governance/workflows/quality/gherkin-implementation-review.md).
+`test:behaviour:verify` runs the binding checks this project owns: the unit and integration adapters, checked against
+the aggregate of both roots, and the boundary-policy scan. Each E2E project's `test:behaviour:verify` checks its browser
+adapter against the one root it owns. It rejects empty features, scenarios without explicit `When` and `Then`, undefined
+or ambiguous steps, unused bindings, incomplete drivers, invalid exemption tags, and unit or integration boundary-policy
+violations. `test:behaviour:coverage` runs RHINO's static check of the corpus that `repo-config.yml` declares. It runs
+no test, and it covers the whole repository, so every project's target reports the same result. Unit runs every
+scenario. Integration skips only scenarios carrying a valid scenario-level `@integration-exempt`; the browser projects
+apply `@e2e-exempt`, and both may annotate one scenario when independently justified. Static completeness does not prove
+that a binding is substantive, so changes to behaviour or adapters also follow the repository's
+[one-by-one implementation review](../../repo-governance/workflows/quality/gherkin-implementation-review.md).
 
-`test:unit` is the only numeric gate and must stay at least 99%. It measures resource-free code: chat, learning, Codex model access/catalog/settings, the Storage, Identity, Preferences, Sifat Allah and Codex chat facades with their domain and port modules (the repository image rules included), the chat Markdown renderer, credential and session-lifecycle logic, browser-source normalization, authorization, PWA metadata, and JSON rendering. The Family Chat facade, domain and ports are measured too, as are the Push Notifications facade, dispatcher, domain and ports, the Backup facade, domain and ports, and the Operations facade, domain and port. Generated Phoenix code, test scaffolding, CLI tasks, HTTP/LiveView adapters, every module under a context's `Adapters` namespace (filesystem and SQLite stores, Argon2, the endpoint notifier, the Codex session, model discovery and repository image file adapters, the Absinthe message publisher, the SQLite push stores, the Web Push sender, Backup's file, SQLite, `df` and git adapters, and Operations' system release environment) sit outside that denominator, because a unit test may not touch the resources they exist to wrap. `test:integration` still executes them; it reports a pass or fail rather than a measured percentage.
+`test:unit` is the only numeric gate and must stay at least 99%. It measures resource-free code: chat, learning, Codex
+model access/catalog/settings, the Storage, Identity, Preferences, Sifat Allah and Codex chat facades with their domain
+and port modules (the repository image rules included), the chat Markdown renderer, credential and session-lifecycle
+logic, browser-source normalization, authorization, PWA metadata, and JSON rendering. The Family Chat facade, domain and
+ports are measured too, as are the Push Notifications facade, dispatcher, domain and ports, the Backup facade, domain
+and ports, and the Operations facade, domain and port. Generated Phoenix code, test scaffolding, CLI tasks,
+HTTP/LiveView adapters, every module under a context's `Adapters` namespace (filesystem and SQLite stores, Argon2, the
+endpoint notifier, the Codex session, model discovery and repository image file adapters, the Absinthe message
+publisher, the SQLite push stores, the Web Push sender, Backup's file, SQLite, `df` and git adapters, and Operations'
+system release environment) sit outside that denominator, because a unit test may not touch the resources they exist to
+wrap. `test:integration` still executes them; it reports a pass or fail rather than a measured percentage.
 
-Two splits keep that denominator honest rather than widening the exclusion list. The `CodexCliModelDiscovery` adapter owns the Node subprocess that lists models, so `BnestApp.CodexChat.ModelCatalog` keeps only validation and state, and `BnestApp.CodexChat` reaches the Codex session and the saved transcript only through its agent-session and transcript-store ports, so unit tests run it with a recording session and an in-memory store. `BnestApp.Identity` reaches its store, password hasher, session notifier and push-subscription revoker only through ports, so unit tests run it with in-memory adapters, `BnestApp.Preferences` reaches the stored theme only through its preference-store port, and `BnestApp.SifatAllah` reaches saved learning progress only through its progress-store port. `BnestApp.FamilyChat` reaches its rooms and messages only through its room-store port and publishes only through its message-publisher port, so unit tests and unit scenarios run it with an in-memory room store and a recording publisher. `BnestApp.Scheduler` reaches its schedules and runs only through its schedule-store port, so unit tests and scenarios run it with an in-memory schedule store. `BnestApp.Backup` reaches its configuration, destination files, database snapshot, capacity measurement and ignore check only through ports, so unit tests and scenarios run it with in-memory doubles whose snapshot copies the in-memory room store. `BnestApp.Operations` reads the release revision, slot, peer and process liveness only through its release-environment port, so unit tests and scenarios never read the deployment's environment variables or dial a peer. The supervisor builds the flat store, so `BnestApp.Storage.Records` never opens a path itself.
+Two splits keep that denominator honest rather than widening the exclusion list. The `CodexCliModelDiscovery` adapter
+owns the Node subprocess that lists models, so `BnestApp.CodexChat.ModelCatalog` keeps only validation and state, and
+`BnestApp.CodexChat` reaches the Codex session and the saved transcript only through its agent-session and
+transcript-store ports, so unit tests run it with a recording session and an in-memory store. `BnestApp.Identity`
+reaches its store, password hasher, session notifier and push-subscription revoker only through ports, so unit tests run
+it with in-memory adapters, `BnestApp.Preferences` reaches the stored theme only through its preference-store port, and
+`BnestApp.SifatAllah` reaches saved learning progress only through its progress-store port. `BnestApp.FamilyChat`
+reaches its rooms and messages only through its room-store port and publishes only through its message-publisher port,
+so unit tests and unit scenarios run it with an in-memory room store and a recording publisher. `BnestApp.Scheduler`
+reaches its schedules and runs only through its schedule-store port, so unit tests and scenarios run it with an
+in-memory schedule store. `BnestApp.Backup` reaches its configuration, destination files, database snapshot, capacity
+measurement and ignore check only through ports, so unit tests and scenarios run it with in-memory doubles whose
+snapshot copies the in-memory room store. `BnestApp.Operations` reads the release revision, slot, peer and process
+liveness only through its release-environment port, so unit tests and scenarios never read the deployment's environment
+variables or dial a peer. The supervisor builds the flat store, so `BnestApp.Storage.Records` never opens a path itself.
 
-Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser JavaScript, and rejects unused locked dependencies without changing the lockfile.
+Type checking treats Elixir compiler warnings as errors, runs Dialyzer through Dialyxir, and strictly checks browser
+JavaScript without emitting files. Linting checks formatting, runs Credo in strict mode, runs Oxlint on browser
+JavaScript, and rejects unused locked dependencies without changing the lockfile.
 
-The development server defaults to [http://localhost:4020](http://localhost:4020) and may lease `4020`–`4029` through `BNEST_DEV_PORT`; production alone owns `4000`/`4001`, E2E owns `4010`–`4019`, and Caddy owns `4100`. Normal Elixir, HEEx, JavaScript, and CSS changes reload only in an isolated non-stable experiment. Dependency, runtime configuration, and supervision-tree changes require the repository's [development-server restart workflow](../../repo-governance/workflows/maintenance/development-server-restart.md). The always-available route is Tailscale Serve → loopback Caddy → one immutable Phoenix slot; Caddy changes upstream with a graceful reload while the previous LiveView connections drain and reconnect automatically. The chat composer uses LiveView auto-recovery so an unsent draft and route survive a compatible transport reconnect without `page.reload()`. Follow the [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) and [Tailnet proxy workflow](../../repo-governance/workflows/maintenance/development-tailnet-proxy.md).
+The development server defaults to [http://localhost:4020](http://localhost:4020) and may lease `4020`–`4029` through
+`BNEST_DEV_PORT`; production alone owns `4000`/`4001`, E2E owns `4010`–`4019`, and Caddy owns `4100`. Normal Elixir,
+HEEx, JavaScript, and CSS changes reload only in an isolated non-stable experiment. Dependency, runtime configuration,
+and supervision-tree changes require the repository's
+[development-server restart workflow](../../repo-governance/workflows/maintenance/development-server-restart.md). The
+always-available route is Tailscale Serve → loopback Caddy → one immutable Phoenix slot; Caddy changes upstream with a
+graceful reload while the previous LiveView connections drain and reconnect automatically. The chat composer uses
+LiveView auto-recovery so an unsent draft and route survive a compatible transport reconnect without `page.reload()`.
+Follow the [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) and
+[Tailnet proxy workflow](../../repo-governance/workflows/maintenance/development-tailnet-proxy.md).
 
-The authenticated home page at `/` is the child-friendly entry point and links to `/chat`, `/apps/sifat-allah`, and the authenticated `/data-migration` compatibility flow. A logged-out request to `/` redirects to `/login`, so protected home actions never render without a session. One-time `/setup` creates every initial account and permanently closes; `/login` then protects family data. There is no public registration or password-recovery flow.
+The authenticated home page at `/` is the child-friendly entry point and links to `/chat`, `/apps/sifat-allah`, and the
+authenticated `/data-migration` compatibility flow. A logged-out request to `/` redirects to `/login`, so protected home
+actions never render without a session. One-time `/setup` creates every initial account and permanently closes; `/login`
+then protects family data. There is no public registration or password-recovery flow.
 
 ## Test instances and fresh databases
 
-Every integration test that touches the database runs on a fresh SQLite database, called a test instance. The design
-and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-database-per-test.md).
+Every integration test that touches the database runs on a fresh SQLite database, called a test instance. The design and
+its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-database-per-test.md).
 
-- `BnestApp.TestInstance` (`test/support`) spawns one instance at a time through the production migration and seed
-  entry points, points the running server at it, and drops it. `audit/0` and `base_audit/0` report leftovers. The
-  option `storage: :unconfigured` (a `:flat_primary` instance only) spawns no storage pointer, no migration and no
-  database, as a fresh installation is before an administrator chooses the location; the testing-control wire takes it
-  as `storage: "unconfigured"`.
+- `BnestApp.TestInstance` (`test/support`) spawns one instance at a time through the production migration and seed entry
+  points, points the running server at it, and drops it. `audit/0` and `base_audit/0` report leftovers. The option
+  `storage: :unconfigured` (a `:flat_primary` instance only) spawns no storage pointer, no migration and no database, as
+  a fresh installation is before an administrator chooses the location; the testing-control wire takes it as
+  `storage: "unconfigured"`.
 - `BnestApp.FreshDatabaseCase` (`test/support`) is the ExUnit case template for these tests. Its setup spawns an
   instance and returns `instance` and `accounts`. Its teardown drops the instance and fails the test when the drop is
   refused. Tags set the options: `phase` (default `:sqlite_primary`), `instance_id` (a fixed id, needed when a seed's
@@ -112,29 +272,31 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
 - ExBdd hooks in `test/behaviour/support/integration.exs` run around every integration scenario. The before hook fails
   when an earlier scenario left an instance current, then spawns a fresh instance with the standard accounts. A scenario
   tagged `@flat-primary` (on the scenario or its feature) runs on a flat-primary instance. A scenario tagged
-  `@open-setup` spawns an empty flat-primary instance, so `/setup` stays open. The after hook drops the current instance.
-  `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their own adapter,
-  so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no scenario is
-  exempt by being pure. The unit layer never spawns.
-- `test_isolation.feature` has two adapters. The unit adapter (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`)
-  drives the in-memory model `BnestApp.Test.InMemory.TestInstancePort`. Its lifecycle rows (failed spawn, rollback,
-  teardown) prove the model's contract, not the production switch. The production switch is proven only by the
-  integration adapter (`test/integration/support/test_isolation_integration_adapter.ex`), which drives the real switch,
-  the seed facades, the SQLite repo and the endpoint. Equality of a spawned instance with the release schema is proven
-  by `test/integration/bnest_app/storage/test_instance_schema_test.exs`, which reads the release side from
+  `@open-setup` spawns an empty flat-primary instance, so `/setup` stays open. The after hook drops the current
+  instance. `test_isolation.feature` and `test_instances.feature` spawn, end and check their instances through their own
+  adapter, so the generic hook spawns nothing for them. Every other integration scenario spawns one instance; no
+  scenario is exempt by being pure. The unit layer never spawns.
+- `test_isolation.feature` has two adapters. The unit adapter
+  (`test/unit/support/behaviour/test_isolation_unit_adapter.ex`) drives the in-memory model
+  `BnestApp.Test.InMemory.TestInstancePort`. Its lifecycle rows (failed spawn, rollback, teardown) prove the model's
+  contract, not the production switch. The production switch is proven only by the integration adapter
+  (`test/integration/support/test_isolation_integration_adapter.ex`), which drives the real switch, the seed facades,
+  the SQLite repo and the endpoint. Equality of a spawned instance with the release schema is proven by
+  `test/integration/bnest_app/storage/test_instance_schema_test.exs`, which reads the release side from
   `test/integration/support/release_schema.ex`, and by `test/unit/bnest_app/test_instance/fingerprint_test.exs`. That a
   production build mounts no testing route is proven by `test/unit/bnest_app_web/testing_routes_test.exs`. Shared
   fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
-- Seed and testing-control source never writes SQL or files directly. `test/unit/bnest_app/test_instance/seed_source_scan_test.exs`
-  fails on any SQL, DDL or file-write call in `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
+- Seed and testing-control source never writes SQL or files directly.
+  `test/unit/bnest_app/test_instance/seed_source_scan_test.exs` fails on any SQL, DDL or file-write call in
+  `test/support/test_instance_seed.ex` and `test/support/testing_control/`.
 - `test_instances.feature` (app-fe) is bound here as well. Its Given is the shared admin step, which the drivers hand to
   the isolation adapter; its own steps are in `test/behaviour/steps/test_instances_steps.exs`.
 - The integration run ends with a leak audit (`test/test_helper.exs`). `BnestApp.TestInstance.Audit.verdict/4` checks
   for instance directories, a current instance, base data and run-secret leaks. The secret check reads every regular
-  file under the two run roots and fails if one holds a run secret generated during the run. It does not read console
-  or Logger output. A failure prints every reason, the run roots are removed, and the VM exits with status 1. The
-  verdict's rules are unit-tested, and a probe run that leaks an instance on purpose fails. The run base must hold no
-  data at all: no legacy exemption applies, so any base file fails the run.
+  file under the two run roots and fails if one holds a run secret generated during the run. It does not read console or
+  Logger output. A failure prints every reason, the run roots are removed, and the VM exits with status 1. The verdict's
+  rules are unit-tested, and a probe run that leaks an instance on purpose fails. The run base must hold no data at all:
+  no legacy exemption applies, so any base file fails the run.
 - The unit boundary policy (`test/behaviour/verify.exs`) refuses network URLs, loopback addresses, file and process
   access, and integration helpers in unit test source. The push-endpoint checks therefore live in
   `test/integration/bnest_app/test_instance/seed_push_validate_test.exs`.
@@ -143,146 +305,427 @@ and its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-databa
 
 ## Identity and Runtime Data
 
-Production SQLite data defaults to `~/bnest/data/prod/`; repository `data/prod/` is only a verified legacy migration source until retirement. Each test uses the same marked run identifier in a flat-file fixture root below `data/test/runs/` and a SQLite root below `~/bnest/data/test/runs/`; either root being absent, shared, or mismatched fails closed. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number, and punctuation mark such as `_`. Bootstrap, username, account, and session operations follow the active repository phase, so `sqlite_primary` never falls back to retired flat identity files. The browser receives only a persistent opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is denied regardless of role.
+Production SQLite data defaults to `~/bnest/data/prod/`; repository `data/prod/` is only a verified legacy migration
+source until retirement. Each test uses the same marked run identifier in a flat-file fixture root below
+`data/test/runs/` and a SQLite root below `~/bnest/data/test/runs/`; either root being absent, shared, or mismatched
+fails closed. Initial accounts have a normalized username, one or more `children`, `parents`, and `admin` roles, and an
+Argon2id password verifier. Passwords have no application character-count rule, but each must contain a letter, number,
+and punctuation mark such as `_`. Bootstrap, username, account, and session operations follow the active repository
+phase, so `sqlite_primary` never falls back to retired flat identity files. The browser receives only a persistent
+opaque session cookie; the server stores its SHA-256 digest, has no automatic session expiration, and lets one user
+remain logged in independently in multiple browsers. Logout revokes only that browser session. Cross-user data access is
+denied regardless of role.
 
-Managed production slots always start with `BNEST_COOKIE_SECURE=true` and `BNEST_IDENTITY_CUTOVER=true`, using the replacement account backend and login boundary instead of the legacy browser identity. Both variables accept only `true` or `false`. Local HTTP development keeps the secure-cookie override unset and may select transition mode explicitly, while production Mix configuration enables secure cookies automatically.
+Managed production slots always start with `BNEST_COOKIE_SECURE=true` and `BNEST_IDENTITY_CUTOVER=true`, using the
+replacement account backend and login boundary instead of the legacy browser identity. Both variables accept only `true`
+or `false`. Local HTTP development keeps the secure-cookie override unset and may select transition mode explicitly,
+while production Mix configuration enables secure cookies automatically.
 
-Chat, Sifat Allah progress, and explicit theme preference are versioned user-owned JSON records. The typed repository derives paths from the authenticated user, validates schemas, locks per path, writes a temporary file, atomically replaces, and reads the result back. Mutable records require the last revision. Browser import reads only `bnest.chat.v1`, `bnest.sifat-allah.v1`, and `phx:theme`; it keeps an immutable envelope and manifest, normalizes and reads the destination through the normal repository, then removes only the accepted browser key. Unknown, malformed, oversized, interrupted, or stale sources remain in the browser and cannot replace accepted data. Immutable envelopes, legacy copies, manifests, and old readers are retained for recovery.
+Chat, Sifat Allah progress, and explicit theme preference are versioned user-owned JSON records. The typed repository
+derives paths from the authenticated user, validates schemas, locks per path, writes a temporary file, atomically
+replaces, and reads the result back. Mutable records require the last revision. Browser import reads only
+`bnest.chat.v1`, `bnest.sifat-allah.v1`, and `phx:theme`; it keeps an immutable envelope and manifest, normalizes and
+reads the destination through the normal repository, then removes only the accepted browser key. Unknown, malformed,
+oversized, interrupted, or stale sources remain in the browser and cannot replace accepted data. Immutable envelopes,
+legacy copies, manifests, and old readers are retained for recovery.
 
 ## SQLite Storage
 
-Bnest's user-owned state moves from the flat-file runtime root into a private local SQLite database. The stable pointer at `~/.config/bnest/storage.json` (or `BNEST_STORAGE_CONFIG` for machine-local overrides) remains configuration and resolves the database directory, generation, and `flat_primary`/`sqlite_primary` phase. Production data defaults to `~/bnest/data/prod/bnest.sqlite3`; tests use `~/bnest/data/test/runs/<run-id>/bnest.sqlite3`. An authenticated `admin`-role user may optionally select a different private, writable, non-symlinked, non-world-writable folder outside the repository and migration sources before migration starts.
+Bnest's user-owned state moves from the flat-file runtime root into a private local SQLite database. The stable pointer
+at `~/.config/bnest/storage.json` (or `BNEST_STORAGE_CONFIG` for machine-local overrides) remains configuration and
+resolves the database directory, generation, and `flat_primary`/`sqlite_primary` phase. Production data defaults to
+`~/bnest/data/prod/bnest.sqlite3`; tests use `~/bnest/data/test/runs/<run-id>/bnest.sqlite3`. An authenticated
+`admin`-role user may optionally select a different private, writable, non-symlinked, non-world-writable folder outside
+the repository and migration sources before migration starts.
 
-The versioned DDL migration at `priv/sqlite_repo/migrations/` never scans flat files; data copying is owned by the reproducible `flat-files-v1-to-sqlite-v1` migration service (`BnestApp.Storage.Migration`, over the `FlatSource` and `MigrationLedger` ports, with `lib/bnest_app/storage/adapters/sqlite_migration.ex` as the ledger adapter), which the headless `mix bnest.storage.migrate` task (Nx target `storage:migrate`) and the optional `/storage` admin LiveView both call through the `BnestApp.Storage` facade. Every recognized source is inventoried in deterministic path order, copied with immutable source/target checksum evidence, and read back through the normal repository before SQLite becomes authoritative; a changed or malformed source blocks the phase switch without mutating the flat-primary service, and retrying the same migration identifier never rewrites or duplicates accepted items. Activation requires schema, backfill, parity, integrity (`PRAGMA quick_check`), and an isolated `VACUUM INTO` restore rehearsal to all pass first. Repo queries never log record payloads (`log: false` on `BnestApp.SqliteRepo`), keeping migration output as value-free as the flat-file adapter it replaces.
+The versioned DDL migration at `priv/sqlite_repo/migrations/` never scans flat files; data copying is owned by the
+reproducible `flat-files-v1-to-sqlite-v1` migration service (`BnestApp.Storage.Migration`, over the `FlatSource` and
+`MigrationLedger` ports, with `lib/bnest_app/storage/adapters/sqlite_migration.ex` as the ledger adapter), which the
+headless `mix bnest.storage.migrate` task (Nx target `storage:migrate`) and the optional `/storage` admin LiveView both
+call through the `BnestApp.Storage` facade. Every recognized source is inventoried in deterministic path order, copied
+with immutable source/target checksum evidence, and read back through the normal repository before SQLite becomes
+authoritative; a changed or malformed source blocks the phase switch without mutating the flat-primary service, and
+retrying the same migration identifier never rewrites or duplicates accepted items. Activation requires schema,
+backfill, parity, integrity (`PRAGMA quick_check`), and an isolated `VACUUM INTO` restore rehearsal to all pass first.
+Repo queries never log record payloads (`log: false` on `BnestApp.SqliteRepo`), keeping migration output as value-free
+as the flat-file adapter it replaces.
 
-`storage:relocate` serializes repository access across processes, checkpoints the source, copies it through `VACUUM INTO`, compares value-free logical evidence, atomically updates the pointer with a new generation, and keeps the old database available for rollback. After the managed release and routed health response prove that exact generation, `storage:retire` rechecks database integrity and migration checksums before deleting only the verified repository flat-file sources and the legacy SQLite database and sidecars. `test-data:cleanup` removes only marked, inactive paired test roots older than 24 hours, together with the test instances under them, and the legacy `~/bnest/data/test/{family-chat,backup-config,backup-repository}` directories older than 24 hours. It removes only their direct children and never follows a symbolic link. Each test suite also cleans its own pair in its finalizer.
+`storage:relocate` serializes repository access across processes, checkpoints the source, copies it through
+`VACUUM INTO`, compares value-free logical evidence, atomically updates the pointer with a new generation, and keeps the
+old database available for rollback. After the managed release and routed health response prove that exact generation,
+`storage:retire` rechecks database integrity and migration checksums before deleting only the verified repository
+flat-file sources and the legacy SQLite database and sidecars. `test-data:cleanup` removes only marked, inactive paired
+test roots older than 24 hours, together with the test instances under them, and the legacy
+`~/bnest/data/test/{family-chat,backup-config,backup-repository}` directories older than 24 hours. It removes only their
+direct children and never follows a symbolic link. Each test suite also cleans its own pair in its finalizer.
 
 ## Visual Language
 
-Every Bnest interface uses the **Nest workshop** visual language defined by the `--bnest-*` tokens in [`assets/css/app.css`](assets/css/app.css). Reuse those tokens rather than adding page-local colors, fonts, corner treatments, or shadows.
+Every Bnest interface uses the **Nest workshop** visual language defined by the `--bnest-*` tokens in
+[`assets/css/app.css`](assets/css/app.css). Reuse those tokens rather than adding page-local colors, fonts, corner
+treatments, or shadows.
 
-- **Color:** ink `#153f42`, canvas `#d8f1ec`, paper `#fff9ed`, sunflower `#f7b84b`, coral `#e5633d`, and lagoon `#80c5b8`.
-- **Type:** use the rounded display stack for page titles and prominent actions; use the body stack for reading and controls.
-- **Shape:** cards and primary actions use an asymmetric rounded corner with a solid ink outline and offset ink shadow. Focus states use coral; hover motion is small and respects the control's purpose.
+- **Color:** ink `#153f42`, canvas `#d8f1ec`, paper `#fff9ed`, sunflower `#f7b84b`, coral `#e5633d`, and lagoon
+  `#80c5b8`.
+- **Type:** use the rounded display stack for page titles and prominent actions; use the body stack for reading and
+  controls.
+- **Shape:** cards and primary actions use an asymmetric rounded corner with a solid ink outline and offset ink shadow.
+  Focus states use coral; hover motion is small and respects the control's purpose.
 
-The home-page chat card is the reference primary action. New routes should feel like the same playful workshop while keeping one obvious next action and accessible keyboard focus.
+The home-page chat card is the reference primary action. New routes should feel like the same playful workshop while
+keeping one obvious next action and accessible keyboard focus.
 
 ## Installable web app
 
-The root layout links a standalone PWA manifest and Beaver Nest icon sizes for Android, desktop Chromium browsers, and Apple home-screen use. Browser JavaScript registers the service worker, which keeps a cached application shell as an offline fallback while preferring the live app whenever the home host is reachable. To install on a device, use Beaver Nest's Tailscale HTTPS address: choose **Install app** in a Chromium browser or **Share → Add to Home Screen** in Safari. The installed PWA is a private web client, not a native application; Codex conversations still require the home host to be online.
+The root layout links a standalone PWA manifest and Beaver Nest icon sizes for Android, desktop Chromium browsers, and
+Apple home-screen use. Browser JavaScript registers the service worker, which keeps a cached application shell as an
+offline fallback while preferring the live app whenever the home host is reachable. To install on a device, use Beaver
+Nest's Tailscale HTTPS address: choose **Install app** in a Chromium browser or **Share → Add to Home Screen** in
+Safari. The installed PWA is a private web client, not a native application; Codex conversations still require the home
+host to be online.
 
 ## Chat runtime
 
-At application startup, a supervised catalog asks the local [Codex app server](https://learn.chatgpt.com/docs/app-server) for every picker-visible model and caches the validated result. Only the latest Luna, Terra and Sol are kept (`gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`); Astra and older ids are never offered. If local discovery fails or returns no offered choice, the app keeps chat available with a safe Terra-only fallback (`gpt-6.1-terra`). `gpt-6.1-terra` with medium reasoning effort is the application default even when Codex declares another model as its own default. The role access policy is enforced server-side on mount, restoration, and selection events (ADR 006): admins choose any offered model and any effort it supports; parents choose Luna or Terra at medium effort, with no effort control; children are fixed to Luna at medium effort, with no model or effort control. A saved model that the role no longer offers resolves to the role's default when the chat is read. If a role's required model is unavailable, that role's chat is disabled rather than silently falling back to another model. The reasoning-effort selector is populated from the selected model's discovered capabilities. Changing models keeps the current effort when the new model supports it, otherwise it falls back to `max`.
+At application startup, a supervised catalog asks the local
+[Codex app server](https://learn.chatgpt.com/docs/app-server) for every picker-visible model and caches the validated
+result. Only the latest Luna, Terra and Sol are kept (`gpt-6-luna`, `gpt-6.1-terra`, `gpt-6.1-sol`); Astra and older ids
+are never offered. If local discovery fails or returns no offered choice, the app keeps chat available with a safe
+Terra-only fallback (`gpt-6.1-terra`). `gpt-6.1-terra` with medium reasoning effort is the application default even when
+Codex declares another model as its own default. The role access policy is enforced server-side on mount, restoration,
+and selection events (ADR 006): admins choose any offered model and any effort it supports; parents choose Luna or Terra
+at medium effort, with no effort control; children are fixed to Luna at medium effort, with no model or effort control.
+A saved model that the role no longer offers resolves to the role's default when the chat is read. If a role's required
+model is unavailable, that role's chat is disabled rather than silently falling back to another model. The
+reasoning-effort selector is populated from the selected model's discovered capabilities. Changing models keeps the
+current effort when the new model supports it, otherwise it falls back to `max`.
 
-The Beaver Nest brand in the chat header is a home link, so the logo and wordmark return the visitor to the authenticated home page.
+The Beaver Nest brand in the chat header is a home link, so the logo and wordmark return the visitor to the
+authenticated home page.
 
-The chat pages have one light appearance and no theme control (ADR 005). In Codex chat the repository access state is one pill beside the header, so a phone shows whether writes are on without scrolling. For an administrator the pill is the write toggle ("Repo read-only" or "Repo write enabled"; its accessible name also says the action). On a phone the header has two rows: the brand and an **Options** button on the first, the access pill and the model badge on the second. On a short landscape window the header is one row. The model and effort selects and **Clear chat** sit in the Options panel, which hangs over the conversation. **Clear chat** asks "Delete all messages?" first: only "Yes, delete" sends the clear, and Cancel or Escape keeps the conversation. A visitor's own Codex message renders as Markdown, and its **Show raw** control shows the exact typed text. A message box is capped at the smaller of 12 rem and 22 percent of the window. In both rooms the visitor's pointer decides the keys (ADR 005, decision 1): with a fine pointer Enter sends and Shift+Enter starts a new line; with a touch pointer Enter starts a new line and Shift+Enter sends. The screen width never decides, and the Send button stays on every device.
+The chat pages have one light appearance and no theme control (ADR 005). In Codex chat the repository access state is
+one pill beside the header, so a phone shows whether writes are on without scrolling. For an administrator the pill is
+the write toggle ("Repo read-only" or "Repo write enabled"; its accessible name also says the action). On a phone the
+header has two rows: the brand and an **Options** button on the first, the access pill and the model badge on the
+second. On a short landscape window the header is one row. The model and effort selects and **Clear chat** sit in the
+Options panel, which hangs over the conversation. **Clear chat** asks "Delete all messages?" first: only "Yes, delete"
+sends the clear, and Cancel or Escape keeps the conversation. A visitor's own Codex message renders as Markdown, and its
+**Show raw** control shows the exact typed text. A message box is capped at the smaller of 12 rem and 22 percent of the
+window. In both rooms the visitor's pointer decides the keys (ADR 005, decision 1): with a fine pointer Enter sends and
+Shift+Enter starts a new line; with a touch pointer Enter starts a new line and Shift+Enter sends. The screen width
+never decides, and the Send button stays on every device.
 
-Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the stored thread ID. Admin model and reasoning-effort selectors are disabled during an active turn; parent and child sessions have no selector to manipulate. Selecting either setting between turns replaces only the bridge process while preserving the transcript and thread. Active turns checkpoint their prompt, thread, partial transcript, and public reasoning/progress entries; after a deployment reconnect, Bnest asks the retained thread to continue once without repeating shown text. If a retained Codex thread is unavailable, Bnest keeps the transcript, reports the fallback, clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript and opens a fresh thread. Events carry their bridge identity so queued updates from a replaced bridge cannot modify the active chat. A bridge whose runner exits reports the exit, then refuses every later message, which the chat shows as **Codex is not available.**, until a reload, a setting change or **Clear chat** replaces it.
+Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the
+stored thread ID. Admin model and reasoning-effort selectors are disabled during an active turn; parent and child
+sessions have no selector to manipulate. Selecting either setting between turns replaces only the bridge process while
+preserving the transcript and thread. Active turns checkpoint their prompt, thread, partial transcript, and public
+reasoning/progress entries; after a deployment reconnect, Bnest asks the retained thread to continue once without
+repeating shown text. If a retained Codex thread is unavailable, Bnest keeps the transcript, reports the fallback,
+clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript and
+opens a fresh thread. Events carry their bridge identity so queued updates from a replaced bridge cannot modify the
+active chat. A bridge whose runner exits reports the exit, then refuses every later message, which the chat shows as
+**Codex is not available.**, until a reload, a setting change or **Clear chat** replaces it.
 
-Every chat runner starts with read-only sandbox access, approval policy `never`, and disabled network and web search. An account with `admin` and without `children` may explicitly enable `workspace-write` for its current connected chat; parent-only accounts, invalid role sets, and any account containing `children` remain read-only. The server derives and allowlists the mode from the authenticated role set, never from a browser-supplied sandbox value. The write toggle is not persisted and resets on reload, reconnect, logout, and **Clear chat**. Assistant message updates stream into the transcript as plain text. Public SDK reasoning summaries and generic activity status display in a collapsible **Thinking** section, keyed by their runner item IDs, and stay beside the final answer when a later assistant item arrives. Raw private reasoning and tool input are never stored or displayed. With a fine pointer **Enter** submits the composer and **Shift+Enter** adds a line; with a touch pointer **Shift+Enter** submits and **Enter** adds a line (ADR 005, decision 1). The conversation follows the newest message while the reader stays within 80 px of its bottom (`assets/js/scroll_follow.js`): it pins to the bottom when the reader sends a message and when a diagram draws, and a reader who scrolled up keeps their place while the reply streams. The composer and the Send button stay on screen on a phone, and the panel is no taller than the window ([ADR 004](../../docs/explanation/decisions/004-mermaid-diagrams-in-both-chat-rooms.md), Decision 8).
+Every chat runner starts with read-only sandbox access, approval policy `never`, and disabled network and web search. An
+account with `admin` and without `children` may explicitly enable `workspace-write` for its current connected chat;
+parent-only accounts, invalid role sets, and any account containing `children` remain read-only. The server derives and
+allowlists the mode from the authenticated role set, never from a browser-supplied sandbox value. The write toggle is
+not persisted and resets on reload, reconnect, logout, and **Clear chat**. Assistant message updates stream into the
+transcript as plain text. Public SDK reasoning summaries and generic activity status display in a collapsible
+**Thinking** section, keyed by their runner item IDs, and stay beside the final answer when a later assistant item
+arrives. Raw private reasoning and tool input are never stored or displayed. With a fine pointer **Enter** submits the
+composer and **Shift+Enter** adds a line; with a touch pointer **Shift+Enter** submits and **Enter** adds a line (ADR
+005, decision 1). The conversation follows the newest message while the reader stays within 80 px of its bottom
+(`assets/js/scroll_follow.js`): it pins to the bottom when the reader sends a message and when a diagram draws, and a
+reader who scrolled up keeps their place while the reply streams. The composer and the Send button stay on screen on a
+phone, and the panel is no taller than the window
+([ADR 004](../../docs/explanation/decisions/004-mermaid-diagrams-in-both-chat-rooms.md), Decision 8).
 
-Both chat rooms show a message as formatted Markdown through one shared component. `BnestAppWeb.ChatComponents.markdown_body/1` renders it in the Codex chat (`/chat`), and `markdown_body_html/2` renders the same markup to a string for Family Chat ([ADR 003](../../docs/explanation/decisions/003-inline-chat-images-and-shared-markdown.md)). Both call `BnestAppWeb.ChatMarkdown` (MDEx, GitHub-flavored Markdown) on the server ([ADR 002](../../docs/explanation/decisions/002-codex-chat-markdown-and-images.md)). Raw HTML appears as text. A link whose scheme is not `http`, `https` or `mailto` shows as plain text. Links open in a new tab with `rel="noopener noreferrer nofollow"`, and a reply that cannot be parsed in time shows as escaped text. A visitor's own Codex message renders the same Markdown, and its **Show raw** control shows the typed text ([ADR 005](../../docs/explanation/decisions/005-chat-input-keys-clear-confirmation-and-one-light-theme.md), Decision 4).
+Both chat rooms show a message as formatted Markdown through one shared component.
+`BnestAppWeb.ChatComponents.markdown_body/1` renders it in the Codex chat (`/chat`), and `markdown_body_html/2` renders
+the same markup to a string for Family Chat
+([ADR 003](../../docs/explanation/decisions/003-inline-chat-images-and-shared-markdown.md)). Both call
+`BnestAppWeb.ChatMarkdown` (MDEx, GitHub-flavored Markdown) on the server
+([ADR 002](../../docs/explanation/decisions/002-codex-chat-markdown-and-images.md)). Raw HTML appears as text. A link
+whose scheme is not `http`, `https` or `mailto` shows as plain text. Links open in a new tab with
+`rel="noopener noreferrer nofollow"`, and a reply that cannot be parsed in time shows as escaped text. A visitor's own
+Codex message renders the same Markdown, and its **Show raw** control shows the typed text
+([ADR 005](../../docs/explanation/decisions/005-chat-input-keys-clear-confirmation-and-one-light-theme.md), Decision 4).
 
 `ChatMarkdown.classify_image/1` decides each image, and the first matching rule wins:
 
-1. A repository path loads from `GET /chat/images/*path` (`BnestAppWeb.ChatImageController`). It must name a `png`, `jpg`, `jpeg`, `gif` or `webp` file inside the checkout that is not hidden, is not runtime data and is not reached through a symbolic link. The route serves it to a signed-in visitor, and every refusal is the same empty `404`.
-2. An `https` address of at most 2,048 characters with no user info becomes an inline `<img>` (`loading="lazy"`, `referrerpolicy="no-referrer"`, `decoding="async"`).
+1. A repository path loads from `GET /chat/images/*path` (`BnestAppWeb.ChatImageController`). It must name a `png`,
+   `jpg`, `jpeg`, `gif` or `webp` file inside the checkout that is not hidden, is not runtime data and is not reached
+   through a symbolic link. The route serves it to a signed-in visitor, and every refusal is the same empty `404`.
+2. An `https` address of at most 2,048 characters with no user info becomes an inline `<img>` (`loading="lazy"`,
+   `referrerpolicy="no-referrer"`, `decoding="async"`).
 3. An `http` address is not loaded. It shows as a link with the text "alt (image not shown)".
-4. A `data:image/png`, `jpeg`, `gif` or `webp` base64 address becomes an inline `<img>` when its payload is at most 32,768 characters, is valid base64, and its bytes match the declared type. Family Chat's 4,000-character message limit lowers this to about 4,000 characters in practice.
+4. A `data:image/png`, `jpeg`, `gif` or `webp` base64 address becomes an inline `<img>` when its payload is at most
+   32,768 characters, is valid base64, and its bytes match the declared type. Family Chat's 4,000-character message
+   limit lowers this to about 4,000 characters in practice.
 5. Everything else, including SVG as `data:`, shows as the text "[image not shown: alt]".
 
-Privacy note: an inline `https` image makes the viewer's own browser contact the image host, which learns the viewer's address and the time (ADR 003).
+Privacy note: an inline `https` image makes the viewer's own browser contact the image host, which learns the viewer's
+address and the time (ADR 003).
 
-A `mermaid` code fence is a diagram ([ADR 004](../../docs/explanation/decisions/004-mermaid-diagrams-in-both-chat-rooms.md)). The server marks it as `<pre data-bnest-diagram="mermaid">` only when the message is complete and the fence passes the limits that `BnestAppWeb.ChatMarkdown.diagram_limits/0` reports: 6,000 bytes and 200 lines per diagram, 4 diagrams per message, and an allowed diagram type. It also refuses a source that uses `%%{` or shape data (`@{`), or any of the whole words `click`, `call`, `callback`, `link`, `links` and `href`. Any other fence stays a code block with a note that says why, and a reply that is still streaming keeps every fence as a code block. The browser then draws the marked fences (`assets/js/diagrams/`):
+A `mermaid` code fence is a diagram
+([ADR 004](../../docs/explanation/decisions/004-mermaid-diagrams-in-both-chat-rooms.md)). The server marks it as
+`<pre data-bnest-diagram="mermaid">` only when the message is complete and the fence passes the limits that
+`BnestAppWeb.ChatMarkdown.diagram_limits/0` reports: 6,000 bytes and 200 lines per diagram, 4 diagrams per message, and
+an allowed diagram type. It also refuses a source that uses `%%{` or shape data (`@{`), or any of the whole words
+`click`, `call`, `callback`, `link`, `links` and `href`. Any other fence stays a code block with a note that says why,
+and a reply that is still streaming keeps every fence as a code block. The browser then draws the marked fences
+(`assets/js/diagrams/`):
 
-- Mermaid 12.3.0 is pinned and bundled by a second esbuild profile, `bnest_app_diagrams`. The page loads it lazily from the address in the `bnest-diagram-engine` meta tag, so no CDN is used, and `elkjs` is replaced by a stub.
-- Mermaid runs with `securityLevel: strict` inside a hidden same-origin `srcdoc` iframe, whose own Content-Security-Policy refuses every request except its script, styles and data pictures. The page shows the result only as `<img src="data:image/svg+xml...">` after an SVG shape check.
-- Browser limits: 60 edges per diagram (enforced by Mermaid), 30 drawn diagrams per page, an 8,000 ms render timeout, a 20,000 ms limit for the first engine start, and 300,000 SVG characters.
-- A diagram is drawn only when it is within 300 px of the viewport, so a page whose diagrams are far away loads no engine. If a diagram cannot be drawn, the page shows its source and a note.
+- Mermaid 12.3.0 is pinned and bundled by a second esbuild profile, `bnest_app_diagrams`. The page loads it lazily from
+  the address in the `bnest-diagram-engine` meta tag, so no CDN is used, and `elkjs` is replaced by a stub.
+- Mermaid runs with `securityLevel: strict` inside a hidden same-origin `srcdoc` iframe, whose own
+  Content-Security-Policy refuses every request except its script, styles and data pictures. The page shows the result
+  only as `<img src="data:image/svg+xml...">` after an SVG shape check.
+- Browser limits: 60 edges per diagram (enforced by Mermaid), 30 drawn diagrams per page, an 8,000 ms render timeout, a
+  20,000 ms limit for the first engine start, and 300,000 SVG characters.
+- A diagram is drawn only when it is within 300 px of the viewport, so a page whose diagrams are far away loads no
+  engine. If a diagram cannot be drawn, the page shows its source and a note.
 - The picture keeps a readable minimum width and scrolls sideways inside its own box, never the page.
 
-Every chat turn also carries a developer instruction from `priv/codex/chat_instructions.mjs`. It asks Codex for GitHub-flavored Markdown without raw HTML; for images as repository-relative raster paths or `https` addresses (an SVG at an `https` address is allowed but discouraged, and `data:` SVG, `http` addresses and absolute paths are not allowed); and for `mermaid` fences within the limits above.
+Every chat turn also carries a developer instruction from `priv/codex/chat_instructions.mjs`. It asks Codex for
+GitHub-flavored Markdown without raw HTML; for images as repository-relative raster paths or `https` addresses (an SVG
+at an `https` address is allowed but discouraged, and `data:` SVG, `http` addresses and absolute paths are not allowed);
+and for `mermaid` fences within the limits above.
 
 The family chat room is browser-driven rather than a LiveView: the controller renders only the room shell, and
-`assets/js/family_chat/` decides what to load and where to put the visitor. A room opens at the reading position
-that device last reached — the messages committed since it, one bounded page of earlier context above them, and a
-marker between the two — rather than at the oldest loaded message. A member with nothing unread, or with no stored
-position, opens at the newest message. That position lives only in the visitor's own browser storage, so losing it
-degrades to opening at the newest message and never affects another device. The composer keeps keyboard focus
-across a send so the on-screen keyboard stays up, the visitor's pointer decides the keys (ADR 005, decision 1): with a fine pointer `Enter` sends while **Shift+Enter** continues the same message, and with a touch pointer the two keys swap,
-and sending returns the sender to their own message however far back they were reading.
+`assets/js/family_chat/` decides what to load and where to put the visitor. A room opens at the reading position that
+device last reached — the messages committed since it, one bounded page of earlier context above them, and a marker
+between the two — rather than at the oldest loaded message. A member with nothing unread, or with no stored position,
+opens at the newest message. That position lives only in the visitor's own browser storage, so losing it degrades to
+opening at the newest message and never affects another device. The composer keeps keyboard focus across a send so the
+on-screen keyboard stays up, the visitor's pointer decides the keys (ADR 005, decision 1): with a fine pointer `Enter`
+sends while **Shift+Enter** continues the same message, and with a touch pointer the two keys swap, and sending returns
+the sender to their own message however far back they were reading.
 
-Answering one message in particular is the room's only structural relationship between messages, and it is one
-level deep: a reply to a reply quotes what it answers, never the chain behind it. A member opens a per-message
-action menu, chooses **Reply**, and the chosen message appears above the composer until they send it or abandon
-it; the target never survives a reload, because a quote the member cannot see is a quote they did not choose.
-The sent reply renders a quote card inside its own bubble, on every path a message can arrive by, and activating
-that card returns the reader to the original — loading earlier pages if it is above the window, and saying so out
-loud rather than doing nothing when it is further back than the jump will go. The history keeps one tab group
-wherever the reader is: the message that holds the roving stop, followed by its own content. The menu trigger
-and every other message stay out of the tab order, so the conversation never becomes a tab sequence.
+Answering one message in particular is the room's only structural relationship between messages, and it is one level
+deep: a reply to a reply quotes what it answers, never the chain behind it. A member opens a per-message action menu,
+chooses **Reply**, and the chosen message appears above the composer until they send it or abandon it; the target never
+survives a reload, because a quote the member cannot see is a quote they did not choose. The sent reply renders a quote
+card inside its own bubble, on every path a message can arrive by, and activating that card returns the reader to the
+original — loading earlier pages if it is above the window, and saying so out loud rather than doing nothing when it is
+further back than the jump will go. The history keeps one tab group wherever the reader is: the message that holds the
+roving stop, followed by its own content. The menu trigger and every other message stay out of the tab order, so the
+conversation never becomes a tab sequence.
 
 Each Family Chat message arrives with a `bodyHtml` GraphQL field on `:family_chat_message`, rendered by the shared
 component above with line breaks kept. It has the same authorization as `body`, is rendered on every resolution, is
 never cached, and is never stored in IndexedDB. A quote card stays plain text. `assets/js/family_chat/message_body.js`
-is the only place that inserts server HTML into the page: it parses the HTML in an inert `<template>`, checks its
-shape, and falls back to the plain text when the check fails. A message that is still pending or failed always shows
-as text.
+is the only place that inserts server HTML into the page: it parses the HTML in an inert `<template>`, checks its shape,
+and falls back to the plain text when the check fails. A message that is still pending or failed always shows as text.
 
 Keyboard reach follows [ADR 003](../../docs/explanation/decisions/003-inline-chat-images-and-shared-markdown.md),
 Decision 6. For the stop message, Tab visits its body links, its quote card and its "Diagram source" summary, and a
 table, code block or diagram picture only while it overflows (named "Table, scrollable" or "Code, scrollable").
-`assets/js/family_chat/message_content_stops.js` applies this. The Arrow keys, Home, End, Enter and Space act only
-when the message element itself has focus, and each move scrolls the focused message into the history's window (`assets/js/family_chat/focus_reveal.js`; a message taller than the window shows its top). **Escape** on its content returns focus to the message. Tab and
-Shift+Tab are never intercepted. When the visitor sends a message, the stop moves to the new row. On the own
-(dark) bubble the focus ring uses `--bnest-sun-light` for contrast. The Codex chat keeps the normal tab order.
+`assets/js/family_chat/message_content_stops.js` applies this. The Arrow keys, Home, End, Enter and Space act only when
+the message element itself has focus, and each move scrolls the focused message into the history's window
+(`assets/js/family_chat/focus_reveal.js`; a message taller than the window shows its top). **Escape** on its content
+returns focus to the message. Tab and Shift+Tab are never intercepted. When the visitor sends a message, the stop moves
+to the new row. On the own (dark) bubble the focus ring uses `--bnest-sun-light` for contrast. The Codex chat keeps the
+normal tab order.
 
-The Sifat Allah activity saves version-2 progress and optional activity state to the authenticated user's central record, so it continues across that user's browsers. Version-1 browser snapshots normalize to version 2 during confirmed import while preserving progress; invalid optional activity state falls back to the dashboard without losing valid progress. **Reset progress** requires a second confirmation and saves a fresh zero-progress revision. Its two repeat queues remain question-level, quiz answers still lock before five-second advancement, and Browser Back still returns an active exercise to the mission dashboard. The app has no uploads. The only Markdown it renders is a Codex reply and a Family Chat message, through the one sanitizing renderer described under [Chat runtime](#chat-runtime). The underlying Codex CLI may still create its normal account-level session artifacts outside the application.
+The Sifat Allah activity saves version-2 progress and optional activity state to the authenticated user's central
+record, so it continues across that user's browsers. Version-1 browser snapshots normalize to version 2 during confirmed
+import while preserving progress; invalid optional activity state falls back to the dashboard without losing valid
+progress. **Reset progress** requires a second confirmation and saves a fresh zero-progress revision. Its two repeat
+queues remain question-level, quiz answers still lock before five-second advancement, and Browser Back still returns an
+active exercise to the mission dashboard. The app has no uploads. The only Markdown it renders is a Codex reply and a
+Family Chat message, through the one sanitizing renderer described under [Chat runtime](#chat-runtime). The underlying
+Codex CLI may still create its normal account-level session artifacts outside the application.
 
-The test environment substitutes a deterministic model catalog and session, and browser tests start deterministic catalog and chat runners. These fixtures verify the complete model catalog, model-specific effort choices, effective model, effort, and sandbox arguments, streaming, and same-thread resume protocol. They also send fixed Markdown and repository-image replies, so the browser tests need no model. The canonical Gherkin never requires particular model wording. A real-model smoke check should assert only discovery, protocol health, stable thread identity, and non-empty completed responses; model-quality requirements belong in representative evals with outcome-based graders.
+The test environment substitutes a deterministic model catalog and session, and browser tests start deterministic
+catalog and chat runners. These fixtures verify the complete model catalog, model-specific effort choices, effective
+model, effort, and sandbox arguments, streaming, and same-thread resume protocol. They also send fixed Markdown and
+repository-image replies, so the browser tests need no model. The canonical Gherkin never requires particular model
+wording. A real-model smoke check should assert only discovery, protocol health, stable thread identity, and non-empty
+completed responses; model-quality requirements belong in representative evals with outcome-based graders.
 
 ## Structure
 
-- `lib/bnest_app/` contains the OTP application and one bounded context per facade module; each context's `domain/`, `ports/` and `adapters/` hold its pure rules, its port behaviours and their implementations.
-- `lib/bnest_app/identity.ex` and `lib/bnest_app/identity/` own bootstrap, login, sessions, authorization, the username and password rules, and the record-backed identity store, Argon2 hasher, endpoint notifier and push-subscription revoker adapters.
-- `lib/bnest_app/preferences.ex` and `lib/bnest_app/preferences/` own each signed-in user's theme choice: the allowed themes, the unchanged `theme-preference` record, and its store over Storage's records.
-- `lib/bnest_app/sifat_allah.ex` and `lib/bnest_app/sifat_allah/` own the Sifat Allah learning activity: the curriculum and quiz rules (`Domain.Quiz`, which the LiveView renders with), the unchanged `sifat-allah-progress` record, its store over Storage's records, and the record kind that registers it with Storage.
-- `lib/bnest_app/codex_chat.ex` and `lib/bnest_app/codex_chat/` own the Codex chat: opening, resuming and replacing a conversation, applying its events to the transcript (`Domain.Transcript`, which the LiveView renders with), the role model-access and repository-access rules, the supervised model catalog, the unchanged `chat` record and its store over Storage's records, the record kind that registers it with Storage, and the adapters for the SDK subprocess protocol and model discovery. The repository image rules for chat replies are the pure `Domain.RepositoryImage` (path syntax, content signature and size limit); `Ports.RepositoryImages` reads the files, and `Adapters.RepositoryImageFiles` serves them from the configured working directory after refusing symbolic links below it. The facade is `BnestApp.CodexChat.repository_image/1`.
-- `lib/bnest_app/storage.ex` and `lib/bnest_app/storage/` own the typed record store, record schemas, SQLite location validation, the storage pointer, the flat-file migration service and its adapters, and the phase-aware storage coordinator.
-- `lib/bnest_app/scheduler.ex` and `lib/bnest_app/scheduler/` own daily schedules, durable claims, the contextual inventory, operator edits, retries, leases, task dispatch and the coordinator process. The facade `BnestApp.Scheduler` is that process and the only entry point for the admin schedules page, the release migrations and the task adapters; the pure `Domain.Policy` holds the time, claim, retry and edit rules. Its ports are the schedule store and `Ports.Task`, the behaviour every scheduled task declares (`execute/2`). `Adapters.SqliteScheduleStore` is the SQLite store; `TaskRegistry` serves the tasks registered per handler key, which is all a schedule row stores. `config :bnest_app, BnestApp.Scheduler` selects the store and registers the tasks (Backup's `Adapters.ScheduledBackupTask`, Push Notifications' `Adapters.RetentionTask`, the family `fixture`) and the tick handlers each regular tick runs, so the Scheduler names no other context; the unit layer selects an in-memory schedule store. The test-only schedule seeds live in `test/integration/support/seeds/schedules.ex` (`BnestApp.Test.Seeds.Schedules`), which the end-to-end servers reach through `mix run` in the test environment and no release compiles.
-- `lib/bnest_app/backup.ex` and `lib/bnest_app/backup/` own the private destination pointer, marker, independent snapshot proof, fenced publication, capacity/concurrency, receipts, seven-WIB-day retention, and the read-only reconciliation of the ledger's verified runs against the files the destination holds. The facade `BnestApp.Backup` is the only entry point for the admin schedules page, the Scheduler's task and the backup Mix tasks; the pure `Domain` holds the destination, receipt, capacity, retention, restore-evidence, reconciliation and restore-drill rules. `Backup.reconcile/2` takes the verified runs as data (`Scheduler.verified_runs/1`), reads only the artifacts they list, writes and removes nothing, and reports each run as present, missing, changed or not expected; `Domain.Reconciliation.report/1` and `render/1` are the one wording that the log line, the `[:bnest_app, :backup, :integrity]` telemetry metadata, the Mix task and the page label all render, naming a run by its WIB date and state only. `Backup.restore_target/2` accepts an operator's artifact only as the bare name of a regular file directly inside the destination, and `Domain.RestoreDrillReport` holds the restore drill's wording. Its ports are the configuration store, artifact store, database snapshot, capacity probe and ignore check, which `config :bnest_app, BnestApp.Backup` selects: `Adapters.FileConfigStore`, `Adapters.FileArtifactStore`, `Adapters.SqliteDatabaseSnapshot`, `Adapters.DfCapacityProbe` and `Adapters.GitIgnoreCheck`. `Adapters.ScheduledBackupTask` is the task the Scheduler registers under `prod_sqlite_backup`; once a run is recorded and retention has run, it reconciles and reports the result through that telemetry event and one log entry, and the check never fails the run. The unit layer selects in-memory doubles for every port.
-- `lib/bnest_app/family_chat.ex` and `lib/bnest_app/family_chat/` own the family chat room: sending, paging and replying (`Domain.Policy`, `Domain.Cursor`, and `Domain.Message`, which the GraphQL types render with, including the single 160-grapheme rule every quote preview is cut by), the room store port and its SQLite adapter with the atomic message-and-delivery commit, and the publisher port whose Absinthe adapter feeds the GraphQL subscription.
-- `priv/sqlite_repo/migrations/20260922000000_add_family_chat_message_reply.exs` adds the nullable `reply_to_message_id` column and its partial index, and refuses to reverse once a reply exists.
-- `assets/js/family_chat/message_actions.js`, `reply_target.js`, and `jump_to_message.js` own the per-message action menu, the chosen reply target shared by the composer and the outbox, and the bounded jump back to a quoted message.
-- `assets/js/family_chat/` opens the room through injected browser collaborators: the request, socket, persistence, storage and clock are parameters of `initRoomFromDocument`, with the browser's own as the default, and the shipped code carries no test branch or seam. A message that couldn't send offers Retry and Discard (`message_manual_render.js`, also from the message's action menu), and `assets/js/logout.js` clears the member's queued messages from the device before the log-out form submits. The service worker (`priv/static/service-worker.js`) never caches an authenticated page; an offline navigation gets a static offline page.
-- `lib/bnest_app/push_notifications.ex` and `lib/bnest_app/push_notifications/` own Web Push subscriptions, delivery dispatch and retry (`Dispatcher`, with the pure `Domain.Policy` for validation, payloads and backoff), and delivery retention. Its ports are the subscription store, the delivery store and the push sender. The adapters are the SQLite stores; `Adapters.WebPushSender`, which signs with VAPID and is the only sender that dials out; and `Adapters.RetentionTask`, the retention/purge task the Scheduler's configuration registers. `config :bnest_app, BnestApp.PushNotifications` selects one adapter per port; the integration layer and the end-to-end servers select `BnestApp.Test.RecordingPushSender` (under `test/support/`), which records requests without any network use, and the unit layer selects in-memory doubles.
-- `lib/bnest_app/operations.ex` and `lib/bnest_app/operations/` own what the running release reports about itself. The facade `BnestApp.Operations` is the only entry point for the health controller, the `x-bnest-revision` header plug and the admin settings pages: `liveness/0`, `readiness/0` (the record repository, Identity and the Codex model catalog, then the deployment's peer slot), `health/0` (readiness plus the storage state; once SQLite is authoritative it proves the release-seeded backup schedule through the `Storage` and `Scheduler` facades), `revision/0`, `slot/0`, `admin_panels/0` and `fetch_admin_panel/1`. The pure `Domain.AdminPanels` declares the typed Admin settings panels, each owned by a context facade, without storing domain values. Its one port is the release environment, which `config :bnest_app, BnestApp.Operations` selects: `Adapters.SystemReleaseEnvironment` reads `BNEST_RELEASE_REVISION`, `BNEST_DEPLOY_SLOT` and `BNEST_DEPLOY_PEER`, the local process registry and the peer ping; the unit layer selects an in-memory double.
-- `lib/mix/tasks/bnest.storage.*.ex` runs headless migration, relocation, and verified retirement without a browser visit.
-- `lib/mix/tasks/bnest.backup.*.ex` runs two headless backup checks on the host that holds the backups, each reading the configured destination without creating, marking or changing it. `mix bnest.backup.reconcile` reads the ledger from a scratch copy of the database without starting the application, so it cannot claim a schedule slot, and prints the `Backup files` report; it exits 0 only when at least one backup is expected and every one is present, and non-zero for a missing or changed file, a check that could not be made, or an empty ledger. `mix bnest.backup.restore_drill --artifact <file-name>` restores one artifact, named by its bare file name, into a root it creates and removes and prints redacted counts with no path; it exits 0 only when the copy holds one readable room, its messages read back in ascending order and no root is left behind. The restore refuses a copy that fails `quick_check` or whose size is not a whole number of pages matching its header, and the drill exits 1 for it. [Restoring a Bnest backup](../../docs/how-to-guides/restoring-a-bnest-backup.md) shows the steps and how to read the output.
-- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews, chat/learning LiveViews, admin-only storage/settings/schedule LiveViews, and components. `chat_markdown.ex` renders Markdown for both chat rooms (ADR 002, ADR 003, ADR 004), `components/chat_components.ex` holds the shared `markdown_body/1` and `markdown_body_html/2`, and `chat_image_controller.ex` serves the repository images a message shows.
-- `lib/bnest_app_web/schema.ex`, `lib/bnest_app_web/schema/`, and `lib/bnest_app_web/resolvers/` own the authenticated family chat GraphQL schema, its types, and its resolvers (`family_chat_resolver.ex`, `web_push_resolver.ex`).
-- `lib/bnest_app_web/user_socket.ex` owns the Absinthe GraphQL subscription socket at `/api/graphql/socket`, resolving identity and the browser session's digest only from the server-decoded session in `connect_info`; `BnestAppWeb.UserAuth.fetch_current_user/2` stores that digest beside the user on every authenticated request, and socket parameters are never read.
-- `lib/bnest_app_web/dev_routes.ex` holds the pure decision `BnestAppWeb.Router` takes at compile time for the dev-only routes (LiveDashboard, the mailbox preview and GraphiQL); only `config/dev.exs` sets `:dev_routes`, so test and production builds compile none of them.
-- `lib/bnest_app_web/testing_routes.ex` holds the pure decision `BnestAppWeb.Router` takes at compile time for the test-only testing-control routes under `/__bnest_testing/v1`; only `config/test.exs` sets `:testing_control`, and only the `:test` environment with that flag mounts them. The controller `BnestAppWeb.TestingControl.InstanceController` lives in `test/support/testing_control/`, so production builds carry neither the routes nor the controller.
-- `priv/codex/` contains the SDK chat runner, `chat_instructions.mjs` (the developer instruction every chat turn carries, which the runner imports), and the app-server model discovery helper.
-- `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL, including persistent schedule and run ledgers.
-- `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking. `assets/js/diagrams/` draws Mermaid diagrams for both chat rooms: the page modules are part of `app.js`, and `engine.js` with `engine_core.js` and `diagram_frame.js` is the lazy engine bundle that the second esbuild profile `bnest_app_diagrams` builds. `assets/js/family_chat/message_body.js` and `message_content_stops.js` insert server HTML and set the keyboard stops of a Family Chat message. In `assets/css/`, `chat_shared.css` holds the `--bnest-*` design tokens, the `--chat-*` colour variables and the shared `.markdown-body` rules, `diagrams.css` holds the `.bnest-diagram*` rules, and `app.css` imports both and keeps each room's own bubble layout.
+- `lib/bnest_app/` contains the OTP application and one bounded context per facade module; each context's `domain/`,
+  `ports/` and `adapters/` hold its pure rules, its port behaviours and their implementations.
+- `lib/bnest_app/identity.ex` and `lib/bnest_app/identity/` own bootstrap, login, sessions, authorization, the username
+  and password rules, and the record-backed identity store, Argon2 hasher, endpoint notifier and push-subscription
+  revoker adapters.
+- `lib/bnest_app/preferences.ex` and `lib/bnest_app/preferences/` own each signed-in user's theme choice: the allowed
+  themes, the unchanged `theme-preference` record, and its store over Storage's records.
+- `lib/bnest_app/sifat_allah.ex` and `lib/bnest_app/sifat_allah/` own the Sifat Allah learning activity: the curriculum
+  and quiz rules (`Domain.Quiz`, which the LiveView renders with), the unchanged `sifat-allah-progress` record, its
+  store over Storage's records, and the record kind that registers it with Storage.
+- `lib/bnest_app/codex_chat.ex` and `lib/bnest_app/codex_chat/` own the Codex chat: opening, resuming and replacing a
+  conversation, applying its events to the transcript (`Domain.Transcript`, which the LiveView renders with), the role
+  model-access and repository-access rules, the supervised model catalog, the unchanged `chat` record and its store over
+  Storage's records, the record kind that registers it with Storage, and the adapters for the SDK subprocess protocol
+  and model discovery. The repository image rules for chat replies are the pure `Domain.RepositoryImage` (path syntax,
+  content signature and size limit); `Ports.RepositoryImages` reads the files, and `Adapters.RepositoryImageFiles`
+  serves them from the configured working directory after refusing symbolic links below it. The facade is
+  `BnestApp.CodexChat.repository_image/1`.
+- `lib/bnest_app/storage.ex` and `lib/bnest_app/storage/` own the typed record store, record schemas, SQLite location
+  validation, the storage pointer, the flat-file migration service and its adapters, and the phase-aware storage
+  coordinator.
+- `lib/bnest_app/scheduler.ex` and `lib/bnest_app/scheduler/` own daily schedules, durable claims, the contextual
+  inventory, operator edits, retries, leases, task dispatch and the coordinator process. The facade `BnestApp.Scheduler`
+  is that process and the only entry point for the admin schedules page, the release migrations and the task adapters;
+  the pure `Domain.Policy` holds the time, claim, retry and edit rules. Its ports are the schedule store and
+  `Ports.Task`, the behaviour every scheduled task declares (`execute/2`). `Adapters.SqliteScheduleStore` is the SQLite
+  store; `TaskRegistry` serves the tasks registered per handler key, which is all a schedule row stores.
+  `config :bnest_app, BnestApp.Scheduler` selects the store and registers the tasks (Backup's
+  `Adapters.ScheduledBackupTask`, Push Notifications' `Adapters.RetentionTask`, the family `fixture`) and the tick
+  handlers each regular tick runs, so the Scheduler names no other context; the unit layer selects an in-memory schedule
+  store. The test-only schedule seeds live in `test/integration/support/seeds/schedules.ex`
+  (`BnestApp.Test.Seeds.Schedules`), which the end-to-end servers reach through `mix run` in the test environment and no
+  release compiles.
+- `lib/bnest_app/backup.ex` and `lib/bnest_app/backup/` own the private destination pointer, marker, independent
+  snapshot proof, fenced publication, capacity/concurrency, receipts, seven-WIB-day retention, and the read-only
+  reconciliation of the ledger's verified runs against the files the destination holds. The facade `BnestApp.Backup` is
+  the only entry point for the admin schedules page, the Scheduler's task and the backup Mix tasks; the pure `Domain`
+  holds the destination, receipt, capacity, retention, restore-evidence, reconciliation and restore-drill rules.
+  `Backup.reconcile/2` takes the verified runs as data (`Scheduler.verified_runs/1`), reads only the artifacts they
+  list, writes and removes nothing, and reports each run as present, missing, changed or not expected;
+  `Domain.Reconciliation.report/1` and `render/1` are the one wording that the log line, the
+  `[:bnest_app, :backup, :integrity]` telemetry metadata, the Mix task and the page label all render, naming a run by
+  its WIB date and state only. `Backup.restore_target/2` accepts an operator's artifact only as the bare name of a
+  regular file directly inside the destination, and `Domain.RestoreDrillReport` holds the restore drill's wording. Its
+  ports are the configuration store, artifact store, database snapshot, capacity probe and ignore check, which
+  `config :bnest_app, BnestApp.Backup` selects: `Adapters.FileConfigStore`, `Adapters.FileArtifactStore`,
+  `Adapters.SqliteDatabaseSnapshot`, `Adapters.DfCapacityProbe` and `Adapters.GitIgnoreCheck`.
+  `Adapters.ScheduledBackupTask` is the task the Scheduler registers under `prod_sqlite_backup`; once a run is recorded
+  and retention has run, it reconciles and reports the result through that telemetry event and one log entry, and the
+  check never fails the run. The unit layer selects in-memory doubles for every port.
+- `lib/bnest_app/family_chat.ex` and `lib/bnest_app/family_chat/` own the family chat room: sending, paging and replying
+  (`Domain.Policy`, `Domain.Cursor`, and `Domain.Message`, which the GraphQL types render with, including the single
+  160-grapheme rule every quote preview is cut by), the room store port and its SQLite adapter with the atomic
+  message-and-delivery commit, and the publisher port whose Absinthe adapter feeds the GraphQL subscription.
+- `priv/sqlite_repo/migrations/20260922000000_add_family_chat_message_reply.exs` adds the nullable `reply_to_message_id`
+  column and its partial index, and refuses to reverse once a reply exists.
+- `assets/js/family_chat/message_actions.js`, `reply_target.js`, and `jump_to_message.js` own the per-message action
+  menu, the chosen reply target shared by the composer and the outbox, and the bounded jump back to a quoted message.
+- `assets/js/family_chat/` opens the room through injected browser collaborators: the request, socket, persistence,
+  storage and clock are parameters of `initRoomFromDocument`, with the browser's own as the default, and the shipped
+  code carries no test branch or seam. A message that couldn't send offers Retry and Discard
+  (`message_manual_render.js`, also from the message's action menu), and `assets/js/logout.js` clears the member's
+  queued messages from the device before the log-out form submits. The service worker (`priv/static/service-worker.js`)
+  never caches an authenticated page; an offline navigation gets a static offline page.
+- `lib/bnest_app/push_notifications.ex` and `lib/bnest_app/push_notifications/` own Web Push subscriptions, delivery
+  dispatch and retry (`Dispatcher`, with the pure `Domain.Policy` for validation, payloads and backoff), and delivery
+  retention. Its ports are the subscription store, the delivery store and the push sender. The adapters are the SQLite
+  stores; `Adapters.WebPushSender`, which signs with VAPID and is the only sender that dials out; and
+  `Adapters.RetentionTask`, the retention/purge task the Scheduler's configuration registers.
+  `config :bnest_app, BnestApp.PushNotifications` selects one adapter per port; the integration layer and the end-to-end
+  servers select `BnestApp.Test.RecordingPushSender` (under `test/support/`), which records requests without any network
+  use, and the unit layer selects in-memory doubles.
+- `lib/bnest_app/operations.ex` and `lib/bnest_app/operations/` own what the running release reports about itself. The
+  facade `BnestApp.Operations` is the only entry point for the health controller, the `x-bnest-revision` header plug and
+  the admin settings pages: `liveness/0`, `readiness/0` (the record repository, Identity and the Codex model catalog,
+  then the deployment's peer slot), `health/0` (readiness plus the storage state; once SQLite is authoritative it proves
+  the release-seeded backup schedule through the `Storage` and `Scheduler` facades), `revision/0`, `slot/0`,
+  `admin_panels/0` and `fetch_admin_panel/1`. The pure `Domain.AdminPanels` declares the typed Admin settings panels,
+  each owned by a context facade, without storing domain values. Its one port is the release environment, which
+  `config :bnest_app, BnestApp.Operations` selects: `Adapters.SystemReleaseEnvironment` reads `BNEST_RELEASE_REVISION`,
+  `BNEST_DEPLOY_SLOT` and `BNEST_DEPLOY_PEER`, the local process registry and the peer ping; the unit layer selects an
+  in-memory double.
+- `lib/mix/tasks/bnest.storage.*.ex` runs headless migration, relocation, and verified retirement without a browser
+  visit.
+- `lib/mix/tasks/bnest.backup.*.ex` runs two headless backup checks on the host that holds the backups, each reading the
+  configured destination without creating, marking or changing it. `mix bnest.backup.reconcile` reads the ledger from a
+  scratch copy of the database without starting the application, so it cannot claim a schedule slot, and prints the
+  `Backup files` report; it exits 0 only when at least one backup is expected and every one is present, and non-zero for
+  a missing or changed file, a check that could not be made, or an empty ledger.
+  `mix bnest.backup.restore_drill --artifact <file-name>` restores one artifact, named by its bare file name, into a
+  root it creates and removes and prints redacted counts with no path; it exits 0 only when the copy holds one readable
+  room, its messages read back in ascending order and no root is left behind. The restore refuses a copy that fails
+  `quick_check` or whose size is not a whole number of pages matching its header, and the drill exits 1 for it.
+  [Restoring a Bnest backup](../../docs/how-to-guides/restoring-a-bnest-backup.md) shows the steps and how to read the
+  output.
+- `lib/bnest_app_web/` contains the endpoint, protected router, authentication/import controllers and LiveViews,
+  chat/learning LiveViews, admin-only storage/settings/schedule LiveViews, and components. `chat_markdown.ex` renders
+  Markdown for both chat rooms (ADR 002, ADR 003, ADR 004), `components/chat_components.ex` holds the shared
+  `markdown_body/1` and `markdown_body_html/2`, and `chat_image_controller.ex` serves the repository images a message
+  shows.
+- `lib/bnest_app_web/schema.ex`, `lib/bnest_app_web/schema/`, and `lib/bnest_app_web/resolvers/` own the authenticated
+  family chat GraphQL schema, its types, and its resolvers (`family_chat_resolver.ex`, `web_push_resolver.ex`).
+- `lib/bnest_app_web/user_socket.ex` owns the Absinthe GraphQL subscription socket at `/api/graphql/socket`, resolving
+  identity and the browser session's digest only from the server-decoded session in `connect_info`;
+  `BnestAppWeb.UserAuth.fetch_current_user/2` stores that digest beside the user on every authenticated request, and
+  socket parameters are never read.
+- `lib/bnest_app_web/dev_routes.ex` holds the pure decision `BnestAppWeb.Router` takes at compile time for the dev-only
+  routes (LiveDashboard, the mailbox preview and GraphiQL); only `config/dev.exs` sets `:dev_routes`, so test and
+  production builds compile none of them.
+- `lib/bnest_app_web/testing_routes.ex` holds the pure decision `BnestAppWeb.Router` takes at compile time for the
+  test-only testing-control routes under `/__bnest_testing/v1`; only `config/test.exs` sets `:testing_control`, and only
+  the `:test` environment with that flag mounts them. The controller `BnestAppWeb.TestingControl.InstanceController`
+  lives in `test/support/testing_control/`, so production builds carry neither the routes nor the controller.
+- `priv/codex/` contains the SDK chat runner, `chat_instructions.mjs` (the developer instruction every chat turn
+  carries, which the runner imports), and the app-server model discovery helper.
+- `priv/sqlite_repo/migrations/` contains the versioned, committed SQLite DDL, including persistent schedule and run
+  ledgers.
+- `assets/` contains browser JavaScript, CSS, and declaration boundaries used for strict checking. `assets/js/diagrams/`
+  draws Mermaid diagrams for both chat rooms: the page modules are part of `app.js`, and `engine.js` with
+  `engine_core.js` and `diagram_frame.js` is the lazy engine bundle that the second esbuild profile `bnest_app_diagrams`
+  builds. `assets/js/family_chat/message_body.js` and `message_content_stops.js` insert server HTML and set the keyboard
+  stops of a Family Chat message. In `assets/css/`, `chat_shared.css` holds the `--bnest-*` design tokens, the
+  `--chat-*` colour variables and the shared `.markdown-body` rules, `diagrams.css` holds the `.bnest-diagram*` rules,
+  and `app.css` imports both and keeps each room's own bubble layout.
 - `config/` contains compile-time and runtime environment configuration.
-- `tools/deployment.mjs` is the release orchestrator: build, migration, convergence, slot preparation and promotion, and rollback. `tools/service-adapter.mjs` picks one service adapter by `process.platform` and fails closed on any platform other than `darwin` or `linux`.
-- `tools/launchd.mjs` is the macOS adapter (LaunchAgents through `launchctl`, Caddy through Homebrew). `tools/systemd.mjs` is the Linux adapter (user units through `systemctl --user`, the pinned Caddy tarball). `tools/deployment-support.mjs` holds the helpers both share.
-- `tools/caddy-config.mjs` builds the reverse-proxy configuration `deployment.mjs` writes into Caddy. It has no side effects, so tests generate the real configuration from it without running a deployment command. The configuration answers `404` for `/__bnest_testing/*` and removes the `x-bnest-testing` request header before the proxy, as a second layer behind the compile-time gate.
-- `tools/release.mjs` owns the deterministic release transaction and immutable migration identity; its adjacent tests and continuity contract prove recovery, serialization, and future resumable multi-client state. Right after `release:build` it runs the artifact audit and records the `artifact-audit` evidence id.
-- `tools/release-artifact-audit.mjs` audits a built release directory with no BEAM tools. It fails when an `ebin` holds a test-only module beam (`BnestApp.Test*`, `BnestAppWeb.TestingControl*`) or when `BnestAppWeb.Router` names the testing path or a test module, including inside its compressed literal table. Run `node tools/release-artifact-audit.mjs <release-directory>` on any prod-compiled release; exit `0` passes, `1` lists the violations, and `2` means bad usage.
-- The pinned HIPPO adds routed-service evidence and writes a bounded schema-v5 release summary with hard routed-responsiveness budgets.
+- `tools/deployment.mjs` is the release orchestrator: build, migration, convergence, slot preparation and promotion, and
+  rollback. `tools/service-adapter.mjs` picks one service adapter by `process.platform` and fails closed on any platform
+  other than `darwin` or `linux`.
+- `tools/launchd.mjs` is the macOS adapter (LaunchAgents through `launchctl`, Caddy through Homebrew).
+  `tools/systemd.mjs` is the Linux adapter (user units through `systemctl --user`, the pinned Caddy tarball).
+  `tools/deployment-support.mjs` holds the helpers both share.
+- `tools/caddy-config.mjs` builds the reverse-proxy configuration `deployment.mjs` writes into Caddy. It has no side
+  effects, so tests generate the real configuration from it without running a deployment command. The configuration
+  answers `404` for `/__bnest_testing/*` and removes the `x-bnest-testing` request header before the proxy, as a second
+  layer behind the compile-time gate.
+- `tools/release.mjs` owns the deterministic release transaction and immutable migration identity; its adjacent tests
+  and continuity contract prove recovery, serialization, and future resumable multi-client state. Right after
+  `release:build` it runs the artifact audit and records the `artifact-audit` evidence id.
+- `tools/release-artifact-audit.mjs` audits a built release directory with no BEAM tools. It fails when an `ebin` holds
+  a test-only module beam (`BnestApp.Test*`, `BnestAppWeb.TestingControl*`) or when `BnestAppWeb.Router` names the
+  testing path or a test module, including inside its compressed literal table. Run
+  `node tools/release-artifact-audit.mjs <release-directory>` on any prod-compiled release; exit `0` passes, `1` lists
+  the violations, and `2` means bad usage.
+- The pinned HIPPO adds routed-service evidence and writes a bounded schema-v5 release summary with hard
+  routed-responsiveness budgets.
 - `tools/production-origin.mjs` validates the routed HTTPS origin and exposes only its normalized origin and hostname.
 - The pinned HIPPO owns bounded development and E2E listener leases before either runtime starts.
 - `priv/` contains static assets and translations.
 - `test/behaviour/` contains the shared driver contract, bindings, adapter hooks, and static completeness check.
 - `test/unit/` contains unit tests and the system-resource-free unit driver.
 - `test/integration/` contains local-only integration tests and the in-process Phoenix driver.
-- `test/support/` contains marked runtime-root and synthetic-identity helpers, plus deterministic Codex runners. The canned Codex replies in `codex_fixture_replies.json` are shared by the fixture runner and `BnestApp.Test.CodexFixtureConversation`, and `BnestApp.Test.CodexReplyPage` reads a rendered reply for the unit and integration drivers. The test-instance helpers are `BnestApp.TestInstance`, which spawns and drops one fresh migrated SQLite instance (`spawn!/2`, `drop!/1`, `state/0`, and the leak audits `audit/0` and `base_audit/0`) through the switch in `BnestApp.TestInstance.Switch`, using only the release migration entry points; the pure `BnestApp.TestInstance.Paths` derives its paths and the storage pointer; `BnestApp.TestInstance.Fingerprint` hashes a database's schema objects and applied migration versions, so the schema-parity test can compare a spawned instance with a database the release entry points build; `BnestApp.TestInstance.Timing` gives the nearest-rank percentiles used by the 20-spawn timing gate; and `BnestApp.TestInstance.Error` is the refusal or failure it raises. `BnestApp.TestInstance.Seed` fills a spawned instance: `spawn!/2` takes `seed: {seed_key, seed_map}` and runs the seed after migration, and `Seed.apply/3` runs it later. `Seed.validate/2` is pure and returns the normalized body or a `seed_invalid` error with a field path, and never echoes a password or a push key. `apply/3` writes accounts, Family Chat messages, push subscriptions and records only through production facades (`Identity`, `FamilyChat`, `PushNotifications`, `SifatAllah`, `CodexChat` and `Preferences`). The same key with the same body applies once; the key registry lives in the instance state, and `drop!/1` clears it. The integration support module `BnestApp.Test.MigrationFiles` lists the migration versions from the migrations directory. The testing-control modules in `test/support/testing_control/` serve the test-only routes. `Secret` checks the run secret in `x-bnest-testing`. `Guard` is the plug that runs first in the `:testing_control` pipeline: it refuses any request that fails the peer, forwarding, runtime-ownership, secret or instance-id check, and it raises the same error a missing route raises, so a refused request gets the same answer as a missing one. `Request` judges the shape of a request body (a spawn may carry a client-chosen `instanceId`, so its seed can name usernames that carry that id), `ErrorBody` maps each refusal to its fixed status, code and detail, and `InstanceController` runs the instance lifecycle over `BnestApp.TestInstance`. The integration support module `BnestApp.Test.TestingControlWire` sends requests through the endpoint for those routes.
-- `specs/apps/bnest/app-be/architecture.md` and `specs/apps/bnest/app-fe/architecture.md` contain the canonical as-built C4 models.
+- `test/support/` contains marked runtime-root and synthetic-identity helpers, plus deterministic Codex runners. The
+  canned Codex replies in `codex_fixture_replies.json` are shared by the fixture runner and
+  `BnestApp.Test.CodexFixtureConversation`, and `BnestApp.Test.CodexReplyPage` reads a rendered reply for the unit and
+  integration drivers. The test-instance helpers are `BnestApp.TestInstance`, which spawns and drops one fresh migrated
+  SQLite instance (`spawn!/2`, `drop!/1`, `state/0`, and the leak audits `audit/0` and `base_audit/0`) through the
+  switch in `BnestApp.TestInstance.Switch`, using only the release migration entry points; the pure
+  `BnestApp.TestInstance.Paths` derives its paths and the storage pointer; `BnestApp.TestInstance.Fingerprint` hashes a
+  database's schema objects and applied migration versions, so the schema-parity test can compare a spawned instance
+  with a database the release entry points build; `BnestApp.TestInstance.Timing` gives the nearest-rank percentiles used
+  by the 20-spawn timing gate; and `BnestApp.TestInstance.Error` is the refusal or failure it raises.
+  `BnestApp.TestInstance.Seed` fills a spawned instance: `spawn!/2` takes `seed: {seed_key, seed_map}` and runs the seed
+  after migration, and `Seed.apply/3` runs it later. `Seed.validate/2` is pure and returns the normalized body or a
+  `seed_invalid` error with a field path, and never echoes a password or a push key. `apply/3` writes accounts, Family
+  Chat messages, push subscriptions and records only through production facades (`Identity`, `FamilyChat`,
+  `PushNotifications`, `SifatAllah`, `CodexChat` and `Preferences`). The same key with the same body applies once; the
+  key registry lives in the instance state, and `drop!/1` clears it. The integration support module
+  `BnestApp.Test.MigrationFiles` lists the migration versions from the migrations directory. The testing-control modules
+  in `test/support/testing_control/` serve the test-only routes. `Secret` checks the run secret in `x-bnest-testing`.
+  `Guard` is the plug that runs first in the `:testing_control` pipeline: it refuses any request that fails the peer,
+  forwarding, runtime-ownership, secret or instance-id check, and it raises the same error a missing route raises, so a
+  refused request gets the same answer as a missing one. `Request` judges the shape of a request body (a spawn may carry
+  a client-chosen `instanceId`, so its seed can name usernames that carry that id), `ErrorBody` maps each refusal to its
+  fixed status, code and detail, and `InstanceController` runs the instance lifecycle over `BnestApp.TestInstance`. The
+  integration support module `BnestApp.Test.TestingControlWire` sends requests through the endpoint for those routes.
+- `specs/apps/bnest/app-be/architecture.md` and `specs/apps/bnest/app-fe/architecture.md` contain the canonical as-built
+  C4 models.
 
-The current operating model is a loopback Bnest server behind an independently managed private Tailscale Serve route. Follow the repository's [continuity](../../repo-governance/development/live-service-continuity.md), [restart](../../repo-governance/workflows/maintenance/development-server-restart.md), and [proxy](../../repo-governance/workflows/maintenance/development-tailnet-proxy.md) guidance; generated Phoenix cloud-deployment comments are not the deployment contract.
+The current operating model is a loopback Bnest server behind an independently managed private Tailscale Serve route.
+Follow the repository's [continuity](../../repo-governance/development/live-service-continuity.md),
+[restart](../../repo-governance/workflows/maintenance/development-server-restart.md), and
+[proxy](../../repo-governance/workflows/maintenance/development-tailnet-proxy.md) guidance; generated Phoenix
+cloud-deployment comments are not the deployment contract.
