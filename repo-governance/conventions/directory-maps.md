@@ -1,6 +1,7 @@
 # Directory Maps
 
-Every directory in `repo-governance` must contain a `README.md` that explains the directory and provides a map of its contents.
+Every directory in `repo-governance` must contain a `README.md` that explains the directory and provides a map of its
+contents.
 
 ## Requirements
 
@@ -10,36 +11,59 @@ Every directory in `repo-governance` must contain a `README.md` that explains th
 - When the README has no siblings, state that explicitly in the map.
 - Update the map in the same change that adds, removes, moves, or renames a sibling entry.
 
-This convention applies recursively to all current and future directories under `repo-governance`. It keeps governance discoverable while supporting the [progressive-disclosure principle](../principles/progressive-disclosure.md).
+This convention applies recursively to all current and future directories under `repo-governance`. It keeps governance
+discoverable while supporting the [progressive-disclosure principle](../principles/progressive-disclosure.md).
 
 ## Specification Trees
 
-Every directory recursively under `specs/`, including `specs/` itself, must contain a `README.md` with a `## Directory Map` section. Each specification map must link to every direct sibling file and directory other than its own README, regardless of file type.
+Every directory recursively under `specs/`, including `specs/` itself, must contain a `README.md` with a
+`## Directory Map` section. Each specification map must link to every direct sibling file and directory other than its
+own README, regardless of file type.
 
-Use relative links, concise descriptions, and the same empty-map statement and same-change maintenance requirements defined above. A directory link may target the child directory's required `README.md`.
+Use relative links, concise descriptions, and the same empty-map statement and same-change maintenance requirements
+defined above. A directory link may target the child directory's required `README.md`.
 
-Markdown files under `specs/` have no word limit. The [750-word governance budget](#word-budget) applies only to root `AGENTS.md` and Markdown under `repo-governance/`.
+Markdown files under `specs/` have no word limit. The [750-word governance budget](#word-budget) applies only to root
+`AGENTS.md` and Markdown under `repo-governance/`.
 
 ## Planning Trees
 
-Every directory recursively under `plans/`, including `plans/` itself, must contain a `README.md` with a `## Directory Map` section. Each planning map must link to every direct sibling file and directory other than its own README, regardless of file type.
+Every directory recursively under `plans/`, including `plans/` itself, must contain a `README.md` with a
+`## Directory Map` section. Each planning map must link to every direct sibling file and directory other than its own
+README, regardless of file type.
 
-Use relative links, concise descriptions, and the same empty-map statement and same-change maintenance requirements defined above. A directory link may target the child directory's required `README.md`.
+Use relative links, concise descriptions, and the same empty-map statement and same-change maintenance requirements
+defined above. A directory link may target the child directory's required `README.md`.
 
-Markdown files under `plans/` have no word limit. Organize and split plan content according to reader needs and the [plan-lifecycle convention](plan-lifecycle.md), never an arbitrary file-length ceiling.
+Markdown files under `plans/` have no word limit. Organize and split plan content according to reader needs and the
+[plan-lifecycle convention](plan-lifecycle.md), never an arbitrary file-length ceiling.
 
 ## Word Budget
 
-Root `AGENTS.md` and every Markdown file under `repo-governance/` must contain no more than 750 words. The budget keeps high-visibility rules scannable; it is a maximum, not a target. Markdown under `docs/`, `specs/`, and `plans/` is exempt.
+Root `AGENTS.md` and every Markdown file under `repo-governance/` must contain no more than 750 words. The budget keeps
+high-visibility rules scannable; it is a maximum, not a target. Markdown under `docs/`, `specs/`, and `plans/` is
+exempt.
 
-Split or redistribute governance content when one document has distinct reader tasks, ownership, or navigation needs; do not split merely to use or avoid the budget. If a complete governance README would exceed 750 words, divide it into coherent subdirectories until every governed Markdown file complies. Every new subdirectory must follow this convention. Never omit a sibling to make a map fit.
+Split or redistribute governance content when one document has distinct reader tasks, ownership, or navigation needs; do
+not split merely to use or avoid the budget. If a complete governance README would exceed 750 words, divide it into
+coherent subdirectories until every governed Markdown file complies. Every new subdirectory must follow this convention.
+Never omit a sibling to make a map fit.
 
-No shell one-liner reproduces the count. `repo-config.yml` declares it as `count: letters-and-digits`, and the validator applies that rule to link syntax too, so a Markdown link contributes one word per path segment while a table's `|` and `---` separators contribute none. `wc -w` therefore understates a link-dense document and overstates a table-heavy one, in one measured case by more than ninety words in each direction. Use it for a rough sense of size only, and take the budget verdict from the gate below.
+No shell one-liner reproduces the count. `repo-config.yml` declares it as `count: letters-and-digits`, and the validator
+applies that rule to link syntax too, so a Markdown link contributes one word per path segment while a table's `|` and
+`---` separators contribute none. `wc -w` therefore understates a link-dense document and overstates a table-heavy one,
+in one measured case by more than ninety words in each direction. Use it for a rough sense of size only, and take the
+budget verdict from the gate below.
 
-Budget the headroom, not just the file. Several governed documents sit within a few words of the limit, so a point-of-use line added to a full one pushes it over. When that happens, state the rule in its canonical document and let the existing link reach it rather than compressing a neighbouring rule to make room.
+Budget the headroom, not just the file. Several governed documents sit within a few words of the limit, so a
+point-of-use line added to a full one pushes it over. When that happens, state the rule in its canonical document and
+let the existing link reach it rather than compressing a neighbouring rule to make room.
 
-The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in `repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
+The `rhino-consumer` check enforces README presence and directory-map completeness under the mapped trees, plus
+applicable word limits. Which trees are mapped, which surfaces are governed, and the enforced limit are declared in
+`repo-config.yml`; the 750-word rule above is the rule, and that file is where the enforced value is written down:
 
 ```sh
-./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run -p rhino-consumer -t test:repo
+./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
+  npm exec -- nx run -p rhino-consumer -t test:repo
 ```

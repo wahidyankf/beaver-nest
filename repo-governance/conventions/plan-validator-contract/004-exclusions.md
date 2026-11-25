@@ -4,15 +4,15 @@ The validator checks structure. It does not judge the plan.
 
 ## Not Validated
 
-| Not checked                                      | Why                                                                          |
-| ------------------------------------------------ | ---------------------------------------------------------------------------- |
-| whether the writing is clear                     | no mechanical proxy for clarity survives contact with a determined author    |
-| whether the approach is sound                    | this is the judgement the plan exists to record, not a property of its shape |
-| whether acceptance criteria are the right ones   | correctness against intent is not visible in the text                        |
-| whether the work is worth doing                  | settled by grooming and the pre-write gate, before validation applies        |
-| whether a checklist item is granular enough      | the boundary is a judgement about the work, not about the line               |
-| whether a companion set genuinely needs ordering | declaring an order is a choice; only the resulting names are checkable       |
-| whether a filename is semantically odd           | word shapes do not prove meaning                                             |
+| Not checked                                  | Why                                                                   |
+| -------------------------------------------- | --------------------------------------------------------------------- |
+| whether the writing is clear                 | no mechanical clarity proxy survives contact with a determined author |
+| whether the approach is sound                | the judgement the plan exists to record, not a property of its shape  |
+| whether the acceptance criteria are right    | correctness against intent is not visible in the text                 |
+| whether the work is worth doing              | settled by grooming and the pre-write gate, before validation applies |
+| whether a checklist item is granular enough  | the boundary is a judgement about the work, not about the line        |
+| whether a companion set truly needs ordering | declaring an order is a choice; only resulting names are checkable    |
+| whether a filename is semantically odd       | word shapes do not prove meaning                                      |
 
 ## Why the Boundary Matters in Both Directions
 

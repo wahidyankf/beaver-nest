@@ -1,12 +1,15 @@
 # Project READMEs
 
-Every application or library project rooted under `apps/` or `libs/` must contain a `README.md` at its project root. Add the README in the same change that creates the project.
+Every application or library project rooted under `apps/` or `libs/` must contain a `README.md` at its project root. Add
+the README in the same change that creates the project.
 
 ## Document Roles
 
-The repository-root `README.md` is the front door for Beaver Nest as a whole. It explains the shared purpose, repository-wide setup, layout, workflows, privacy boundaries, and links to deeper documentation.
+The repository-root `README.md` is the front door for Beaver Nest as a whole. It explains the shared purpose,
+repository-wide setup, layout, workflows, privacy boundaries, and links to deeper documentation.
 
-A project README is the front door for one app or library. It explains that project's purpose, ownership boundary, interfaces, and local development tasks. Link to repository-wide information instead of duplicating it.
+A project README is the front door for one app or library. It explains that project's purpose, ownership boundary,
+interfaces, and local development tasks. Link to repository-wide information instead of duplicating it.
 
 ## Required Content
 
@@ -21,12 +24,20 @@ Tailor the document to its project, covering:
 - how to test the project; and
 - links to the root README and canonical architecture, security, operations, or governance documents.
 
-Put the most useful information first. Use runnable examples. Omit inapplicable sections rather than leaving empty boilerplate, and move lengthy detail into linked documents.
+Put the most useful information first. Use runnable examples. Omit inapplicable sections rather than leaving empty
+boilerplate, and move lengthy detail into linked documents.
 
 ## Maintenance
 
-Every change to an app or library must include a README impact check. Update its README in the same change when purpose, boundaries, public interfaces, prerequisites, configuration, targets, structure, or operating procedure changes. If none are affected, no README edit is required. [Docs propagation](../workflows/quality/docs-propagation.md) performs this check.
+Every change to an app or library must include a README impact check. Update its README in the same change when purpose,
+boundaries, public interfaces, prerequisites, configuration, targets, structure, or operating procedure changes. If none
+are affected, no README edit is required. [Docs propagation](../workflows/quality/docs-propagation.md) performs this
+check.
 
-Adding, removing, or moving a project, or changing the stacks it authors, also updates its entry in the `extensions.software-development` inventory that the [repository adapter](../development/quality/stacks/repository-adapter.md) owns.
+Adding, removing, or moving a project, or changing the stacks it authors, also updates its entry in the
+`extensions.software-development` inventory that the
+[repository adapter](../development/quality/stacks/repository-adapter.md) owns.
 
-Keep commands consistent with the project's resolved Nx configuration and keep all links valid. This convention follows [progressive disclosure](../principles/progressive-disclosure.md) and [minimal sufficiency](../principles/minimal-sufficiency.md).
+Keep commands consistent with the project's resolved Nx configuration and keep all links valid. This convention follows
+[progressive disclosure](../principles/progressive-disclosure.md) and
+[minimal sufficiency](../principles/minimal-sufficiency.md).

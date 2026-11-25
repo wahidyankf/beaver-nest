@@ -1,23 +1,57 @@
 # Integration Path
 
-This repository practises trunk-based development. `main` is the trunk, every branch off it is short-lived, and history stays linear. It takes the scaled variant, in which work reaches the trunk through a pull request rather than a direct commit, so the shorthand "commit to trunk" never applies here.
+This repository practises trunk-based development. `main` is the trunk, every branch off it is short-lived, and history
+stays linear. It takes the scaled variant, in which work reaches the trunk through a pull request rather than a direct
+commit, so the shorthand "commit to trunk" never applies here.
 
-Local `main` has no executable path to `origin/main`: the repository's `main` ruleset refuses direct pushes, force pushes, and branch deletion for every actor, including the repository owner.
+Local `main` has no executable path to `origin/main`: the repository's `main` ruleset refuses direct pushes, force
+pushes, and branch deletion for every actor, including the repository owner.
 
 ## Requirements
 
-- Do the work on a branch dedicated to it, in a Git worktree created under `worktrees/<name>/` at the repository root. That directory is ignored apart from its placeholder, so a worktree never enters history.
-- Initialize a new worktree from its own root, before any Git mutation or Nx target runs in it, with `./hippo run --class transactional --resource-tier standard --disk-path . -- npm install`. That installs the checkout's dependencies and activates its Husky hooks; a worktree whose hooks were never activated pushes unverified work.
-- Sync with the latest `origin/main` before implementation and resumed work. Run `git fetch origin`, then `git rebase origin/main`; `git merge-base --is-ancestor origin/main HEAD` must succeed. Never auto-stash, discard, or blindly auto-resolve. An unclean tree stops work. Resolve only owned, settled conflicts under [task sync](no-destructive-git-operations/001-authorized-task-branch-sync.md); foreign work, uncertain intent, or new choices stop sync.
-- When that sync brings in commits the branch did not have, read the whole incoming diff and reconcile the current task, its assumptions, its touched files, and its pending verification before continuing.
-- One plan, or one ad-hoc task where no plan governs the work, provisions at most one worktree here and reuses it for every delivery unit it produces; a second `git worktree add` for the same plan or task is a defect. Units sharing it land serially: land one, sync from `origin/main`, then branch the next in the same directory. Run `git worktree list` before provisioning and after each unit lands, and remove any worktree beyond the capped one, including one a subagent provisioned.
-- Push the task branch to `origin`, open one pull request against `main` per [delivery boundary](pull-request-boundaries.md), and merge only when the [pull-request merge convention](pull-request-merge.md) preconditions hold; they are what authorizes the merge.
+- Do the work on a branch dedicated to it, in a Git worktree created under `worktrees/<name>/` at the repository root.
+  That directory is ignored apart from its placeholder, so a worktree never enters history.
+- Initialize a new worktree from its own root, before any Git mutation or Nx target runs in it, with
+  `./hippo run --class transactional --resource-tier standard --disk-path . -- npm install`. That installs the
+  checkout's dependencies and activates its Husky hooks; a worktree whose hooks were never activated pushes unverified
+  work.
+- Sync with the latest `origin/main` before implementation and resumed work. Run `git fetch origin`, then
+  `git rebase origin/main`; `git merge-base --is-ancestor origin/main HEAD` must succeed. Never auto-stash, discard, or
+  blindly auto-resolve. An unclean tree stops work. Resolve only owned, settled conflicts under
+  [task sync](no-destructive-git-operations/001-authorized-task-branch-sync.md); foreign work, uncertain intent, or new
+  choices stop sync.
+- When that sync brings in commits the branch did not have, read the whole incoming diff and reconcile the current task,
+  its assumptions, its touched files, and its pending verification before continuing.
+- One plan, or one ad-hoc task where no plan governs the work, provisions at most one worktree here and reuses it for
+  every delivery unit it produces; a second `git worktree add` for the same plan or task is a defect. Units sharing it
+  land serially: land one, sync from `origin/main`, then branch the next in the same directory. Run `git worktree list`
+  before provisioning and after each unit lands, and remove any worktree beyond the capped one, including one a subagent
+  provisioned.
+- Push the task branch to `origin`, open one pull request against `main` per
+  [delivery boundary](pull-request-boundaries.md), and merge only when the
+  [pull-request merge convention](pull-request-merge.md) preconditions hold; they are what authorizes the merge.
 - Keep history linear, which the ruleset enforces; never merge `main` into a task branch.
-- Reconcile local `main` after every merge. The pull request lands from a `worktrees/` checkout, so `origin/main` moves and the primary checkout's `main` silently does not, and `release:run` later refuses the stale checkout it asserts against. There, run `git fetch origin`, then `git merge --ff-only origin/main`, and prove `git rev-list --left-right --count HEAD...origin/main` reads `0 0`. No hook reaches a step that runs after the merge, in a checkout the merge never touched.
-- `main` is the only persistent branch, and a task branch is short-lived in a measurable sense: merge it the day it is created where possible, one to two days maximum, and past two days rebase or abandon it.
-- Delete all three artifacts the work created — its worktree, its local branch, and that branch on `origin` — immediately after the pull request merges or the work is abandoned, and only once every delivery unit that used the worktree has landed. Before removing, confirm the branch has nothing unpushed and the worktree has nothing running in it. Retain a worktree whose run ended `partial` or failed, and say so, rather than deleting the evidence.
-- A no-downtime deployment is the single exception to the location rule: `release:run` creates and removes its own detached worktree outside the normal checkout to build a release. It is temporary infrastructure, not an integration path, and never becomes one. Invoke it from the primary checkout on local `main`, never from a `worktrees/` checkout. The run asserts branch `main`, a clean tree, and `HEAD` equal to `origin/main` in whichever checkout it runs from, so a task branch is refused even when it already points at the released revision.
+- Reconcile local `main` after every merge. The pull request lands from a `worktrees/` checkout, so `origin/main` moves
+  and the primary checkout's `main` silently does not, and `release:run` later refuses the stale checkout it asserts
+  against. There, run `git fetch origin`, then `git merge --ff-only origin/main`, and prove
+  `git rev-list --left-right --count HEAD...origin/main` reads `0 0`. No hook reaches a step that runs after the merge,
+  in a checkout the merge never touched.
+- `main` is the only persistent branch, and a task branch is short-lived in a measurable sense: merge it the day it is
+  created where possible, one to two days maximum, and past two days rebase or abandon it.
+- Delete all three artifacts the work created — its worktree, its local branch, and that branch on `origin` —
+  immediately after the pull request merges or the work is abandoned, and only once every delivery unit that used the
+  worktree has landed. Before removing, confirm the branch has nothing unpushed and the worktree has nothing running in
+  it. Retain a worktree whose run ended `partial` or failed, and say so, rather than deleting the evidence.
+- A no-downtime deployment is the single exception to the location rule: `release:run` creates and removes its own
+  detached worktree outside the normal checkout to build a release. It is temporary infrastructure, not an integration
+  path, and never becomes one. Invoke it from the primary checkout on local `main`, never from a `worktrees/` checkout.
+  The run asserts branch `main`, a clean tree, and `HEAD` equal to `origin/main` in whichever checkout it runs from, so
+  a task branch is refused even when it already points at the released revision.
 
-Server-side enforcement is why the local hooks are not the last word. A pull request can be opened from any checkout, including one whose hooks never ran, so [`pr-quality-gate.yml`](../../.github/workflows/pr-quality-gate.yml) mirrors the `pre-commit`, `commit-msg`, and `pre-push` contracts as merge-blocking checks. Repairing a failure there follows the [push-hook verification convention](push-hook-verification.md): fix the cause.
+Server-side enforcement is why the local hooks are not the last word. A pull request can be opened from any checkout,
+including one whose hooks never ran, so [`pr-quality-gate.yml`](../../.github/workflows/pr-quality-gate.yml) mirrors the
+`pre-commit`, `commit-msg`, and `pre-push` contracts as merge-blocking checks. Repairing a failure there follows the
+[push-hook verification convention](push-hook-verification.md): fix the cause.
 
-This convention chooses an integration path; it does not authorize a commit or push. Obtain the authorization required by the [commit-authorization convention](commit-authorization.md) and the user's request.
+This convention chooses an integration path; it does not authorize a commit or push. Obtain the authorization required
+by the [commit-authorization convention](commit-authorization.md) and the user's request.

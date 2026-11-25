@@ -72,11 +72,11 @@ Each module names the defaults it has to correct.
 The convention asks each adopter to record which of its own tools sits at which tier. This repository builds no
 command-line product, so every surface here is at the floor:
 
-| Surface                                       | Tier  | Why                                                              |
-| --------------------------------------------- | ----- | ---------------------------------------------------------------- |
-| `./hippo`, `./rhino`, `./ferret`              | Floor | Wrappers invoked from a shell; each `exec`s the tool it installs |
-| `.husky/commit-msg`, `pre-commit`, `pre-push` | Floor | Git invokes them and branches on what they return                |
-| `scripts/*.sh`                                | Floor | Shipped scripts a gate or a hook calls                           |
+| Surface                                       | Tier  | Why                                                          |
+| --------------------------------------------- | ----- | ------------------------------------------------------------ |
+| `./hippo`, `./rhino`, `./ferret`              | Floor | Wrappers run from a shell; each `exec`s the tool it installs |
+| `.husky/commit-msg`, `pre-commit`, `pre-push` | Floor | Git invokes them and branches on what they return            |
+| `scripts/*.sh`                                | Floor | Shipped scripts a gate or a hook calls                       |
 
 The wrappers start the tool they install and return `125` when they refuse. No other surface here starts another
 program, so none of them returns the supervisor statuses.

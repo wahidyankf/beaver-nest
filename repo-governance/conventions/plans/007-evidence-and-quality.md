@@ -11,8 +11,9 @@ A quality gate returns exactly one of four results against a frozen snapshot of 
 | `FAIL`               | at least one blocking finding remains open                       |
 | `BLOCKED`            | the gate could not judge: red tooling, changed input, no tool    |
 
-All four are terminal, and all four are advisory: the caller records the verdict and continues. "Almost passing", "passing pending a fix", and "re-run it and see" are not verdicts — they are
-the absence of one, and they let work proceed on an unresolved question while appearing to have cleared a gate.
+All four are terminal, and all four are advisory: the caller records the verdict and continues. "Almost passing",
+"passing pending a fix", and "re-run it and see" are not verdicts — they are the absence of one, and they let work
+proceed on an unresolved question while appearing to have cleared a gate.
 
 The snapshot is frozen because a gate that re-reads a changing plan is measuring a moving target and cannot say what it
 verified.
@@ -76,7 +77,7 @@ A plan whose result has a user-facing surface routes evidence through distinct l
 remains incomplete while any applicable layer is unresolved.
 
 This repository serves a user-facing application, and the two layers it routes through are owned by the
-[exploratory and usability review](../../workflows/quality/exploratory-usability-review.md) workflow rather than restated
-here: a spec-aware pass and a structurally spec-blind one, recorded in separately labelled sections so a reader always
-knows which lens produced a finding. A plan whose result has no such surface records both layers as not applicable with
-that reason, which is a disposition rather than an omission.
+[exploratory and usability review](../../workflows/quality/exploratory-usability-review.md) workflow rather than
+restated here: a spec-aware pass and a structurally spec-blind one, recorded in separately labelled sections so a reader
+always knows which lens produced a finding. A plan whose result has no such surface records both layers as not
+applicable with that reason, which is a disposition rather than an omission.

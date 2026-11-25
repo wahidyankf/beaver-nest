@@ -1,6 +1,7 @@
 # Rules
 
-A rule is a repository statement that directs or constrains a decision, behaviour, standard, or procedure within a stated scope. It tells people or agents what is required, prohibited, expected, recommended, or permitted.
+A rule is a repository statement that directs or constrains a decision, behaviour, standard, or procedure within a
+stated scope. It tells people or agents what is required, prohibited, expected, recommended, or permitted.
 
 ## Interpretation
 
@@ -9,10 +10,19 @@ A rule is a repository statement that directs or constrains a decision, behaviou
 - **May** identifies permission, not an obligation.
 - A direct imperative, such as “run the check,” is mandatory unless its context explicitly makes it optional.
 
-A rule's scope may identify people, agents, files, components, or tasks directly or through the location containing the rule. Rationale, explanations, and examples support a rule but do not create additional rules unless they contain their own direction or constraint.
+A rule's scope may identify people, agents, files, components, or tasks directly or through the location containing the
+rule. Rationale, explanations, and examples support a rule but do not create additional rules unless they contain their
+own direction or constraint.
 
 ## Authority
 
-Every rule must have one canonical source. Its governance level and precedence are determined by that source under the repository [governance hierarchy](../README.md). Concise references at points of use must link to the canonical rule rather than restating it. A rule change is ready only when [rules propagation](../workflows/quality/rules-propagation.md) ends `no-change` or `landed`. Run the read-only [rules quality gate](../workflows/quality/rules-quality-gate.md) only on explicit user direction; its blocking rows hand off to propagation, and its verdict is advisory. Run the [rules grooming](../workflows/maintenance/rules-grooming.md) sweep only on explicit user direction as well; it never writes, and hands every approved reduction to propagation.
+Every rule must have one canonical source. Its governance level and precedence are determined by that source under the
+repository [governance hierarchy](../README.md). Concise references at points of use must link to the canonical rule
+rather than restating it. A rule change is ready only when
+[rules propagation](../workflows/quality/rules-propagation.md) ends `no-change` or `landed`. Run the read-only
+[rules quality gate](../workflows/quality/rules-quality-gate.md) only on explicit user direction; its blocking rows hand
+off to propagation, and its verdict is advisory. Run the [rules grooming](../workflows/maintenance/rules-grooming.md)
+sweep only on explicit user direction as well; it never writes, and hands every approved reduction to propagation.
 
-Creating, adding, updating, moving, deleting, or otherwise changing a rule automatically invokes the [rules-propagation workflow](../workflows/quality/rules-propagation.md), even when it is not explicitly requested.
+Creating, adding, updating, moving, deleting, or otherwise changing a rule automatically invokes the
+[rules-propagation workflow](../workflows/quality/rules-propagation.md), even when it is not explicitly requested.

@@ -8,8 +8,8 @@ when_to_use: >-
 
 # PR Review Checker Procedure
 
-Moved verbatim from [pr-review-checker](../../../agents/pr-review-checker.md), which links each section here,
-per [Document Word Budget][catalog-document-word-budget].
+Moved verbatim from [pr-review-checker](../../../agents/pr-review-checker.md), which links each section here, per
+[Document Word Budget][catalog-document-word-budget].
 
 ## Procedure
 
@@ -22,8 +22,9 @@ per [Document Word Budget][catalog-document-word-budget].
 3. **Carry delegated checks unchanged.** Predicates the brief marks delegated keep their evidence and are never re-run;
    pending evidence is neither a finding nor a reason to wait.
 4. **Rate criticality** for each surviving finding per Criticality Levels, as
-   [Assessing Criticality and Confidence](../../../.agents/skills/assessing-criticality-confidence/SKILL.md) explains. Confidence for
-   a repair is rated later by [PR Review Fixer](../../../agents/pr-review-fixer.md), as the gate's writer.
+   [Assessing Criticality and Confidence](../../../.agents/skills/assessing-criticality-confidence/SKILL.md) explains.
+   Confidence for a repair is rated later by [PR Review Fixer](../../../agents/pr-review-fixer.md), as the gate's
+   writer.
 5. **Confirm the head, then publish once.** When the live head differs from the pin, publish nothing and end the pass
    stale. Otherwise publish exactly one line-anchored, non-approving review carrying the record PR Review requires, then
    read it back. A clean result is still published.

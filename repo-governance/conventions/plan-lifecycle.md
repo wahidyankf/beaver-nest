@@ -54,22 +54,22 @@ Give recovery and rollback checkboxes an explicit trigger. Keep them dormant unt
 evidence-backed `Not triggered` disposition at reconciliation.
 
 When execution may create, change, move, or delete a repository rule, `delivery.md` includes an `[AI]` task that applies
-the bounded [rules-propagation workflow](../workflows/quality/rules-propagation.md) to the resulting rule change and records its
-terminal result; it may end `no-change`. When execution changes a documented C4 element, `delivery.md` includes
-an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the
+the bounded [rules-propagation workflow](../workflows/quality/rules-propagation.md) to the resulting rule change and
+records its terminal result; it may end `no-change`. When execution changes a documented C4 element, `delivery.md`
+includes an `[AI]` task that updates the exact affected canonical file and view with the final as-built model under the
 [plan specification-change convention](plan-specification-changes.md).
 
 End every phase with a blocking checkpoint.
 
-Run the [plan quality gate](../workflows/quality/plan-quality-gate.md) before execution and after material changes,
-only on explicit user direction or from planning, the caller its Entry lists; it never judges delivered work. Authorize [execution](../workflows/plan/plan-execution.md) separately.
+Run the [plan quality gate](../workflows/quality/plan-quality-gate.md) before execution and after material changes, only
+on explicit user direction or from planning, the caller its Entry lists; it never judges delivered work. Authorize
+[execution](../workflows/plan/plan-execution.md) separately.
 
 ## Transitions and Specifications
 
-Refuse an existing dated destination: a second plan completing on the same date under the same slug is a collision,
-not an overwrite. What must be reconciled before archival, and the order of the archival transaction itself, are
-stated in [knowledge capture and archival](plans/008-knowledge-capture-and-archival.md).
+Refuse an existing dated destination: a second plan completing on the same date under the same slug is a collision, not
+an overwrite. What must be reconciled before archival, and the order of the archival transaction itself, are stated in
+[knowledge capture and archival](plans/008-knowledge-capture-and-archival.md).
 
 Plans may propose architecture and behaviour, but `specs/` remains as-built truth. Execution updates every affected
-specification with the implementation under
-[specification maintenance](../development/specification-maintenance.md).
+specification with the implementation under [specification maintenance](../development/specification-maintenance.md).

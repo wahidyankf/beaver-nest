@@ -8,4 +8,5 @@ section of the plan migrations convention.
 
 ## Directory Map
 
-- [001 Migration Numbers](001-migration-numbers.md) holds the observations, reason, dispositions, and adoption record for the four migration-number obligations.
+- [001 Migration Numbers](001-migration-numbers.md) holds the observations, reason, dispositions, and adoption record
+  for the four migration-number obligations.
