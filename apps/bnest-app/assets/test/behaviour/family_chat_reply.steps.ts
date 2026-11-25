@@ -44,10 +44,12 @@ import {
   post,
   type PostOptions,
   pressKey,
+  previousBundleMismatches,
   reconnectSockets,
   reloadPage,
   requireRow,
   rowFor,
+  rollBackServer,
   server,
   setDeviceOnline,
   settle,
@@ -1383,6 +1385,15 @@ step("it commits as an ordinary message", () => {
 
 // --- Earlier revision and rollback ----------------------------------------
 
+/** The held page sent the frozen previous bundle's documents and nothing else. */
+function expectPreviousBundle(): void {
+  const mismatches = previousBundleMismatches();
+  expect(
+    mismatches.length === 0,
+    `the held page did not send the previous bundle: ${mismatches.join("; ")}`,
+  );
+}
+
 step("the newer app version is live", () => {
   // The routed revision is freshly started: no page has opened the room
   // against it yet, and its wire holds no requests from a previous route.
@@ -1393,10 +1404,10 @@ step("the newer app version is live", () => {
 step(
   "a browser running the previous app version opens {string}",
   async (pathname) => {
-    // The held bundle is this same bundle talking to a newer revision:
-    // every request it makes is checked against the revision's schema.
+    // The held bundle is the pre-reply bundle: every document it sends is
+    // the frozen one from before replies, judged by this revision's schema.
     post({ body: "Dinner is ready", sender: AYAH() });
-    await openRoomPage({ pathname });
+    await openRoomPage({ pathname, bundle: "previous" });
   },
 );
 
@@ -1412,6 +1423,15 @@ step("the room loads", async () => {
     server().rejectedDocuments.length === 0,
     `the server refused ${JSON.stringify(server().rejectedDocuments)}`,
   );
+  // Every message the server holds is on screen with its text, so a field
+  // the room needs cannot go missing without a failure.
+  for (const message of server().messages) {
+    expect(
+      rowFor(message.id)?.textContent?.includes(message.body) === true,
+      `message ${message.id} is not shown with its body`,
+    );
+  }
+  if (page.bundle === "previous") expectPreviousBundle();
 });
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
@@ -1424,6 +1444,7 @@ step("the visitor can send a message normally", async () => {
     server().rejectedDocuments.length === 0,
     "the server refused the send",
   );
+  expectPreviousBundle();
 });
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
@@ -1440,8 +1461,11 @@ step("a visitor on the newer version has a reply on screen", async () => {
 });
 
 step("the app is rolled back to the previous version", async () => {
-  // The route change ends the connections to the rolled-back slot; the
-  // page itself, and the bundle it loaded, stay.
+  // The routed slot answers from the frozen earlier schema from here on, so
+  // the held bundle's documents and its reconnected subscription are judged
+  // by it. The route change ends the connections to the rolled-back slot;
+  // the page itself, and the bundle it loaded, stay.
+  rollBackServer();
   const page = activePage();
   dropSockets(page);
   reconnectSockets(page);
@@ -1451,6 +1475,11 @@ step("the app is rolled back to the previous version", async () => {
 step("the visitor replies again with the bundle it still holds", async () => {
   expect(hasActivePage(), "the held page was closed");
   const id = await replyThroughMenu(requireTarget(), "Jam lima ya");
+  await settle();
+  expect(
+    server().rejectedDocuments.length === 0,
+    `the rolled-back slot refused the held bundle: ${JSON.stringify(server().rejectedDocuments)}`,
+  );
   await waitFor(
     () => committedFor(id ?? "") !== undefined,
     "the second reply to commit",

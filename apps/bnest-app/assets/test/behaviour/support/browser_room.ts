@@ -44,7 +44,9 @@ import {
   type FakeSocket,
   type GraphqlServer,
   type Member,
+  parseDocument,
   type PostOptions,
+  type SchemaSnapshot,
   type ServerMessage,
 } from "../../support/graphql_server";
 import type { WorkerHarness } from "../../support/service_worker";
@@ -470,6 +472,29 @@ const RENDERED_BODY_HTML: Record<string, string> = JSON.parse(
   readFileSync(RENDERED_BODIES, "utf8"),
 );
 
+// The frozen wire contract of two earlier revisions, captured from commit 4ee4027 (see the file's `_about`). A page
+// opened with `bundle: "previous"` sends the previous bundle's documents; a rolled-back routed slot answers from the
+// frozen schema.
+interface FrozenDocument {
+  document: string;
+  variables: string[];
+}
+
+interface PreviousRevision {
+  previousClient: { documents: Record<string, FrozenDocument> };
+  rolledBackSlot: {
+    documents: Record<string, FrozenDocument>;
+    schema: SchemaSnapshot;
+  };
+}
+
+const PREVIOUS_REVISION: PreviousRevision = JSON.parse(
+  readFileSync(
+    path.resolve(ASSETS, "test/support/family_chat_previous_revision.json"),
+    "utf8",
+  ),
+);
+
 function renderedBodyHtml(body: string): string | null {
   return Object.hasOwn(RENDERED_BODY_HTML, body)
     ? (RENDERED_BODY_HTML[body] ?? null)
@@ -594,6 +619,9 @@ function storageOf(map: Map<string, string>) {
 
 // --- Pages -------------------------------------------------------------------
 
+/** Which bundle a page runs: this revision's own, or the frozen previous bundle that sends the earlier documents. */
+export type Bundle = "current" | "previous";
+
 export interface Page {
   id: number;
   kind: "room" | "home";
@@ -609,6 +637,7 @@ export interface Page {
   scrolledTo: string[];
   visibility: "visible" | "hidden";
   inflight: number;
+  bundle: Bundle;
   closed: boolean;
   /** Where a submitted form sent this page, if anywhere. */
   navigatedTo: string | null;
@@ -968,6 +997,7 @@ function newPage(
     scrolledTo: [],
     visibility: "visible",
     inflight: 0,
+    bundle: "current",
     closed: false,
     navigatedTo: null,
     dialogs: [],
@@ -998,6 +1028,26 @@ function newPage(
   return page;
 }
 
+/** The document a page puts on the wire: its own, or the previous bundle's for the same operation. */
+function sentFrames(
+  page: Page,
+  query: string,
+  variables: Record<string, unknown>,
+): { query: string; variables: Record<string, unknown> } {
+  if (page.bundle === "current") return { query, variables };
+  const frozen =
+    PREVIOUS_REVISION.previousClient.documents[parseDocument(query).operation];
+  if (!frozen) return { query, variables };
+  return {
+    query: frozen.document,
+    variables: Object.fromEntries(
+      Object.entries(variables).filter(([name]) =>
+        frozen.variables.includes(name),
+      ),
+    ),
+  };
+}
+
 /** The room's way to the server, as this page's network carries it. */
 function requestFor(page: Page) {
   const client = requireWorld().server.clientFor(page.member);
@@ -1017,7 +1067,8 @@ function requestFor(page: Page) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         throw new TypeError("Failed to fetch");
       }
-      const answer = await client.request(query, variables);
+      const sent = sentFrames(page, query, variables);
+      const answer = await client.request(sent.query, sent.variables);
       await untilActive(page);
       return answer;
     } finally {
@@ -1067,7 +1118,10 @@ function socketFor(page: Page) {
         return {
           join: () => channel.join(),
           push: (event: string, payload: Record<string, unknown>) =>
-            channel.push(event, payload),
+            channel.push(
+              event,
+              event === "doc" ? sentSubscription(page, payload) : payload,
+            ),
           on: (
             event: string,
             handler: (payload: Record<string, unknown>) => void,
@@ -1079,6 +1133,21 @@ function socketFor(page: Page) {
         };
       },
     };
+  };
+}
+
+/** A subscription document as the page's bundle sends it. */
+function sentSubscription(
+  page: Page,
+  payload: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    ...payload,
+    ...sentFrames(
+      page,
+      String(payload["query"]),
+      (payload["variables"] ?? {}) as Record<string, unknown>,
+    ),
   };
 }
 
@@ -1117,7 +1186,12 @@ export async function waitFor(
  * and `app.js` do. Every room serves replies: the shell always reports them on.
  */
 export async function openRoomPage(
-  options: { member?: Member; device?: Device; pathname?: string } = {},
+  options: {
+    member?: Member;
+    device?: Device;
+    pathname?: string;
+    bundle?: Bundle;
+  } = {},
 ): Promise<Page> {
   const current = requireWorld();
   const member = options.member ?? current.visitor;
@@ -1130,6 +1204,7 @@ export async function openRoomPage(
     await worker.fetch("/assets/js/app.js");
   }
   const page = newPage("room", member, device, pathname, renderRoom(member));
+  page.bundle = options.bundle ?? "current";
   activate(page);
   installLayout(page);
   page.elements = findElements();
@@ -1607,6 +1682,21 @@ export function visibleRemediation(page: Page = activePage()): string {
 
 export function hidden(element: HTMLElement): boolean {
   return element.hidden !== false;
+}
+
+/** Each request that did not carry the previous bundle's document for its operation, in the order sent. */
+export function previousBundleMismatches(): string[] {
+  return server().queries.flatMap(({ operation, document }) => {
+    const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
+    return frozen === undefined || frozen.document === document
+      ? []
+      : [`${operation} was not sent as the previous bundle sends it`];
+  });
+}
+
+/** The routed slot is the rolled-back one from here on: it answers from the frozen earlier schema. */
+export function rollBackServer(): void {
+  requireWorld().server.rollBackTo(PREVIOUS_REVISION.rolledBackSlot.schema);
 }
 
 export function server(): GraphqlServer {

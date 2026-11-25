@@ -1,0 +1,117 @@
+{
+  "_about": "Frozen Family Chat wire contract of the two earlier revisions the browser suites replay. Nothing here is written by hand except the schema copy: each document is the exact text that apps/bnest-app/assets/js/family_chat/operations.js returns at commit 4ee4027 (origin/main just before #239 removed the family-chat release flags), imported with Node and called with replies false (previousClient) or replies true (rolledBackSlot). The schema is copied from apps/bnest-app/lib/bnest_app_web/schema.ex and schema/types/family_chat_types.ex and web_push_types.ex at 4ee4027, which #239 left unchanged. Change this file only by re-capturing from a named commit in the same change that needs it.",
+  "previousClient": {
+    "_about": "The pre-reply bundle: what a browser loaded before the reply feature still sends and reads. The current server must keep accepting these documents.",
+    "documents": {
+      "FamilyChatMessages": {
+        "document": "\n  query FamilyChatMessages($roomSlug: String!, $beforeId: ID, $afterId: ID, $limit: Int) {\n    familyChatMessages(roomSlug: $roomSlug, beforeId: $beforeId, afterId: $afterId, limit: $limit) {\n      nodes { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n }\n      hasOlder\n      hasNewer\n    }\n  }\n",
+        "variables": ["roomSlug", "beforeId", "afterId", "limit"]
+      },
+      "SendFamilyChatMessage": {
+        "document": "\n  mutation SendFamilyChatMessage($roomSlug: String!, $clientMessageId: ID!, $body: String!) {\n    sendFamilyChatMessage(\n      roomSlug: $roomSlug\n      clientMessageId: $clientMessageId\n      body: $body\n    ) { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n }\n  }\n",
+        "variables": ["roomSlug", "clientMessageId", "body"]
+      },
+      "FamilyChatMessageCommitted": {
+        "document": "\n  subscription FamilyChatMessageCommitted($roomSlug: String!) {\n    familyChatMessageCommitted(roomSlug: $roomSlug) { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n }\n  }\n",
+        "variables": ["roomSlug"]
+      }
+    }
+  },
+  "rolledBackSlot": {
+    "_about": "The reply-aware bundle, and the schema of the revision a rollback may route back to. That slot must keep accepting the documents the current bundle sends.",
+    "documents": {
+      "FamilyChatMessages": {
+        "document": "\n  query FamilyChatMessages($roomSlug: String!, $beforeId: ID, $afterId: ID, $limit: Int) {\n    familyChatMessages(roomSlug: $roomSlug, beforeId: $beforeId, afterId: $afterId, limit: $limit) {\n      nodes { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n\n  replyTo { id senderKind senderDisplayName bodyPreview }\n }\n      hasOlder\n      hasNewer\n    }\n  }\n",
+        "variables": ["roomSlug", "beforeId", "afterId", "limit"]
+      },
+      "SendFamilyChatMessage": {
+        "document": "\n  mutation SendFamilyChatMessage($roomSlug: String!, $clientMessageId: ID!, $body: String!, $replyToMessageId: ID) {\n    sendFamilyChatMessage(\n      roomSlug: $roomSlug\n      clientMessageId: $clientMessageId\n      body: $body\n      replyToMessageId: $replyToMessageId\n    ) { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n\n  replyTo { id senderKind senderDisplayName bodyPreview }\n }\n  }\n",
+        "variables": ["roomSlug", "clientMessageId", "body", "replyToMessageId"]
+      },
+      "FamilyChatMessageCommitted": {
+        "document": "\n  subscription FamilyChatMessageCommitted($roomSlug: String!) {\n    familyChatMessageCommitted(roomSlug: $roomSlug) { \n  id\n  roomSlug\n  senderKind\n  senderId\n  senderDisplayName\n  body\n  bodyHtml\n  committedAt\n\n  replyTo { id senderKind senderDisplayName bodyPreview }\n }\n  }\n",
+        "variables": ["roomSlug"]
+      }
+    },
+    "schema": {
+      "objects": {
+        "FamilyChatMessage": {
+          "id": null,
+          "roomSlug": null,
+          "senderKind": null,
+          "senderId": null,
+          "senderDisplayName": null,
+          "body": null,
+          "bodyHtml": null,
+          "committedAt": null,
+          "replyTo": "FamilyChatMessageQuote"
+        },
+        "FamilyChatMessageQuote": {
+          "id": null,
+          "senderKind": null,
+          "senderDisplayName": null,
+          "bodyPreview": null
+        },
+        "FamilyChatMessageConnection": {
+          "nodes": "FamilyChatMessage",
+          "hasOlder": null,
+          "hasNewer": null
+        },
+        "WebPushConfiguration": {
+          "available": null,
+          "publicKey": null
+        },
+        "WebPushSubscriptionStatus": {
+          "enabled": null,
+          "expirationTime": null
+        }
+      },
+      "roots": {
+        "familyChatMessages": {
+          "type": "FamilyChatMessageConnection",
+          "args": {
+            "roomSlug": "String!",
+            "beforeId": "ID",
+            "afterId": "ID",
+            "limit": "Int"
+          }
+        },
+        "sendFamilyChatMessage": {
+          "type": "FamilyChatMessage",
+          "args": {
+            "roomSlug": "String!",
+            "clientMessageId": "ID!",
+            "body": "String!",
+            "replyToMessageId": "ID"
+          }
+        },
+        "familyChatMessageCommitted": {
+          "type": "FamilyChatMessage",
+          "args": {
+            "roomSlug": "String!"
+          }
+        },
+        "webPushConfiguration": {
+          "type": "WebPushConfiguration",
+          "args": {}
+        },
+        "currentWebPushSubscription": {
+          "type": "WebPushSubscriptionStatus",
+          "args": {}
+        },
+        "upsertWebPushSubscription": {
+          "type": "WebPushSubscriptionStatus",
+          "args": {
+            "endpoint": "String!",
+            "p256dh": "String!",
+            "auth": "String!"
+          }
+        },
+        "disableCurrentWebPushSubscription": {
+          "type": "WebPushSubscriptionStatus",
+          "args": {}
+        }
+      }
+    }
+  }
+}
