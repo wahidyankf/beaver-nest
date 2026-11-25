@@ -247,10 +247,11 @@ LiveView auto-recovery so an unsent draft and route survive a compatible transpo
 Follow the [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) and
 [Tailnet proxy workflow](../../repo-governance/workflows/maintenance/development-tailnet-proxy.md).
 
-The authenticated home page at `/` is the child-friendly entry point and links to `/chat`, `/apps/sifat-allah`, and the
-authenticated `/data-migration` compatibility flow. A logged-out request to `/` redirects to `/login`, so protected home
-actions never render without a session. One-time `/setup` creates every initial account and permanently closes; `/login`
-then protects family data. There is no public registration or password-recovery flow.
+The authenticated home page at `/` is the child-friendly entry point and links to `/chat` and the authenticated
+`/data-migration` compatibility flow. The Sifat Allah activity stays reachable at its direct `/apps/sifat-allah` URL,
+but the home page does not link to it. A logged-out request to `/` redirects to `/login`, so protected home actions
+never render without a session. One-time `/setup` creates every initial account and permanently closes; `/login` then
+protects family data. There is no public registration or password-recovery flow.
 
 ## Test instances and fresh databases
 
