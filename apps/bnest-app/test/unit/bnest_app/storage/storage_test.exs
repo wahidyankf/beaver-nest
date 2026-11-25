@@ -315,6 +315,42 @@ defmodule BnestApp.StorageTest do
   end
 
   describe "maintenance" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The relocate task moves SQLite to the production data folder and keeps the old files until proof
+    test "relocation points the pointer at a new generation in the new directory" do
+      StoragePorts.put(:config, @sqlite_config)
+
+      assert {:ok, relocated} = Storage.relocate("/in-memory/production")
+      assert relocated["databaseDirectory"] == "/in-memory/production"
+      assert relocated["legacyDatabaseDirectory"] == "/in-memory/sqlite"
+      assert relocated["databaseGeneration"] != "generation-unit"
+      assert Storage.database_generation() == relocated["databaseGeneration"]
+      assert Storage.phase() == :sqlite_primary
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Verified legacy flat-file storage is retired
+    test "retirement removes verified flat files and keeps configuration and placeholders" do
+      alias BnestApp.Storage.Migration
+
+      StoragePorts.put(:config, @sqlite_config)
+
+      FlatSource.put_files(@flat_root, [
+        {@theme_path, theme_source("dark")},
+        {"keep/.gitkeep", ""}
+      ])
+
+      assert %{accepted: 1, blocked: 0} = Migration.run(@flat_root)
+      assert :ok = Migration.activate!()
+
+      generation = Storage.database_generation()
+
+      assert {:ok, _retired} = Storage.retire(@flat_root, generation, false)
+      assert FlatSource.files(@flat_root) == [{"keep/.gitkeep", ""}]
+      assert Storage.phase() == :sqlite_primary
+      assert Storage.database_generation() == generation
+    end
+
     test "delegates each procedure to the maintenance adapter" do
       refute Storage.migration_started?()
       assert Storage.relocate("/srv/bnest-unit") == {:error, :absent}

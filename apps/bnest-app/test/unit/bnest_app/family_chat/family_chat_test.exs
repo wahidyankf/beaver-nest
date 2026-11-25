@@ -254,6 +254,8 @@ defmodule BnestApp.FamilyChatTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An afterId page returns catch-up history
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber catches up a missed event through afterId
     test "an afterId page returns the messages newer than its cursor" do
       user = "test-user-family-chat-pages"
       slug = FamilyChat.canonical_room_slug()
@@ -367,6 +369,8 @@ defmodule BnestApp.FamilyChatTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member sends a reply and the commit carries its quote
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscribed reply arrives carrying its quote
     test "a commit carries its reply target and resolves the quote", %{sender: sender} do
       {:ok, original} = commit(sender, "Nanti aku jemput jam 5")
       {:ok, reply} = reply_to(sender, original.id, "Oke, aku siapin")

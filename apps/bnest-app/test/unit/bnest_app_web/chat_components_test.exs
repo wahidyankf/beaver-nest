@@ -58,6 +58,15 @@ defmodule BnestAppWeb.ChatComponentsTest do
       component = rendered_to_string(~H"<.markdown_body content={@content} />")
 
       assert component == ChatComponents.markdown_body_html(@content, [])
+
+      # The subscription push carries this same bodyHtml for its message: emphasis in the
+      # committed body arrives as strong markup, never as raw Markdown.
+      # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+      # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscription push carries bodyHtml
+      html = ChatComponents.markdown_body_html("**Dinner** is ready", [])
+
+      assert html =~ "<strong>Dinner</strong> is ready"
+      refute html =~ "**Dinner**"
     end
 
     # ADR 004, Decision 2: the diagram marker is ordinary markup, so both paths carry it the same way.

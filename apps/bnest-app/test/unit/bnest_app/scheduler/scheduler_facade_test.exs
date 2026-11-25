@@ -135,6 +135,21 @@ defmodule BnestApp.Scheduler.FacadeTest do
   end
 
   describe "claims" do
+    # After downtime the scheduler owes several daily slots but runs only one catch-up: the
+    # claim names the latest missed slot, and a second sweep finds nothing due.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: After downtime only one catch-up backup runs
+    test "several missed daily slots yield exactly one catch-up claim for the latest slot" do
+      put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system",
+        next_run_at: ~U[2026-09-15 19:00:00Z]
+      )
+
+      assert [%{claim_kind: "scheduled", scheduled_for: ~U[2026-09-18 19:00:00Z]}] =
+               Scheduler.claim_due(@now)
+
+      assert Scheduler.claim_due(@now) == []
+    end
+
     test "claims due slots and idempotent setup runs through the configured store" do
       put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
 
