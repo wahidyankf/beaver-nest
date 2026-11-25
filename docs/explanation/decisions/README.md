@@ -25,19 +25,20 @@ accepted record changes.
   `diagrams.css`. Of the Decision 6 style tasks, 1 and 2 are built; 3 (shared sizing tokens) and 4 (container-based
   width) are recorded as not built follow-ups, and 7 (reduced motion) is not needed. Extends 003. Ships with 002 and 003
   as one release.
-- [005. Chat input keys, Clear chat confirmation, one light theme, and own-message Markdown](005-chat-input-keys-clear-confirmation-and-one-light-theme.md)
-  (Accepted) makes the visitor's pointer decide the keys in both chat rooms (a fine pointer: Enter sends; a touch pointer: Enter starts a new line), asks before Clear chat deletes, removes
-  the dark theme and its controls (the stored preference stays as inert storage), renders the visitor's own Codex messages
-  as Markdown with a raw view, and sets the phone layout budgets. Partly supersedes Decision 8 items 5 to 7 of 004.
-- [006. Latest Codex model tiers, and model and effort per role](006-latest-codex-model-tiers-per-role.md)
-  (Accepted) offers only the latest Luna, Terra and Sol, drops Astra and the older ids from the discovered catalog, and
-  sets what each role may choose: admins pick a model and an effort, parents pick Luna or Terra at medium effort, and
-  children are fixed to Luna at medium effort. The server refuses forged choices, a saved older setting resolves at
-  read time with no migration, and a locked role that loses its model sees it unavailable, with no automatic fallback.
-  Replaces the role rules of the Codex chat that README and the app architecture described.
-- [007. Codex generated images shown inline in the Codex chat](007-codex-generated-images-inline.md)
-  (Proposed) shows Codex-generated images inline in `/chat` through a `codex-image:<thread>/<file>`
-  reference and a same-scope `/chat/generated-images/` route with strict names, symlink refusal,
-  raster-only signatures, and identical empty 404s; the model places references inline and the
-  runner appends unreferenced files as fallback. Family Chat never renders the reference. Extends
-  002 Decision 2 and 003 Decision 4. No code changed yet.
+- [005. Chat input keys, Clear chat confirmation, one light theme, and own-message
+  Markdown](005-chat-input-keys-clear-confirmation-and-one-light-theme.md)
+  (Accepted) makes the visitor's pointer decide the keys in both chat rooms (a fine pointer: Enter sends; a touch
+  pointer: Enter starts a new line), asks before Clear chat deletes, removes the dark theme and its controls (the stored
+  preference stays as inert storage), renders the visitor's own Codex messages as Markdown with a raw view, and sets the
+  phone layout budgets. Partly supersedes Decision 8 items 5 to 7 of 004.
+- [006. Latest Codex model tiers, and model and effort per role](006-latest-codex-model-tiers-per-role.md) (Accepted)
+  offers only the latest Luna, Terra and Sol, drops Astra and the older ids from the discovered catalog, and sets what
+  each role may choose: admins pick a model and an effort, parents pick Luna or Terra at medium effort, and children are
+  fixed to Luna at medium effort. The server refuses forged choices, a saved older setting resolves at read time with no
+  migration, and a locked role that loses its model sees it unavailable, with no automatic fallback. Replaces the role
+  rules of the Codex chat that README and the app architecture described.
+- [007. Codex generated images shown inline in the Codex chat](007-codex-generated-images-inline.md) (Proposed) shows
+  Codex-generated images inline in `/chat` through a `codex-image:<thread>/<file>` reference and a same-scope
+  `/chat/generated-images/` route with strict names, symlink refusal, raster-only signatures, and identical empty 404s;
+  the model places references inline and the runner appends unreferenced files as fallback. Family Chat never renders
+  the reference. Extends 002 Decision 2 and 003 Decision 4. No code changed yet.

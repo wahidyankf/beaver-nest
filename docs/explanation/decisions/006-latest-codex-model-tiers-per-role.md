@@ -18,8 +18,8 @@ fixed to Luna, and an admin's effort falling back to medium. The chat's other ru
 
 ## Decision 1. Only the latest model of each tier is offered
 
-`BnestApp.CodexChat.Domain.ModelAccess.offered?/1` lists the three ids: `gpt-6-luna`, `gpt-6.1-terra` and
-`gpt-6.1-sol`. `BnestApp.CodexChat.ModelCatalog` filters the discovered list by id first: it keeps only the entries whose id is one of
+`BnestApp.CodexChat.Domain.ModelAccess.offered?/1` lists the three ids: `gpt-6-luna`, `gpt-6.1-terra` and `gpt-6.1-sol`.
+`BnestApp.CodexChat.ModelCatalog` filters the discovered list by id first: it keeps only the entries whose id is one of
 these, and ignores every other entry whatever its shape. So a malformed Astra or older entry cannot empty the catalog.
 The kept entries are then checked for shape, and the first entry of each id is kept, in the order Codex lists them. If a
 kept entry is malformed, or no entry is kept, the catalog is the Terra fallback below. Every surface that reads the
@@ -27,13 +27,13 @@ catalog (the picker, the default model, and each lookup by id) sees the same ent
 the filter sits, because it is where every reader gets its models. A filter only at access time would leave older ids
 visible to any other reader.
 
-Names are the ones the local Codex returns: "GPT-6-Luna", "GPT-6.1 Terra" and "GPT-6.1-Sol". The header chip shows
-only the tier name and the effort, for example "Terra · medium".
+Names are the ones the local Codex returns: "GPT-6-Luna", "GPT-6.1 Terra" and "GPT-6.1-Sol". The header chip shows only
+the tier name and the effort, for example "Terra · medium".
 
-Discovery itself is unchanged. If discovery fails, or returns no offered model, the catalog falls back to a single
-Terra entry: `gpt-6.1-terra`, named "GPT-6.1 Terra", with the six efforts Codex lists for it (low to ultra). The entry
-carries the default effort "low", as Codex lists it, but both roles use the constant medium effort (Decision 2), so the
-stored default is not what a conversation runs with. A failed discovery never offers an older id.
+Discovery itself is unchanged. If discovery fails, or returns no offered model, the catalog falls back to a single Terra
+entry: `gpt-6.1-terra`, named "GPT-6.1 Terra", with the six efforts Codex lists for it (low to ultra). The entry carries
+the default effort "low", as Codex lists it, but both roles use the constant medium effort (Decision 2), so the stored
+default is not what a conversation runs with. A failed discovery never offers an older id.
 
 ## Decision 2. Role rules, checked in this order: admin, parents, children
 
@@ -44,9 +44,9 @@ stored default is not what a conversation runs with. A failed discovery never of
 | children      | Luna, fixed; no model picker           | always medium; no effort picker                            |
 | no known role | the admin's access                     | the admin's access                                         |
 
-Roles are checked in the order child administrator, admin, parents, children (Decision 6). An account that holds
-several roles follows the first matching role in that order. An admin who also holds the parents role keeps the admin's
-pickers; only the admin-plus-children combination is treated as a child.
+Roles are checked in the order child administrator, admin, parents, children (Decision 6). An account that holds several
+roles follows the first matching role in that order. An admin who also holds the parents role keeps the admin's pickers;
+only the admin-plus-children combination is treated as a child.
 
 A parent's choices are Terra, then Luna, in that order whatever order Codex lists the models in. Only a choice that
 supports medium effort is offered, so a parent never picks a model without medium effort. The admin's picker lists Sol,
@@ -62,8 +62,8 @@ Terra and Luna in that order, highest tier first, whatever order Codex lists the
 
 ## Decision 4. Saved settings resolve at read time, without a migration
 
-A chat saved with an older model or an effort the role may not use still opens. Resolution happens each time the chat
-is read, and nothing in storage changes.
+A chat saved with an older model or an effort the role may not use still opens. Resolution happens each time the chat is
+read, and nothing in storage changes.
 
 - A saved model that the role does not offer resolves to the role's default: Terra for admins and parents, Luna for
   children.
@@ -94,9 +94,9 @@ effort picker, exactly like a child:
 `BnestApp.CodexChat.Domain.ModelAccess.resolve/2` checks this combination before the admin check, so the order of the
 roles in the account does not matter. Every other combination is unchanged: an admin with the parents role keeps the
 admin's pickers, and a user with no recognised role keeps the admin's access. A forged model or effort event from a
-child administrator is refused by the same server rules that refuse a child's (Decision 3), and a saved chat resolves
-to Luna at medium effort at read time (Decision 4). When Luna is missing or lacks medium effort, the chat shows
-"GPT-6-Luna is not available in local Codex." and the composer stays disabled (Decision 5).
+child administrator is refused by the same server rules that refuse a child's (Decision 3), and a saved chat resolves to
+Luna at medium effort at read time (Decision 4). When Luna is missing or lacks medium effort, the chat shows "GPT-6-Luna
+is not available in local Codex." and the composer stays disabled (Decision 5).
 
 ## Consequences
 
@@ -107,8 +107,8 @@ to Luna at medium effort at read time (Decision 4). When Luna is missing or lack
 - Behaviour that the previous rules fixed changes in these places: the admin's switch fallback, the discovery-failure
   fallback, and the parent's model. The Gherkin in `specs/apps/bnest/app-fe/behaviours/chat.feature` and the
   architecture in `specs/apps/bnest/app-be/architecture.md` follow these rules.
-- A child administrator sees the child's locked chat: Luna at medium effort, no pickers, and no repository writes.
-  The Gherkin and the architecture record this exception.
-- Tests use the real Codex ids, copied from the local list into a fixture, not synthetic ids. The unit and integration suites check that
-  Astra and the older ids are never offered, and that the server refuses forged events from each role.
+- A child administrator sees the child's locked chat: Luna at medium effort, no pickers, and no repository writes. The
+  Gherkin and the architecture record this exception.
+- Tests use the real Codex ids, copied from the local list into a fixture, not synthetic ids. The unit and integration
+  suites check that Astra and the older ids are never offered, and that the server refuses forged events from each role.
 - Not built: a migration of old saved chats. None is needed, because each read resolves them.

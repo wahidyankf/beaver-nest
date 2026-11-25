@@ -1,12 +1,20 @@
 # Releasing Bnest
 
-This guide runs a no-downtime Bnest release on a provisioned host. The [Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) is the authoritative rule; this page is the procedure that satisfies it.
+This guide runs a no-downtime Bnest release on a provisioned host. The
+[Caddy deployment workflow](../../repo-governance/workflows/maintenance/development-caddy-deployment.md) is the
+authoritative rule; this page is the procedure that satisfies it.
 
-The managed `release:run` target is transactional. A single invocation runs the release gates, builds an immutable artifact from a temporary worktree, proves the migration set, prepares the inactive slot, promotes it, proves the routed revision and a connected LiveView, then drains and retires the previous slot. Do not decompose it into `release:build`, `deploy:prepare`, and `deploy:promote` for a routine release.
+The managed `release:run` target is transactional. A single invocation runs the release gates, builds an immutable
+artifact from a temporary worktree, proves the migration set, prepares the inactive slot, promotes it, proves the routed
+revision and a connected LiveView, then drains and retires the previous slot. Do not decompose it into `release:build`,
+`deploy:prepare`, and `deploy:promote` for a routine release.
 
 ## 1. Confirm the source is releasable
 
-`release:run` re-asserts that the branch is `main`, that the working tree is clean, and that `HEAD` equals `origin/main` before and after **every** gate, and again at build. Any edit during the run aborts it. It reads the checkout it was invoked from, so release from the primary checkout; a `worktrees/` checkout is refused even when its branch already points at the released revision.
+`release:run` re-asserts that the branch is `main`, that the working tree is clean, and that `HEAD` equals `origin/main`
+before and after **every** gate, and again at build. Any edit during the run aborts it. It reads the checkout it was
+invoked from, so release from the primary checkout; a `worktrees/` checkout is refused even when its branch already
+points at the released revision.
 
 Land documentation, rule, and code changes first, then release the resulting revision:
 
@@ -18,7 +26,12 @@ git status --porcelain           # must be empty
 ./hippo status                   # must report state=normal
 ```
 
-The gates run in the primary checkout, so it needs its own dependencies. After a merge that changes `mix.exs`, run `mix deps.get` in `apps/bnest-app` under `./hippo run --class transactional --resource-tier light` first; otherwise `test:quick` fails on an unavailable dependency before anything is built. `main` also moves while a release is retried, because other work lands in parallel. `release:run` refuses a `--revision` that is not the current `origin/main`, so fast-forward and re-check what changed before releasing a newer revision, and treat a revision the owner did not authorize as needing its own confirmation.
+The gates run in the primary checkout, so it needs its own dependencies. After a merge that changes `mix.exs`, run
+`mix deps.get` in `apps/bnest-app` under `./hippo run --class transactional --resource-tier light` first; otherwise
+`test:quick` fails on an unavailable dependency before anything is built. `main` also moves while a release is retried,
+because other work lands in parallel. `release:run` refuses a `--revision` that is not the current `origin/main`, so
+fast-forward and re-check what changed before releasing a newer revision, and treat a revision the owner did not
+authorize as needing its own confirmation.
 
 A release also needs the inactive slot free. Production uses `4000` and `4001`; Caddy routes on `4100`:
 
@@ -28,11 +41,14 @@ lsof -nP -iTCP:4000 -iTCP:4001 -iTCP:4100 -sTCP:LISTEN
 
 ## 2. Derive the machine-local configuration
 
-`BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, `BNEST_DEPLOY_SECRET_KEY_BASE_FILE`, `BNEST_PRODUCTION_ORIGIN`, and `HIPPO_BIN` are machine-local. An unset shell does not mean they are unavailable: a provisioned host keeps them outside the repository between sessions, and the running blue or green launchd unit already names every one of them.
+`BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, `BNEST_DEPLOY_SECRET_KEY_BASE_FILE`,
+`BNEST_PRODUCTION_ORIGIN`, and `HIPPO_BIN` are machine-local. An unset shell does not mean they are unavailable: a
+provisioned host keeps them outside the repository between sessions, and the running blue or green launchd unit already
+names every one of them.
 
 `config/runtime.exs` also requires three Web Push variables unconditionally in `:prod`, independent of whether
-`BNEST_FAMILY_CHAT_ENABLED` is `true` or `false` — a compatibility-release slot fails to boot without them just like
-an experience-release slot does:
+`BNEST_FAMILY_CHAT_ENABLED` is `true` or `false` — a compatibility-release slot fails to boot without them just like an
+experience-release slot does:
 
 | Variable                                 | Meaning                                                           |
 | ---------------------------------------- | ----------------------------------------------------------------- |
@@ -47,7 +63,8 @@ runtime raises immediately in `:prod` if either is missing or empty, or if the s
 On Linux the slot unit is a systemd user unit, not a plist; read the same values from it, as the
 [Linux hosts](#linux-hosts-systemd-user-units) section shows.
 
-Derive them rather than recalling them. The unit's `EnvironmentVariables` supply the runtime root and the served host; its `ProgramArguments` release path supplies the deploy root:
+Derive them rather than recalling them. The unit's `EnvironmentVariables` supply the runtime root and the served host;
+its `ProgramArguments` release path supplies the deploy root:
 
 ```sh
 plist="$HOME/Library/LaunchAgents/com.bnest.app.blue.plist"
@@ -56,7 +73,9 @@ plist="$HOME/Library/LaunchAgents/com.bnest.app.blue.plist"
 /usr/libexec/PlistBuddy -c "Print :ProgramArguments:0" "$plist"
 ```
 
-Write the exports to a file outside the repository, mode `600`, and source it. Export a secret's **path**, never its contents, and never echo one. Sourcing a file also keeps the values out of shell history and process listings, which a long inline assignment does not.
+Write the exports to a file outside the repository, mode `600`, and source it. Export a secret's **path**, never its
+contents, and never echo one. Sourcing a file also keeps the values out of shell history and process listings, which a
+long inline assignment does not.
 
 ```sh
 # <machine-local>/deploy-env.sh — mode 600, outside every checkout.
@@ -91,7 +110,9 @@ bnest_load_deploy_env() {
 bnest_load_deploy_env
 ```
 
-Two traps are worth naming. `HIPPO_BIN` is required by the release host and is easy to miss because no other target needs it. And under zsh, `path` is tied to `PATH`, so a scratch variable of that name silently destroys the search path of the shell that sources the file; the loop above uses `required` instead.
+Two traps are worth naming. `HIPPO_BIN` is required by the release host and is easy to miss because no other target
+needs it. And under zsh, `path` is tied to `PATH`, so a scratch variable of that name silently destroys the search path
+of the shell that sources the file; the loop above uses `required` instead.
 
 `BNEST_DEPLOY_WORKTREE` needs no value. `release:run` creates and removes its own temporary worktree.
 
@@ -114,19 +135,34 @@ rtk ./hippo run --class transactional --resource-tier standard --disk-path . -- 
   npm exec -- nx run -p bnest-app -t release:run -- --revision <sha>
 ```
 
-The repository's shell guard refuses `npm exec` without an outer `./hippo run`, so the target is wrapped even though it is self-guarded; the nested admission works and does not stall.
+The repository's shell guard refuses `npm exec` without an outer `./hippo run`, so the target is wrapped even though it
+is self-guarded; the nested admission works and does not stall.
 
-The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status. A `failed` outcome with `errorCategory: gate` and `evidenceIds: ["preflight"]` stopped in the gates, before any build or cutover, so production is unchanged: read `<deploy-root>/logs/release-<sha>.log` for the failing check. `rolled-back` means the candidate was promoted and then reverted by the release's own monitor; production is back on the previous slot, and the routed-journey sample that tripped it is in `<deploy-root>/metrics/`. Gates that depend on load, such as the browser reconnect scenarios, can fail differently on consecutive attempts on a busy host; diagnose each failure instead of repeating blindly.
+The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running
+rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the
+host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any
+other outcome sets a non-zero exit status. A `failed` outcome with `errorCategory: gate` and
+`evidenceIds: ["preflight"]` stopped in the gates, before any build or cutover, so production is unchanged: read
+`<deploy-root>/logs/release-<sha>.log` for the failing check. `rolled-back` means the candidate was promoted and then
+reverted by the release's own monitor; production is back on the previous slot, and the routed-journey sample that
+tripped it is in `<deploy-root>/metrics/`. Gates that depend on load, such as the browser reconnect scenarios, can fail
+differently on consecutive attempts on a busy host; diagnose each failure instead of repeating blindly.
 
-A compatibility release ships every feature flag off by design: it omits `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` from the slot entirely, so `config/runtime.exs` supplies `false` for both. The experience re-promotion passes both as `true`. They are separate variables because the server answers a reply-aware GraphQL document whichever way the second one is set — that asymmetry is what lets the reply bundle ship one release ahead of the flag that reveals it — but there is one experience mode, and it turns both on together.
+A compatibility release ships every feature flag off by design: it omits `BNEST_FAMILY_CHAT_ENABLED` and
+`BNEST_FAMILY_CHAT_REPLY_ENABLED` from the slot entirely, so `config/runtime.exs` supplies `false` for both. The
+experience re-promotion passes both as `true`. They are separate variables because the server answers a reply-aware
+GraphQL document whichever way the second one is set — that asymmetry is what lets the reply bundle ship one release
+ahead of the flag that reveals it — but there is one experience mode, and it turns both on together.
 
-When the intended production state needs them on, immediately follow with the same revision's experience re-promotion, which reuses the already-built artifact instead of rebuilding:
+When the intended production state needs them on, immediately follow with the same revision's experience re-promotion,
+which reuses the already-built artifact instead of rebuilding:
 
 ```sh
 npm exec -- nx run -p bnest-app -t release:run -- --mode experience --revision <sha>
 ```
 
-Per [release authorization](../../repo-governance/conventions/release-authorization.md), this step is covered by the same authorization as the compatibility release it follows.
+Per [release authorization](../../repo-governance/conventions/release-authorization.md), this step is covered by the
+same authorization as the compatibility release it follows.
 
 ## 5. Verify the routed cutover
 
@@ -140,7 +176,9 @@ lsof -nP -iTCP:4000 -iTCP:4001 -sTCP:LISTEN   # exactly one slot listens
 git worktree list                              # no release worktree remains
 ```
 
-Both readiness probes must report the released revision. Sample the exact origin repeatedly against the [continuity budget](../../repo-governance/development/live-service-continuity.md), and confirm a connected LiveView at the exact served origin for a UI or LiveView change.
+Both readiness probes must report the released revision. Sample the exact origin repeatedly against the
+[continuity budget](../../repo-governance/development/live-service-continuity.md), and confirm a connected LiveView at
+the exact served origin for a UI or LiveView change.
 
 ## Linux hosts (systemd user units)
 
@@ -175,9 +213,8 @@ Check these before the first `release:run` on a Linux host:
   preflight. Without it, preflight stops with `The active production port has no listener`, before any gate or cutover.
   On a host that lacks both tools, the run stops on `flock` first, because the capacity check, which calls the HIPPO
   wrapper, runs before the port check.
-- `flock` must be installed, from the `util-linux` package. Every `./hippo run` takes HIPPO's install guard with
-  `flock` on Linux, so without it each run stops with exit `125` before it starts anything. Check with
-  `command -v flock`.
+- `flock` must be installed, from the `util-linux` package. Every `./hippo run` takes HIPPO's install guard with `flock`
+  on Linux, so without it each run stops with exit `125` before it starts anything. Check with `command -v flock`.
 - The release's end-to-end gates and its routed proof launch Chromium through `@playwright/test`. `npm ci` does not
   download that browser, so install the pinned Chromium once per host, from the repository root:
 
@@ -224,12 +261,14 @@ retired. Erlang writes `erl_crash.dump` to the working directory, so a crash dum
 the home directory. A release directory is not used for this: retirement removes old release directories, and systemd
 cannot start a unit whose working directory is missing.
 
-User units stop when the last login session of the user ends, unless lingering is enabled. Enable it once per host,
-as the owner: `loginctl enable-linger "$USER"`.
+User units stop when the last login session of the user ends, unless lingering is enabled. Enable it once per host, as
+the owner: `loginctl enable-linger "$USER"`.
 
 A changed `PHX_HOST` for a revision that is already built needs no new gate run, because the served host is read when a
 slot starts, not when the artifact is built. Changing the served origin therefore does not repeat the release gates.
 
 ## Recovery
 
-Never stop Caddy to change its configuration. If candidate health, routing, or LiveView verification fails, leave the previous backend running and use `deploy:rollback` before diagnosis. Do not retry a failed candidate until its health failure is understood.
+Never stop Caddy to change its configuration. If candidate health, routing, or LiveView verification fails, leave the
+previous backend running and use `deploy:rollback` before diagnosis. Do not retry a failed candidate until its health
+failure is understood.
