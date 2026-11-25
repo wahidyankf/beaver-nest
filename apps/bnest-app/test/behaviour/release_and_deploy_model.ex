@@ -93,9 +93,9 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
 
   @mode_removed "The --mode flag was removed with the family-chat release stages; run release:run without --mode"
 
-  @doc "Parses the release arguments the way the tool does: any --mode fails closed."
+  @doc "Parses the release arguments the way the tool does: any --mode or --mode=<value> fails closed."
   def parse_arguments(argv) do
-    if "--mode" in argv,
+    if Enum.any?(argv, &(&1 == "--mode" or String.starts_with?(&1, "--mode="))),
       do: {:error, "configuration", @mode_removed},
       else: :ok
   end

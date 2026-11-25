@@ -2439,6 +2439,43 @@ test("development commands: each npm test command runs its Nx target under a HIP
   }
 });
 
+// The refusal text the spec states, read from its scenario, so the tool, the BE
+// model, and the spec cannot drift apart without a failing test.
+function removedModeMessage() {
+  const feature = readFileSync(
+    new URL(
+      "../../../specs/apps/bnest/app-be/behaviours/release_and_deploy.feature",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const scenario = feature.indexOf(
+    "Scenario: release:run fails closed when --mode is passed at all",
+  );
+  assert.notEqual(scenario, -1, "the spec names the removed-mode scenario");
+  const message = /its stderr says "([^"]+)"/u.exec(
+    feature.slice(scenario),
+  )?.[1];
+  assert.ok(message, "the removed-mode scenario states its refusal text");
+  return message;
+}
+
+test("the BE model mirrors the spec's removed-mode refusal and the = form", () => {
+  const modelSource = readFileSync(
+    new URL("../test/behaviour/release_and_deploy_model.ex", import.meta.url),
+    "utf8",
+  );
+  assert.ok(
+    modelSource.includes(removedModeMessage()),
+    "the BE model states the spec's refusal text",
+  );
+  assert.match(
+    modelSource,
+    /starts_with\?\([^,]+, "--mode="\)/u,
+    "the BE model refuses every --mode= value",
+  );
+});
+
 // BN-REL-04 integration: node tools/release.mjs --mode (or --mode=<value>), with any value, prints
 // one JSON result with outcome failed, errorCategory configuration, a null
 // revision, and the removal named on stderr; it exits 1, having taken no lock
@@ -2466,7 +2503,11 @@ test("release integration: fails closed when --mode is passed at all, with an er
         },
       );
       assert.equal(result.status, 1, `${modeArguments.join(" ")} must fail`);
-      assert.match(result.stderr, /--mode.*removed/u);
+      assert.equal(
+        result.stderr,
+        `${removedModeMessage()}\n`,
+        `${modeArguments.join(" ")} stderr`,
+      );
       assert.deepEqual(JSON.parse(result.stdout), {
         schemaVersion: 1,
         releaseRevision: null,
