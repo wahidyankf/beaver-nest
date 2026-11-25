@@ -1,12 +1,17 @@
 # Product Requirements
 
-Product copy in this plan is written in Bahasa Indonesia because the household using Bnest speaks it and the current learning screen already does. Every explanation, identifier, scenario, and specification around that copy stays in English under the [language convention](../../../repo-governance/conventions/language.md).
+Product copy in this plan is written in Bahasa Indonesia because the household using Bnest speaks it and the current
+learning screen already does. Every explanation, identifier, scenario, and specification around that copy stays in
+English under the [language convention](../../../repo-governance/conventions/language.md).
 
 ## Personas
 
-- **Child learner (`children`):** wants short, clearly finishable sessions, immediate feedback, a visible sense of moving forward, and coins that accumulate toward something.
-- **Parent (`parents`):** wants to add a subject the child needs this week, verify recitation in person, and see whether a child is actually returning.
-- **Maintainer (`admin`):** wants the engine, its API, and its migration to be inspectable and reversible without stopping the service.
+- **Child learner (`children`):** wants short, clearly finishable sessions, immediate feedback, a visible sense of
+  moving forward, and coins that accumulate toward something.
+- **Parent (`parents`):** wants to add a subject the child needs this week, verify recitation in person, and see whether
+  a child is actually returning.
+- **Maintainer (`admin`):** wants the engine, its API, and its migration to be inspectable and reversible without
+  stopping the service.
 
 ## User Stories
 
@@ -16,14 +21,19 @@ Product copy in this plan is written in Bahasa Indonesia because the household u
 - As a child, I see my coins go up when I master something, and the same mission never pays me twice.
 - As a child, I do not repeat a mission I already mastered just because it also appears in another course.
 - As a parent, I see which recitations are waiting for me and approve or reject one for a specific child.
-- As a parent, I add a new subject by committing content files, and it appears after a sync without an application change.
-- As a maintainer, I can query the same facts through GraphQL that the UI renders, and use them to verify a browser journey.
+- As a parent, I add a new subject by committing content files, and it appears after a sync without an application
+  change.
+- As a maintainer, I can query the same facts through GraphQL that the UI renders, and use them to verify a browser
+  journey.
 - As a maintainer, I can attach a new feature to `mission.mastered` without editing the mastery path.
-- As a maintainer, I can drop every read model and rebuild it from the log when a projection is wrong, instead of writing a data migration.
+- As a maintainer, I can drop every read model and rebuild it from the log when a projection is wrong, instead of
+  writing a data migration.
 
 ## Acceptance Criteria
 
-Each criterion is one heading. Its identifier is defined once, on the first scenario under that heading, and the remaining scenarios in the group elaborate the same criterion. A delivery item citing the identifier is promising the whole group.
+Each criterion is one heading. Its identifier is defined once, on the first scenario under that heading, and the
+remaining scenarios in the group elaborate the same criterion. A delivery item citing the identifier is promising the
+whole group.
 
 ### AC-01 — Content sync
 
@@ -260,7 +270,8 @@ Scenario Outline: Every runner state renders on every supported viewport
 Scenario: [AC-10] The existing revision corpus passes against the generic runner
   Given "specs/apps/bnest/app/behaviours/sifat_allah.feature" is unchanged except for its route
   When the corpus runs against the generic mission runner
-  Then every scenario passes, including automatic advance, locked answers, browser Back to the mission dashboard, immediate queue movement, and the exam skipping learned questions
+  Then every scenario passes, including automatic advance, locked answers, and browser Back to the mission dashboard
+  And the passing scenarios also include immediate queue movement and the exam skipping learned questions
   And no scenario is deleted or weakened to make the runner pass
 ```
 
@@ -299,21 +310,36 @@ Scenario: [AC-12] The routed household keeps working across the learning rollout
 
 ## UI States
 
-The mission runner owns one state machine: `loading`, `question`, `answered-correct`, `answered-incorrect`, `awaiting-parent`, `topic-complete`, `empty-review`, and `error`. Course and topic screens own `loading`, `list`, `empty`, and `error`. The verification queue owns `loading`, `pending-list`, `empty`, `decided`, and `error`.
+The mission runner owns one state machine: `loading`, `question`, `answered-correct`, `answered-incorrect`,
+`awaiting-parent`, `topic-complete`, `empty-review`, and `error`. Course and topic screens own `loading`, `list`,
+`empty`, and `error`. The verification queue owns `loading`, `pending-list`, `empty`, `decided`, and `error`.
 
-One primary verb per state, in product copy: **Mulai**, **Lanjut**, **Periksa**, **Coba lagi**, **Setor ke orang tua**, **Setuju**, **Belum**, and **Selesai**. Outcome is carried by text, icon shape, and position as well as colour. Progress and coin changes are announced through a polite live region; a blocked or failed action uses an alert that takes focus. Celebration and advance animation respect `prefers-reduced-motion` by collapsing to an instant state change with the same text.
+One primary verb per state, in product copy: **Mulai**, **Lanjut**, **Periksa**, **Coba lagi**, **Setor ke orang tua**,
+**Setuju**, **Belum**, and **Selesai**. Outcome is carried by text, icon shape, and position as well as colour. Progress
+and coin changes are announced through a polite live region; a blocked or failed action uses an alert that takes focus.
+Celebration and advance animation respect `prefers-reduced-motion` by collapsing to an instant state change with the
+same text.
 
 ## Product Risks
 
-- **A generic runner feels colder than the screen it replaces.** Control: the trail, immediate feedback, automatic advance, and celebration are acceptance criteria (AC-09, AC-10), not decoration, and the existing corpus is the bar.
-- **Coins turn into pressure rather than motivation.** Control: this plan has no streak, no loss, no expiry, and no comparison between children; the balance only grows (BRD non-goals).
-- **A child sees a sibling's record.** Control: per-learner authorization is enforced at the API and the route, and denial reveals nothing (AC-05, AC-08).
-- **A parent is the bottleneck for `parent_check`.** Control: pending submissions are visible in one queue with the child and mission named, and a pending mission never blocks other missions in the topic.
-- **Review becomes an unbounded chore.** Control: the review screen offers only what is due and renders a finished state when the queue is empty (AC-04).
-- **Content authoring is invisible to a non-technical parent.** Control: this is accepted and stated as a non-goal; the authoring guide in the project README is the mitigation, and an in-app editor is deliberately deferred.
+- **A generic runner feels colder than the screen it replaces.** Control: the trail, immediate feedback, automatic
+  advance, and celebration are acceptance criteria (AC-09, AC-10), not decoration, and the existing corpus is the bar.
+- **Coins turn into pressure rather than motivation.** Control: this plan has no streak, no loss, no expiry, and no
+  comparison between children; the balance only grows (BRD non-goals).
+- **A child sees a sibling's record.** Control: per-learner authorization is enforced at the API and the route, and
+  denial reveals nothing (AC-05, AC-08).
+- **A parent is the bottleneck for `parent_check`.** Control: pending submissions are visible in one queue with the
+  child and mission named, and a pending mission never blocks other missions in the topic.
+- **Review becomes an unbounded chore.** Control: the review screen offers only what is due and renders a finished state
+  when the queue is empty (AC-04).
+- **Content authoring is invisible to a non-technical parent.** Control: this is accepted and stated as a non-goal; the
+  authoring guide in the project README is the mitigation, and an in-app editor is deliberately deferred.
 
 ## Scope Boundaries
 
-In scope: the event log and its projections, the content sync command, mission kinds, mastery and review, coin earning, projection rebuild, GraphQL read and progress mutations, learner and parent routes, the generic runner, the Sifat Allah cutover and progress migration, specifications, tests, and rollout.
+In scope: the event log and its projections, the content sync command, mission kinds, mastery and review, coin earning,
+projection rebuild, GraphQL read and progress mutations, learner and parent routes, the generic runner, the Sifat Allah
+cutover and progress migration, specifications, tests, and rollout.
 
-Out of scope here: coin redemption, content authoring UI, cross-topic prerequisites, media hosting, public API access, real-user testing, deletion of retired records, and any change to chat, theme, identity, storage, or backup behaviour.
+Out of scope here: coin redemption, content authoring UI, cross-topic prerequisites, media hosting, public API access,
+real-user testing, deletion of retired records, and any change to chat, theme, identity, storage, or backup behaviour.

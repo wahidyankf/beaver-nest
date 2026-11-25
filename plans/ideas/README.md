@@ -1,6 +1,7 @@
 # Ideas
 
-Ideas are rough two-pager briefs, not delivery plans. Keep each idea in one kebab-case Markdown file under the appropriate urgency-and-importance quadrant. Scan this index before adding an idea and consolidate overlapping briefs.
+Ideas are rough two-pager briefs, not delivery plans. Keep each idea in one kebab-case Markdown file under the
+appropriate urgency-and-importance quadrant. Scan this index before adding an idea and consolidate overlapping briefs.
 
 ## Two-Pager Shape
 
@@ -15,12 +16,16 @@ Each brief contains, in order:
 7. `Risks & open questions`; and
 8. `What success looks like + promotion signal`.
 
-Keep file-level design, Gherkin, detailed research, and delivery checklists out of the brief. When its important unknowns are resolved, replace it with a formal plan folder under [`../backlog/`](../backlog/README.md), carrying its evidence and decisions forward.
+Keep file-level design, Gherkin, detailed research, and delivery checklists out of the brief. When its important
+unknowns are resolved, replace it with a formal plan folder under [`../backlog/`](../backlog/README.md), carrying its
+evidence and decisions forward.
 
 ## Quadrants
 
-- [Q1 — Urgent and important](q1-urgent-important/README.md) contains work with an immediate stake and meaningful impact.
-- [Q2 — Important, not urgent](q2-not-urgent-important/README.md) contains valuable work without a current time pressure.
+- [Q1 — Urgent and important](q1-urgent-important/README.md) contains work with an immediate stake and meaningful
+  impact.
+- [Q2 — Important, not urgent](q2-not-urgent-important/README.md) contains valuable work without a current time
+  pressure.
 - [Q3 — Urgent, not important](q3-urgent-not-important/README.md) contains time-sensitive work with limited impact.
 - [Q4 — Not urgent or important](q4-not-urgent-not-important/README.md) contains deliberately parked ideas.
 

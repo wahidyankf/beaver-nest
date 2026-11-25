@@ -2,10 +2,12 @@
 
 ## Status
 
-**In progress since 2026-10-04.** Gate pass 6 returned `PASS_WITH_FINDINGS` and execution was authorized. Phases 1
-and 2 are complete (see [`delivery.md`](delivery.md) and [`learnings.md`](learnings.md) entries V0.1 to V0.12); Phases 3 to 5
+**In progress since 2026-10-04.** Gate pass 6 returned `PASS_WITH_FINDINGS` and execution was authorized. Phases 1 and 2
+are complete (see [`delivery.md`](delivery.md) and [`learnings.md`](learnings.md) entries V0.1 to V0.12); Phases 3 to 5
 (the AI-recorded cause verdict V1, the specifications and the reconciliation detector, with its early live run) are
-complete; Phases 6 to 11 are executed (V1 confirmed as `C-UNPROVEN` on 2026-10-04; the label, its rendered inspection and the review passes are done); Phase 12 (release) has not started. The history paragraph below describes the plan as it stood in the backlog.
+complete; Phases 6 to 11 are executed (V1 confirmed as `C-UNPROVEN` on 2026-10-04; the label, its rendered inspection
+and the review passes are done); Phase 12 (release) has not started. The history paragraph below describes the plan as
+it stood in the backlog.
 
 **Backlog. Drafted 2026-10-03, expanded the same day for the owner decisions OD-1 to OD-4, and repaired on 2026-10-04
 after plan quality gate passes 4 and 5; not authorized for execution.** The six documents and the UI design assets are
@@ -29,20 +31,20 @@ explicit direction; Phase 1 then moves the folder to `plans/in-progress/`. The p
 
 ## Outcome
 
-When the Bnest ledger says a production backup is `verified`, a verified artifact and its receipt exist where the
-ledger says they are, or Bnest says plainly that they do not. Today the ledger and the disk disagree and nothing
-notices.
+When the Bnest ledger says a production backup is `verified`, a verified artifact and its receipt exist where the ledger
+says they are, or Bnest says plainly that they do not. Today the ledger and the disk disagree and nothing notices.
 
 Concretely, the plan delivers, each conditional on what the investigation proves:
 
 1. **The cause**, established by read-only evidence before any change. The Dropbox hypothesis (H2) can end only
    unproven, because the owner has no Dropbox web access.
 2. **A detector** that reports a `verified` run whose artifact is absent, changed, or unreadable: a read-only `Backup`
-   reconciliation surfaced through a Mix task, a log line, a telemetry event and a label on the Schedules & backups page.
-3. **A regression test** that proves test receipts and artifacts can never influence production retention, if the
-   cause or its neighbourhood makes that claim worth pinning.
-4. **An owner-run restore drill**, so a backup is proven restorable by a person, not only by the proof the backup
-   task runs on its own copy.
+   reconciliation surfaced through a Mix task, a log line, a telemetry event and a label on the Schedules & backups
+   page.
+3. **A regression test** that proves test receipts and artifacts can never influence production retention, if the cause
+   or its neighbourhood makes that claim worth pinning.
+4. **An owner-run restore drill**, so a backup is proven restorable by a person, not only by the proof the backup task
+   runs on its own copy.
 5. **An idea brief** for an off-Dropbox second copy, created once the verdict is known, with no commitment to build it.
 
 ## Context
@@ -53,17 +55,17 @@ archived `ddd-hexagonal-adoption` plan recorded as an investigation, not a findi
 
 Verified read-only on 2026-10-03:
 
-- `bnest_schedule_runs` records the production backup runs for `scheduled_for` 2026-09-30T19:00Z and
-  2026-10-01T19:00Z as `verified`, each with an artifact name and 684032 bytes.
+- `bnest_schedule_runs` records the production backup runs for `scheduled_for` 2026-09-30T19:00Z and 2026-10-01T19:00Z
+  as `verified`, each with an artifact name and 684032 bytes.
 - The backup directory (`data/backup`, synchronized by Dropbox) holds **no** artifact and **no** receipt for 20260930
   or 20261001. It holds twelve test-fixture artifacts named `bnest-prod-20260918T000000Z-*`, artifact and receipt pairs
   of roughly 660 to 684 KB (receipt 752 B) for 20260925, 26, 27, 28, 29 and 20261002, and the ownership marker.
 
 So the database claims `verified` while the files are absent. **The cause is unproven.** Five hypotheses are on the
-table, H1 to H5: retention, Dropbox, another writer or test pollution, a different destination, and a ledger row that
-is not what it seems. H3a is a candidate mechanism inside H3. The plan starts by discriminating between them. The
-Dropbox event history is not available to the owner (OD-2), so H2 can be confirmed only by a local signal and otherwise
-stays unproven.
+table, H1 to H5: retention, Dropbox, another writer or test pollution, a different destination, and a ledger row that is
+not what it seems. H3a is a candidate mechanism inside H3. The plan starts by discriminating between them. The Dropbox
+event history is not available to the owner (OD-2), so H2 can be confirmed only by a local signal and otherwise stays
+unproven.
 
 The backup task only records a run as `verified` after the artifact is promoted and its receipt is written. A missing
 file therefore means something removed it, something wrote it elsewhere, or the ledger row is not what it seems.
@@ -86,16 +88,16 @@ email notification beyond the label; changing the retention policy of seven WIB 
 
 ## Approach
 
-Investigate first, change second. [Phase 2](delivery.md) gathers evidence that separates the hypotheses without
-touching production; [Phase 3](delivery.md) turns it into one recorded verdict that selects which later phases apply.
-The detector is independent of the cause and is delivered in every branch, because no cause makes "the ledger says
-verified and nobody checked" acceptable. The cause-specific fix is delivered only for the branch the evidence selects.
-Code follows Gherkin, bindings and an Nx red, as the project rule requires.
+Investigate first, change second. [Phase 2](delivery.md) gathers evidence that separates the hypotheses without touching
+production; [Phase 3](delivery.md) turns it into one recorded verdict that selects which later phases apply. The
+detector is independent of the cause and is delivered in every branch, because no cause makes "the ledger says verified
+and nobody checked" acceptable. The cause-specific fix is delivered only for the branch the evidence selects. Code
+follows Gherkin, bindings and an Nx red, as the project rule requires.
 
 **Schedule pressure.** The two lost nights stop being reportable by the live detector once the run of WIB 2026-10-08
 finishes retention. Phases 1 to 5 therefore run first, and the early live reconcile in Phase 5 does not wait on the UI.
-The label (OD-3) has its design assets in this plan; Phase 8 reconciles their copy and records the owner's design review,
-Phase 9 specifies and builds it, and Phase 10 inspects it, all after Phase 7. As an agent proposal pending owner
+The label (OD-3) has its design assets in this plan; Phase 8 reconciles their copy and records the owner's design
+review, Phase 9 specifies and builds it, and Phase 10 inspects it, all after Phase 7. As an agent proposal pending owner
 confirmation (D5), it is released with the detector in one release (Phase 12). Also as an agent proposal pending owner
 confirmation (D11), the owner's confirmation of the cause verdict is needed before Phase 6 and the release, not before
 Phases 4 and 5, and [`delivery.md`](delivery.md#dated-preconditions) states the dated preconditions before Phase 1 and
@@ -136,21 +138,23 @@ Everything else is an agent proposal pending owner confirmation, and nothing in 
 including the residual effect that a candidate backend may win a nightly slot, the reason the restore drill is `[HUMAN]`
 and the C-LEDGER path; D4 (the source of the label's data); D5 (the label shares one release with the detector); D6
 beyond the F1 resolution (Phase 8 reduced to copy reconciliation and the design review); D7 (the selected alternative
-`row`, approved by the owner at the Phase 8 design review on 2026-10-04); D8 (the label re-checks after a save) and its residual (what
-the re-check reports right after a destination change); D9 (the browser binding sets the viewport per Examples row); D10
-(the reconcile task exits non-zero on an empty ledger); and D11 (Phases 4 and 5 start on the AI-recorded verdict, the
-owner's confirmation falls before Phase 6 and the release, the fallback decision point is 2026-10-07T12:00Z, and the
-dated preconditions are authorization by 2026-10-06T19:00Z and Phase 2 finished by 2026-10-07T12:00Z). The
-plan also proposes that authorizing execution confirms these unless the owner changes one.
+`row`, approved by the owner at the Phase 8 design review on 2026-10-04); D8 (the label re-checks after a save) and its
+residual (what the re-check reports right after a destination change); D9 (the browser binding sets the viewport per
+Examples row); D10 (the reconcile task exits non-zero on an empty ledger); and D11 (Phases 4 and 5 start on the
+AI-recorded verdict, the owner's confirmation falls before Phase 6 and the release, the fallback decision point is
+2026-10-07T12:00Z, and the dated preconditions are authorization by 2026-10-06T19:00Z and Phase 2 finished by
+2026-10-07T12:00Z). The plan also proposes that authorizing execution confirms these unless the owner changes one.
 
 ## UI Design Preview
 
-The selected alternative `row`, hi-fi on desktop, with synthetic content: a `Backup files` item beside `Last result:
-Verified` states that 2 of 7 retained backups need attention and names the two dates. The full comparison of the three
-alternatives, the other eleven assets and the rationale are in the
+The selected alternative `row`, hi-fi on desktop, with synthetic content: a `Backup files` item beside
+`Last result: Verified` states that 2 of 7 retained backups need attention and names the two dates. The full comparison
+of the three alternatives, the other eleven assets and the rationale are in the
 [UI Design section](tech-docs.md#selected-alternative-comparison-and-assets) of `tech-docs.md`.
 
-![Hi-fi mockup of the selected row alternative on desktop: the Production database backup schedule row carries a Backup files item with a coral left strip, a warning triangle, the words 2 of 7 retained backups need attention and two problem lines, beside Last result: Verified](assets/ui-row-hifi-desktop.svg)
+![Hi-fi mockup of the selected row alternative on desktop: the Production database backup schedule row carries a
+Backup files item with a coral left strip, a warning triangle, the words 2 of 7 retained backups need attention and
+two problem lines, beside Last result: Verified](assets/ui-row-hifi-desktop.svg)
 
 ## Plan Map
 
@@ -159,7 +163,8 @@ alternatives, the other eleven assets and the rationale are in the
 - [`tech-docs.md`](tech-docs.md) hypotheses, discriminating checks, design, UI design, decisions and file impact.
 - [`delivery.md`](delivery.md) the ordered checklist.
 - [`learnings.md`](learnings.md) the transient discovery log (decision records live in `tech-docs.md`).
-- [`assets/`](assets/README.md) holds the twelve UI design assets and their `README.md`; the preview above is one of them.
+- [`assets/`](assets/README.md) holds the twelve UI design assets and their `README.md`; the preview above is one of
+  them.
 
 ## Directory Map
 

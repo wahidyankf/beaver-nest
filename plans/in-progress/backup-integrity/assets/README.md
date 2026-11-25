@@ -36,22 +36,24 @@ is unchanged by this plan and is not drawn.
   section adds a text alternative for each image group.
 - No state relies on colour alone: each state has its own marker shape (check circle, warning triangle, dotted circle,
   question square, dash circle, arrow diamond) and its own words.
-- Text is the page ink on the page paper at 10.99:1; the status strips use the page's existing coral and green borders at
-  3.24:1 and 3.26:1 against the paper. No new colour token is introduced. The measurements are in the UI Design section.
+- Text is the page ink on the page paper at 10.99:1; the status strips use the page's existing coral and green borders
+  at 3.24:1 and 3.26:1 against the paper. No new colour token is introduced. The measurements are in the UI Design
+  section.
 
 ## Directory Map
 
 - [`ui-row-lofi-desktop.svg`](ui-row-lofi-desktop.svg) is the lo-fi `row` alternative on desktop (selected).
 - [`ui-row-lofi-tablet.svg`](ui-row-lofi-tablet.svg) is the lo-fi `row` alternative on tablet (selected).
 - [`ui-row-lofi-mobile.svg`](ui-row-lofi-mobile.svg) is the lo-fi `row` alternative on mobile (selected).
-- [`ui-banner-lofi-desktop.svg`](ui-banner-lofi-desktop.svg) is the lo-fi `banner` alternative on desktop (not selected).
+- [`ui-banner-lofi-desktop.svg`](ui-banner-lofi-desktop.svg) is the lo-fi `banner` alternative on desktop (not
+  selected).
 - [`ui-banner-lofi-tablet.svg`](ui-banner-lofi-tablet.svg) is the lo-fi `banner` alternative on tablet (not selected).
 - [`ui-banner-lofi-mobile.svg`](ui-banner-lofi-mobile.svg) is the lo-fi `banner` alternative on mobile (not selected).
 - [`ui-card-lofi-desktop.svg`](ui-card-lofi-desktop.svg) is the lo-fi `card` alternative on desktop (not selected).
 - [`ui-card-lofi-tablet.svg`](ui-card-lofi-tablet.svg) is the lo-fi `card` alternative on tablet (not selected).
 - [`ui-card-lofi-mobile.svg`](ui-card-lofi-mobile.svg) is the lo-fi `card` alternative on mobile (not selected).
-- [`ui-row-hifi-desktop.svg`](ui-row-hifi-desktop.svg) is the hi-fi selected `row` alternative on desktop, with the state
-  sheet.
+- [`ui-row-hifi-desktop.svg`](ui-row-hifi-desktop.svg) is the hi-fi selected `row` alternative on desktop, with the
+  state sheet.
 - [`ui-row-hifi-tablet.svg`](ui-row-hifi-tablet.svg) is the hi-fi selected `row` alternative on tablet, with the state
   sheet.
 - [`ui-row-hifi-mobile.svg`](ui-row-hifi-mobile.svg) is the hi-fi selected `row` alternative on mobile, with the state
