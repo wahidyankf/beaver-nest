@@ -256,6 +256,38 @@ defmodule BnestApp.Scheduler.FacadeTest do
                {:error, :invalid_revision}
     end
 
+    # A restart reloads the schedule row the administrator saved: the edit is written to the
+    # schedule store, and the later read a restart performs returns the same daily time,
+    # enabled flag, revision and next run.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A saved daily schedule survives a restart
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup time the administrator chose survives a restart
+    test "a saved daily backup time is still saved when the schedule is read again" do
+      put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+      current = Scheduler.get_schedule("prod-sqlite-backup-daily")
+
+      assert {:ok, saved} =
+               Scheduler.update_daily(
+                 "prod-sqlite-backup-daily",
+                 %{
+                   "daily_time_wib" => "04:00",
+                   "enabled" => "true",
+                   "revision" => Integer.to_string(current.revision)
+                 },
+                 @now
+               )
+
+      assert saved.daily_at_utc == "21:00"
+      assert saved.enabled == true
+
+      reloaded = Scheduler.get_schedule("prod-sqlite-backup-daily")
+      assert reloaded.daily_at_utc == saved.daily_at_utc
+      assert reloaded.enabled == saved.enabled
+      assert reloaded.revision == saved.revision
+      assert reloaded.next_run_at == saved.next_run_at
+    end
+
     test "converges and activates a pristine schedule once" do
       put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
 

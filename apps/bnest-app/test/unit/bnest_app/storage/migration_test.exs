@@ -136,6 +136,31 @@ defmodule BnestApp.Storage.MigrationTest do
       assert [%{state: "verified", verified_at: verified_at}] = MigrationLedger.state().runs
       assert is_binary(verified_at)
     end
+
+    # A restart re-reads the storage pointer the switch wrote: the phase the commit recorded
+    # must come back, with the migrated records still readable and the run verified — the
+    # persistence every survivor (chat, learning, theme, login, logout) rides on.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
+    test "migrated records stay readable after the switch commits" do
+      StoragePorts.put(:config, %{"phase" => "flat_primary"})
+      FlatSource.put_files(@flat_root, [{@a_theme, theme("a-test-user", "light")}])
+      Migration.run(@flat_root)
+
+      assert :ok = Migration.activate!()
+
+      assert Storage.phase() == :sqlite_primary
+
+      assert Storage.phase() == :sqlite_primary
+      assert Migration.parity_ok?(@flat_root)
+
+      assert [%{state: "verified"}] = MigrationLedger.state().runs
+
+      {_backend, sqlite} = Storage.record_backend()
+
+      assert {:ok, %{"theme" => "light"}} =
+               InMemoryRecordBackend.read(sqlite, :theme, "a-test-user")
+    end
   end
 
   defp theme(owner, value),

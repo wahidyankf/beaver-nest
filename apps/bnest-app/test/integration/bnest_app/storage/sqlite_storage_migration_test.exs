@@ -1,12 +1,14 @@
 defmodule BnestApp.SqliteStorageMigrationTest do
   use ExUnit.Case, async: false
 
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.Storage.Adapters.SqliteMigration
   alias BnestApp.Storage.Adapters.SqliteRecordBackend
   alias BnestApp.Storage.Domain.FlatMigration
+  alias BnestApp.Storage.Import
   alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.TestRuntimeRoot
   alias Mix.Tasks.Bnest.Storage.Relocate, as: RelocateTask
@@ -125,6 +127,121 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       ])
 
     assert state == "verified"
+  end
+
+  # After the switch commits, a restart keeps every survivor: chat, learning and theme records
+  # written through the production import, the account sources login reads, and the session
+  # logout revokes — all still readable from SQLite after the coordinator stops and starts
+  # on the same file. Legacy retirement itself is proved by the dedicated retire binding.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
+  test "chat, learning, theme, login and logout survive a restart after the switch", %{
+    flat_root: flat_root,
+    database_path: database_path
+  } do
+    FileConfigStore.ensure_default!()
+    result = StorageMigration.run(flat_root)
+
+    assert result.blocked == 0
+    assert StorageMigration.parity_ok?(flat_root)
+    assert SqliteMigration.integrity_ok?()
+
+    rehearsal = Path.join(Path.dirname(database_path), "restart-rehearsal.sqlite3")
+    assert SqliteMigration.restore_rehearsal(rehearsal)
+
+    assert :ok = StorageMigration.activate!()
+    assert FileConfigStore.phase() == :sqlite_primary
+
+    store = SqliteRecordBackend.new()
+    owner = "user-restart-1"
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "bnest.chat.v1"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "sessionStorage",
+               "storageKey" => "bnest.chat.v1",
+               "payload" =>
+                 Jason.encode!(%{
+                   "version" => 2,
+                   "thread_id" => nil,
+                   "model" => "fixture-model",
+                   "reasoning_effort" => "medium",
+                   "messages" => []
+                 })
+             })
+
+    learning_payload =
+      Quiz.progress() |> Map.put("session", %{"mode" => "dashboard"}) |> Jason.encode!()
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "bnest.sifat-allah.v1"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "localStorage",
+               "storageKey" => "bnest.sifat-allah.v1",
+               "payload" => learning_payload
+             })
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "phx:theme"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "localStorage",
+               "storageKey" => "phx:theme",
+               "payload" => "dark"
+             })
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+    digest = String.duplicate("a", 64)
+
+    assert {:ok, _account} =
+             SqliteRecordBackend.put_new(store, :account, "user-restart-login", %{
+               "schemaVersion" => 1,
+               "recordType" => "account",
+               "userId" => "user-restart-login",
+               "displayUsername" => "Restart Login",
+               "normalizedUsername" => "restartlogin",
+               "roles" => ["parents"],
+               "passwordVerifier" => "$argon2id$v=19$m=32768,t=2,p=1$c3ludGhlc2ljaA$bw",
+               "createdAt" => now
+             })
+
+    assert {:ok, _index} =
+             SqliteRecordBackend.put_new(store, :username_index, "restartlogin", %{
+               "schemaVersion" => 1,
+               "recordType" => "username-index",
+               "normalizedUsername" => "restartlogin",
+               "userId" => "user-restart-login"
+             })
+
+    assert {:ok, _session} =
+             SqliteRecordBackend.put_new(store, :session, digest, %{
+               "schemaVersion" => 1,
+               "recordType" => "browser-session",
+               "tokenDigest" => digest,
+               "userId" => "user-restart-login",
+               "issuedAt" => now,
+               "revokedAt" => nil
+             })
+
+    :ok = SqliteCoordinator.stop()
+    :ok = SqliteCoordinator.ensure_started!(database_path)
+
+    assert FileConfigStore.phase() == :sqlite_primary
+
+    assert {:ok, %{"recordType" => "chat"}} = SqliteRecordBackend.read(store, :chat, owner)
+
+    assert {:ok, %{"recordType" => "sifat-allah-progress"}} =
+             SqliteRecordBackend.read(store, :sifat_allah, owner)
+
+    assert {:ok, %{"recordType" => "theme-preference", "theme" => "dark"}} =
+             SqliteRecordBackend.read(store, :theme, owner)
+
+    assert {:ok, %{"recordType" => "account"}} =
+             SqliteRecordBackend.read(store, :account, "user-restart-login")
+
+    assert {:ok, %{"recordType" => "username-index"}} =
+             SqliteRecordBackend.read(store, :username_index, "restartlogin")
+
+    assert {:ok, %{"recordType" => "browser-session", "revokedAt" => nil}} =
+             SqliteRecordBackend.read(store, :session, digest)
+
+    assert StorageMigration.parity_ok?(flat_root)
   end
 
   # Once SQLite is authoritative, the operator moves it out of the configuration

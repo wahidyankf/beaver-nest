@@ -5,6 +5,7 @@ defmodule BnestApp.Preferences.PreferencesUnitTest do
   use ExUnit.Case, async: false
 
   alias BnestApp.Preferences
+  alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
   alias BnestApp.Test.InMemory.PreferenceStore, as: InMemoryPreferenceStore
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
@@ -210,6 +211,26 @@ defmodule BnestApp.Preferences.PreferencesUnitTest do
       assert Preferences.clear_theme(@owner) == :ok
       assert InMemoryRecordBackend.snapshot(records) == %{}
       assert Preferences.theme(@owner) == "system"
+    end
+
+    # An accepted browser import lands in the server record and tells the browser to clear
+    # its key; a later server-side theme change is kept in that same server record.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: After an accepted import, later changes are kept on the server and the browser keeps no copy
+    test "a theme change after an accepted import stays server-only", %{records: records} do
+      assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "phx:theme"}}} =
+               Import.browser(records, @owner, %{
+                 "storageArea" => "localStorage",
+                 "storageKey" => "phx:theme",
+                 "payload" => "dark"
+               })
+
+      assert Preferences.theme(@owner) == "dark"
+      assert :ok = Preferences.put_theme(@owner, "light", @now)
+      assert Preferences.theme(@owner) == "light"
+
+      assert {:ok, %{"theme" => "light", "ownerId" => @owner}} =
+               InMemoryRecordBackend.read(records, :theme, @owner)
     end
   end
 end
