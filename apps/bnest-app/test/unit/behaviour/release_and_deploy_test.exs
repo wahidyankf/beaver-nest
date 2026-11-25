@@ -74,6 +74,19 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployTest do
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release:run fails closed when --mode is passed at all, with an error naming its removal
+  test "the --mode=<value> form fails closed too, and a plain release argv still parses" do
+    message =
+      "The --mode flag was removed with the family-chat release stages; run release:run without --mode"
+
+    assert Model.parse_arguments(["--mode=experience"]) == {:error, "configuration", message}
+    assert Model.parse_arguments(["--mode="]) == {:error, "configuration", message}
+
+    assert Model.parse_arguments(["--revision", "0123456789abcdef0123456789abcdef01234567"]) ==
+             :ok
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release:build, release:migrate, and release:converge each run one step against the immutable artifact
   test "artifact steps run once each and refuse missing artifacts" do
     revision = "0123456789abcdef0123456789abcdef01234567"
