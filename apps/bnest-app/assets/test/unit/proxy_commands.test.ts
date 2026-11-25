@@ -12,7 +12,13 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, inject, it } from "vitest";
+
+declare module "vitest" {
+  export interface ProvidedContext {
+    nodeBinary: string;
+  }
+}
 
 const revision = "0123456789abcdef0123456789abcdef01234567";
 const toolUrl = new URL("../../../tools/deployment.mjs", import.meta.url).href;
@@ -32,10 +38,10 @@ interface StatusEvidence {
 }
 
 function runDriver(script: string, args: string[], deployRoot: string) {
-  // env replaces the child's whole environment, so PATH is absent and a bare
-  // "node" is not found on CI; process.execPath names the running Node binary.
+  // env replaces the child's PATH, so the Node binary comes from the vitest config
+  // (inject), not from PATH.
   const result = spawnSync(
-    process.execPath,
+    inject("nodeBinary"),
     ["--input-type=module", "-e", script, ...args],
     {
       encoding: "utf8",
