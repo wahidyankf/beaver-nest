@@ -50,6 +50,7 @@
     "happy-dom": "20.14.5",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
+    "markdownlint-cli2": "^0.24.0",
     "nx": "23.1.1",
     "oxlint": "^1.79.0",
     "playwright-bdd": "^9.2.0",
