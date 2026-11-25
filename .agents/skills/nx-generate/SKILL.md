@@ -10,7 +10,8 @@ when_to_use: >-
 
 # Run Nx Generator
 
-Nx generators are powerful tools that scaffold projects, make automated code migrations or automate repetitive tasks in a monorepo. They ensure consistency across the codebase and reduce boilerplate work.
+Nx generators are powerful tools that scaffold projects, make automated code migrations or automate repetitive tasks in
+a monorepo. They ensure consistency across the codebase and reduce boilerplate work.
 
 This skill applies when the user wants to:
 
@@ -24,7 +25,8 @@ This skill applies when the user wants to:
 1. **Always use `--no-interactive`** - Prevents prompts that would hang execution
 2. **Read the generator source code** - The schema alone is not enough; understand what the generator actually does
 3. **Match existing repo patterns** - Study similar artifacts in the repo and follow their conventions
-4. **Verify with lint/test/build/typecheck etc.** - Generated code must pass verification. The listed targets are just an example, use what's appropriate for this workspace.
+4. **Verify with lint/test/build/typecheck etc.** - Generated code must pass verification. The listed targets are just
+   an example, use what's appropriate for this workspace.
 
 ## Steps
 
@@ -39,11 +41,14 @@ This includes plugin generators (e.g., `@nx/react:library`) and local workspace 
 
 ### 2. Match Generator to User Request
 
-Identify which generator(s) could fulfill the user's needs. Consider what artifact type they want, which framework is relevant, and any specific generator names mentioned.
+Identify which generator(s) could fulfill the user's needs. Consider what artifact type they want, which framework is
+relevant, and any specific generator names mentioned.
 
-**IMPORTANT**: When both a local workspace generator and an external plugin generator could satisfy the request, **always prefer the local workspace generator**. Local generators are customized for the specific repo's patterns.
+**IMPORTANT**: When both a local workspace generator and an external plugin generator could satisfy the request,
+**always prefer the local workspace generator**. Local generators are customized for the specific repo's patterns.
 
-If no suitable generator exists, you can stop using this skill. However, the burden of proof is high—carefully consider all available generators before deciding none apply.
+If no suitable generator exists, you can stop using this skill. However, the burden of proof is high—carefully consider
+all available generators before deciding none apply.
 
 ### 3. Get Generator Options
 
@@ -59,10 +64,12 @@ Pay attention to required options, defaults that might need overriding, and opti
 
 **Default to non-buildable libraries** unless there's a specific reason for buildable.
 
-| Type                        | When to use                                                       | Generator flags                     |
-| --------------------------- | ----------------------------------------------------------------- | ----------------------------------- |
-| **Non-buildable** (default) | Internal monorepo libs consumed by apps                           | No `--bundler` flag                 |
-| **Buildable**               | Publishing to npm, cross-repo sharing, stable libs for cache hits | `--bundler=vite` or `--bundler=swc` |
+- **Non-buildable** (default)
+  - When to use: Internal monorepo libs consumed by apps
+  - Generator flags: No `--bundler` flag
+- **Buildable**
+  - When to use: Publishing to npm, cross-repo sharing, stable libs for cache hits
+  - Generator flags: `--bundler=vite` or `--bundler=swc`
 
 Non-buildable libs:
 
@@ -76,7 +83,8 @@ Buildable libs:
 - Useful for stable libs that rarely change (cache hits)
 - Required for npm publishing
 
-**If unclear, ask the user:** "Should this library be buildable (own build step, better caching) or non-buildable (source consumed directly, simpler setup)?"
+**If unclear, ask the user:** "Should this library be buildable (own build step, better caching) or non-buildable
+(source consumed directly, simpler setup)?"
 
 ### 4. Read Generator Source Code
 
@@ -89,14 +97,16 @@ Buildable libs:
 
 To find generator source code:
 
-- For plugin generators: Use `node -e "console.log(require.resolve('@nx/<plugin>/generators.json'));"` to find the generators.json, then locate the source from there
+- For plugin generators: Use `node -e "console.log(require.resolve('@nx/<plugin>/generators.json'));"` to find the
+  generators.json, then locate the source from there
 - If that fails, read directly from `node_modules/<plugin>/generators.json`
-- For local generators: Typically in `tools/generators/` or a local plugin directory. Search the repo for the generator name.
+- For local generators: Typically in `tools/generators/` or a local plugin directory. Search the repo for the generator
+  name.
 
 After reading the source, reconsider: Is this the right generator? If not, go back to step 2.
 
-> **⚠️ `--directory` flag behaviour can be misleading.**
-> It should specify the full path of the generated library or component, not the parent path that it will be generated in.
+> **⚠️ `--directory` flag behaviour can be misleading.** It should specify the full path of the generated library or
+> component, not the parent path that it will be generated in.
 >
 > ```bash
 > # ✅ Correct - directory is the full path for the library
@@ -125,9 +135,11 @@ Before generating, examine the target area of the codebase:
 npx nx g @nx/react:library --name=my-lib --dry-run --no-interactive
 ```
 
-Review the output carefully. If files would be created in the wrong location, adjust your options based on what you learned from the generator source code.
+Review the output carefully. If files would be created in the wrong location, adjust your options based on what you
+learned from the generator source code.
 
-Note: Some generators don't support dry-run (e.g., if they install npm packages). If dry-run fails for this reason, proceed to running the generator for real.
+Note: Some generators don't support dry-run (e.g., if they install npm packages). If dry-run fails for this reason,
+proceed to running the generator for real.
 
 ### 7. Run the Generator
 
@@ -137,7 +149,8 @@ Execute the generator:
 nx generate <generator-name> <options> --no-interactive
 ```
 
-> **Tip:** New packages often need workspace dependencies wired up (e.g., importing shared types, being consumed by apps). The `link-workspace-packages` skill can help add these correctly.
+> **Tip:** New packages often need workspace dependencies wired up (e.g., importing shared types, being consumed by
+> apps). The `link-workspace-packages` skill can help add these correctly.
 
 ### 8. Modify Generated Code (If Needed)
 
@@ -147,7 +160,8 @@ Generators provide a starting point. Modify the output as needed to:
 - Adjust imports, exports, or configurations
 - Integrate with existing code patterns
 
-**Important:** If you replace or delete generated test files (e.g., `*.spec.ts`), either write meaningful replacement tests or remove the `test` target from the project configuration. Empty test suites will cause `nx test` to fail.
+**Important:** If you replace or delete generated test files (e.g., `*.spec.ts`), either write meaningful replacement
+tests or remove the `test` target from the project configuration. Empty test suites will cause `nx test` to fail.
 
 ### 9. Format and Verify
 
@@ -157,15 +171,22 @@ Format all generated/modified files:
 nx format --fix
 ```
 
-This example is for built-in nx formatting with prettier. There might be other formatting tools for this workspace, use these when appropriate.
+This example is for built-in nx formatting with prettier. There might be other formatting tools for this workspace, use
+these when appropriate.
 
-Then verify the generated code works. Keep in mind that the changes you make with a generator or subsequent modifications might impact various projects so it's usually not enough to only run targets for the artifact you just created.
+Then verify the generated code works. Keep in mind that the changes you make with a generator or subsequent
+modifications might impact various projects so it's usually not enough to only run targets for the artifact you just
+created.
 
 ```bash
 # these targets are just an example!
 nx run-many -t build,lint,test,typecheck
 ```
 
-These targets are common examples used across many workspaces. You should do research into other targets available for this workspace and its projects. CI configuration is usually a good guide for what the critical targets are that have to pass.
+These targets are common examples used across many workspaces. You should do research into other targets available for
+this workspace and its projects. CI configuration is usually a good guide for what the critical targets are that have to
+pass.
 
-If verification fails with manageable issues (a few lint errors, minor type issues), fix them. If issues are extensive, attempt obvious fixes first, then escalate to the user with details about what was generated, what's failing, and what you've attempted.
+If verification fails with manageable issues (a few lint errors, minor type issues), fix them. If issues are extensive,
+attempt obvious fixes first, then escalate to the user with details about what was generated, what's failing, and what
+you've attempted.

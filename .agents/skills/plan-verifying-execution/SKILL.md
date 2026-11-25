@@ -41,8 +41,7 @@ A gate that returned findings and was then repaired is fine, and is a different 
 
 Past proof that can no longer be produced, such as a red run never captured or a baseline from a removed worktree, is
 not rebuilt. Accept a recorded observation of current behaviour with one substitution line, and re-run anything that can
-still run today, per
-[Current Behaviour Over Past Proof](../../../repo-governance/conventions/plans/007-evidence-and-quality.md#current-behaviour-over-past-proof).
+still run today, per [Current Behaviour Over Past Proof][current-behaviour-over-past-proof].
 
 ## Cleanup Is Proven, Not Assumed
 
@@ -58,3 +57,5 @@ exactly the moment it was cheapest to keep.
 
 Report what is unresolved plainly rather than passing with a caveat. A caveat in a verdict is read as a pass by everyone
 who skims it.
+
+[current-behaviour-over-past-proof]: ../../../repo-governance/conventions/plans/007-evidence-and-quality.md#current-behaviour-over-past-proof

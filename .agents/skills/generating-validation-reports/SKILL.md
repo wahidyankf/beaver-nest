@@ -45,13 +45,22 @@ The conversation receives a short summary and the report's path. The findings li
 
 Check-fix loops re-run over the same content, and a report is the only memory between runs.
 
-| Situation                                    | What the report records                                                                      | Why                                                             |
-| -------------------------------------------- | -------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| a finding was accepted as a false positive   | an entry keyed by category, file, and short description, in a list later checkers read first | the next checker logs a match as previously accepted, uncounted |
-| a fix changed files                          | a section listing exactly those files                                                        | a re-validation can narrow to them                              |
-| a check is non-deterministic                 | its earlier result for unchanged content, marked as carried forward                          | a flaky lookup cannot invent new findings on untouched text     |
-| an accepted false positive is raised again   | the finding marked escalated, outside the count                                              | the disagreement is a rule question, not another cycle          |
-| the count has not fallen over several cycles | a convergence warning                                                                        | a stalled loop is visible before its ceiling                    |
+- **a finding was accepted as a false positive**
+  - What the report records: an entry keyed by category, file, and short description, in a list later checkers read
+    first
+  - Why: the next checker logs a match as previously accepted, uncounted
+- **a fix changed files**
+  - What the report records: a section listing exactly those files
+  - Why: a re-validation can narrow to them
+- **a check is non-deterministic**
+  - What the report records: its earlier result for unchanged content, marked as carried forward
+  - Why: a flaky lookup cannot invent new findings on untouched text
+- **an accepted false positive is raised again**
+  - What the report records: the finding marked escalated, outside the count
+  - Why: the disagreement is a rule question, not another cycle
+- **the count has not fallen over several cycles**
+  - What the report records: a convergence warning
+  - Why: a stalled loop is visible before its ceiling
 
 Narrowing to changed files is safe only for rules that read one file at a time. A rule that compares files, such as
 consistency or link targets, re-checks every file it spans, because a fix in one file can break another. Deterministic

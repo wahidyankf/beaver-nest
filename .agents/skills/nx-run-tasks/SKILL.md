@@ -8,17 +8,27 @@ when_to_use: >-
 
 You can run tasks with Nx in the following way.
 
-Keep in mind that you might have to prefix things with npx/pnpx/yarn if the user doesn't have nx installed globally. Look at the package.json or lockfile to determine which package manager is in use.
+Keep in mind that you might have to prefix things with npx/pnpx/yarn if the user doesn't have nx installed globally.
+Look at the package.json or lockfile to determine which package manager is in use.
 
 For more details on any command, run it with `--help` (e.g. `nx run-many --help`, `nx affected --help`).
 
 ## Repository HIPPO
 
-When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx commands for every project under `apps/` and `libs/` through exactly one outer HIPPO boundary with explicit `--disk-path`. This includes current and newly added applications, E2E adapters, libraries, and repository tools with compute-bearing targets. A self-guarded target remains the sole boundary, so callers invoke it natively. Preserve the package-manager-prefixed inner Nx command, dependency and correctness ordering, and any repository-required shell prefix. Independent work may overlap through the fixed admitted allocation; never duplicate or concurrently retry one exit-`75` invocation. Wait for its stated FIFO deferral or shedding condition, then retry only that command. Run recovery and read-only status controls directly so pressure protection cannot block service restoration.
+When the workspace rule links `repo-governance/development/resource-aware-development.md`, wrap compute-bearing Nx
+commands for every project under `apps/` and `libs/` through exactly one outer HIPPO boundary with explicit
+`--disk-path`. This includes current and newly added applications, E2E adapters, libraries, and repository tools with
+compute-bearing targets. A self-guarded target remains the sole boundary, so callers invoke it natively. Preserve the
+package-manager-prefixed inner Nx command, dependency and correctness ordering, and any repository-required shell
+prefix. Independent work may overlap through the fixed admitted allocation; never duplicate or concurrently retry one
+exit-`75` invocation. Wait for its stated FIFO deferral or shedding condition, then retry only that command. Run
+recovery and read-only status controls directly so pressure protection cannot block service restoration.
 
 ## Understand which tasks can be run
 
-You can check those via `nx show project <projectname> --json`, for example `nx show project myapp --json`. It contains a `targets` section which has information about targets that can be run. You can also just look at the `package.json` scripts or `project.json` targets, but you might miss out on inferred tasks by Nx plugins.
+You can check those via `nx show project <projectname> --json`, for example `nx show project myapp --json`. It contains
+a `targets` section which has information about targets that can be run. You can also just look at the `package.json`
+scripts or `project.json` targets, but you might miss out on inferred tasks by Nx plugins.
 
 ## Run a single task
 
@@ -34,7 +44,8 @@ where `project` is the project name defined in `package.json` or `project.json` 
 nx run-many -t build test lint typecheck
 ```
 
-You can pass a `-p` flag to filter to specific projects, otherwise it runs on all projects. You can also use `--exclude` to exclude projects, and `--parallel` to control the number of parallel processes (default is 3).
+You can pass a `-p` flag to filter to specific projects, otherwise it runs on all projects. You can also use `--exclude`
+to exclude projects, and `--parallel` to control the number of parallel processes (default is 3).
 
 Examples:
 
@@ -44,7 +55,8 @@ Examples:
 
 ## Run tasks for affected projects
 
-Use `nx affected` to only run tasks on projects that have been changed and projects that depend on changed projects. This is especially useful in CI and for large workspaces.
+Use `nx affected` to only run tasks on projects that have been changed and projects that depend on changed projects.
+This is especially useful in CI and for large workspaces.
 
 ```
 nx affected -t build test lint

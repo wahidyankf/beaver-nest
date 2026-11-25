@@ -32,8 +32,8 @@ the plan is then reverse-engineered to justify it.
 Sequence in the file is not dependency. Express phases and items as the dependency graph
 [Dependency Graph and Recovery](../../../repo-governance/conventions/plans/011-dependency-graph-and-recovery.md)
 defines, with a Parallelization Model section, so independent nodes can run concurrently. Declare inter-plan
-dependencies as [Plan-Order Graph](../../../repo-governance/conventions/plans/012-plan-order-graph.md)
-defines, so the live-plan index can order this plan.
+dependencies as [Plan-Order Graph](../../../repo-governance/conventions/plans/012-plan-order-graph.md) defines, so the
+live-plan index can order this plan.
 
 ## Granularity Is the Hard Part
 
@@ -47,8 +47,8 @@ Two tests:
 - **Self-contained proof.** If proving it requires finishing the next item, the split is in the wrong place.
 
 A delivery unit that changes what a README, documentation page, or specification describes also carries a
-[Docs Propagation](../../../repo-governance/workflows/quality/docs-propagation.md) item, landing in the same commit as the
-change.
+[Docs Propagation](../../../repo-governance/workflows/quality/docs-propagation.md) item, landing in the same commit as
+the change.
 
 ## Write for a Cold Executor
 
@@ -65,7 +65,7 @@ fail. "Restarting mid-write leaves no partial file" can.
 Criteria that cannot fail are the ones that get marked complete without anyone checking, because there is nothing to
 check.
 
-Apply [Focused Runs and Regression Gates][focused-runs] when writing local Nx test commands and phase or PR
-verification items.
+Apply [Focused Runs and Regression Gates][focused-runs] when writing local Nx test commands and phase or PR verification
+items.
 
 [focused-runs]: ../../../repo-governance/development/test-driven-development.md#focused-runs-and-regression-gates

@@ -11,15 +11,19 @@ when_to_use: >-
 
 # Nx Workspace Exploration
 
-This skill provides read-only exploration of Nx workspaces. Use it to understand workspace structure, project configuration, available targets, and dependencies.
+This skill provides read-only exploration of Nx workspaces. Use it to understand workspace structure, project
+configuration, available targets, and dependencies.
 
-Keep in mind that you might have to prefix commands with `npx`/`pnpx`/`yarn` if nx isn't installed globally. Check the lockfile to determine the package manager in use.
+Keep in mind that you might have to prefix commands with `npx`/`pnpx`/`yarn` if nx isn't installed globally. Check the
+lockfile to determine the package manager in use.
 
 ## Listing Projects
 
 Use `nx show projects` to list projects in the workspace.
 
-The project filtering syntax (`-p`/`--projects`) works across many Nx commands including `nx run-many`, `nx release`, `nx show projects`, and more. Filters support explicit names, glob patterns, tag references (e.g. `tag:name`), directories, and negation (e.g. `!project-name`).
+The project filtering syntax (`-p`/`--projects`) works across many Nx commands including `nx run-many`, `nx release`,
+`nx show projects`, and more. Filters support explicit names, glob patterns, tag references (e.g. `tag:name`),
+directories, and negation (e.g. `!project-name`).
 
 ```bash
 # List all projects
@@ -53,9 +57,11 @@ nx show projects --json
 
 Use `nx show project <name> --json` to get the full resolved configuration for a project.
 
-**Important**: Do NOT read `project.json` directly - it only contains partial configuration. The `nx show project --json` command returns the full resolved config including inferred targets from plugins.
+**Important**: Do NOT read `project.json` directly - it only contains partial configuration. The
+`nx show project --json` command returns the full resolved config including inferred targets from plugins.
 
-You can read the full project schema at `node_modules/nx/schemas/project-schema.json` to understand nx project configuration options.
+You can read the full project schema at `node_modules/nx/schemas/project-schema.json` to understand nx project
+configuration options.
 
 ```bash
 # Get full project configuration
@@ -99,8 +105,8 @@ nx show projects --withTarget e2e
 
 ## Workspace Configuration
 
-Read `nx.json` directly for workspace-level configuration.
-You can read the full project schema at `node_modules/nx/schemas/nx-schema.json` to understand nx project configuration options.
+Read `nx.json` directly for workspace-level configuration. You can read the full project schema at
+`node_modules/nx/schemas/nx-schema.json` to understand nx project configuration options.
 
 ```bash
 # Read the full nx.json
@@ -122,7 +128,8 @@ Key nx.json sections:
 
 ## Affected Projects
 
-If the user is asking about affected projects, read the [affected projects reference](references/AFFECTED.md) for detailed commands and examples.
+If the user is asking about affected projects, read the [affected projects reference](references/AFFECTED.md) for
+detailed commands and examples.
 
 ## Common Exploration Patterns
 
@@ -150,7 +157,9 @@ nx graph --print | jq '.graph.dependencies | to_entries[] | select(.value[].targ
 
 ## Programmatic Answers
 
-When processing nx CLI results, use command-line tools to compute the answer programmatically rather than counting or parsing output manually. Always use `--json` flags to get structured output that can be processed with `jq`, `grep`, or other tools you have installed locally.
+When processing nx CLI results, use command-line tools to compute the answer programmatically rather than counting or
+parsing output manually. Always use `--json` flags to get structured output that can be processed with `jq`, `grep`, or
+other tools you have installed locally.
 
 ### Listing Projects
 
