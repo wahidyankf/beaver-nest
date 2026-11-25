@@ -1,4 +1,4 @@
-defmodule BnestAppWeb.DataMigrationLiveTest do
+defmodule BnestAppWeb.DataMigrationLiveIntegrationTest do
   @moduledoc """
   Integration tests for the `centralized_data.feature` migration scenarios. The
   routed `/data-migration` page is driven through LiveViewTest: the browser report
