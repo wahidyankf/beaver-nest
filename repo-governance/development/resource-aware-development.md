@@ -43,10 +43,10 @@ can need opposite responses, so read both.
   started may take the one-push exception in
   [Capacity-Held Hook](../conventions/push-hook-verification/001-capacity-held-hook.md); reaching it never bypasses this
   guard, and the guard's admission stays exactly as declared.
-- Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol mismatch: never
-  retry it; inspect `./hippo status`, then drain or upgrade the incompatible client. `hippo.policy.replan-required` and
-  the `hippo.config.*` reasons mean invalid configuration, an impossible reservation, an invalid mapping, or a strict
-  profile mismatch. Replan rather than cooldown-loop.
+- Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol mismatch:
+  never retry it; inspect `./hippo status`, then drain or upgrade the incompatible client.
+  `hippo.policy.replan-required` and the `hippo.config.*` reasons mean invalid configuration, an impossible reservation,
+  an invalid mapping, or a strict profile mismatch. Replan rather than cooldown-loop.
 - Exit `2` means the invocation itself is unusable. Read the diagnostic and fix the command.
 - Exit `126` and `127` mean the guarded command cannot be executed, or is not there.
 - Exit `1` means the work ran and the answer is empty: a result, never a capacity signal.
