@@ -212,6 +212,9 @@ jobs:
       - name: Install Phoenix dependencies
         run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
+      - name: Install Chromium and system dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
+
       # DIAGNOSTIC (temporary, for CI root-cause diagnosis, reverted before merge).
       # Runs the child command of the test-integration entry in repo-config.yml outside the gate,
       # so its output reaches this log. The step never fails the job.
