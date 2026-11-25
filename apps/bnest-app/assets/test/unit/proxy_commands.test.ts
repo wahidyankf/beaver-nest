@@ -32,8 +32,10 @@ interface StatusEvidence {
 }
 
 function runDriver(script: string, args: string[], deployRoot: string) {
+  // env replaces the child's whole environment, so PATH is absent and a bare
+  // "node" is not found on CI; process.execPath names the running Node binary.
   const result = spawnSync(
-    "node",
+    process.execPath,
     ["--input-type=module", "-e", script, ...args],
     {
       encoding: "utf8",
