@@ -33,7 +33,6 @@ defmodule BnestApp.RuntimeSettings do
   def http_port(env) do
     case Map.get(env, "PORT") do
       nil -> 4000
-      "" -> 4000
       raw -> parse_port!(raw)
     end
   end
@@ -71,7 +70,6 @@ defmodule BnestApp.RuntimeSettings do
   def runtime_root(env, expand \\ &Path.expand/1) do
     case Map.get(env, "BNEST_RUNTIME_ROOT") do
       nil -> nil
-      "" -> nil
       raw -> expand.(raw)
     end
   end
@@ -80,7 +78,6 @@ defmodule BnestApp.RuntimeSettings do
   def codex_working_directory(env, expand \\ &Path.expand/1) do
     case Map.get(env, "BNEST_CODEX_WORKING_DIRECTORY") do
       nil -> nil
-      "" -> nil
       raw -> expand.(raw)
     end
   end
@@ -89,7 +86,6 @@ defmodule BnestApp.RuntimeSettings do
   def codex_home(env, expand \\ &Path.expand/1) do
     case Map.get(env, "BNEST_CODEX_HOME") do
       nil -> nil
-      "" -> nil
       raw -> expand.(raw)
     end
   end

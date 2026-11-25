@@ -29,7 +29,6 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationTest do
 
     assert RuntimeSettings.http_port(%{}) == 4000
     assert RuntimeSettings.http_port(%{"PORT" => "4101"}) == 4101
-    assert RuntimeSettings.http_port(%{"PORT" => ""}) == 4000
     assert RuntimeSettings.server_enabled?(%{}) == false
     assert RuntimeSettings.server_enabled?(%{"PHX_SERVER" => "true"}) == true
     assert RuntimeSettings.server_enabled?(%{"PHX_SERVER" => ""}) == true
@@ -44,12 +43,33 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationTest do
       RuntimeSettings.http_port(%{"PORT" => "not-a-port"})
     end
 
-    assert RuntimeSettings.runtime_root(%{"BNEST_RUNTIME_ROOT" => ""}) == nil
+    # origin/main reads PORT with String.to_integer/1, so an empty PORT stops the boot.
+    assert_raise RuntimeError, "PORT must be a positive integer", fn ->
+      RuntimeSettings.http_port(%{"PORT" => ""})
+    end
 
-    assert RuntimeSettings.codex_working_directory(%{"BNEST_CODEX_WORKING_DIRECTORY" => ""}) ==
-             nil
+    # An empty value is set, not unset: origin/main passes "" to Path.expand/1, which
+    # resolves it to the working directory. A double records the argument, so the test
+    # touches no file system.
+    expand_marker = fn raw -> {:expanded, raw} end
+    assert RuntimeSettings.runtime_root(%{}, expand_marker) == nil
 
-    assert RuntimeSettings.codex_home(%{"BNEST_CODEX_HOME" => ""}) == nil
+    assert RuntimeSettings.runtime_root(%{"BNEST_RUNTIME_ROOT" => ""}, expand_marker) ==
+             {:expanded, ""}
+
+    assert RuntimeSettings.codex_working_directory(%{}, expand_marker) == nil
+
+    assert RuntimeSettings.codex_working_directory(
+             %{"BNEST_CODEX_WORKING_DIRECTORY" => ""},
+             expand_marker
+           ) ==
+             {:expanded, ""}
+
+    assert RuntimeSettings.codex_home(%{}, expand_marker) == nil
+
+    assert RuntimeSettings.codex_home(%{"BNEST_CODEX_HOME" => ""}, expand_marker) ==
+             {:expanded, ""}
+
     assert RuntimeSettings.boolean_setting!(%{}, "BNEST_IDENTITY_CUTOVER") == false
 
     # Committed key fixtures, read by the production settings reader: the test only
