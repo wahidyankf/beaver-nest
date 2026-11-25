@@ -254,10 +254,6 @@ export function createDeploymentTool({
     const revision =
       argumentValue("--revision") ||
       fail("--revision is required; run release:build first.");
-    const familyChatEnabled = arguments_.includes("--family-chat-enabled");
-    const familyChatReplyEnabled = arguments_.includes(
-      "--family-chat-reply-enabled",
-    );
     const runtimeRoot = requiredEnvironment("BNEST_RUNTIME_ROOT");
     const cookie = requiredEnvironment("BNEST_DEPLOY_COOKIE_FILE");
     const secretKeyBase = requiredEnvironment(
@@ -291,8 +287,6 @@ export function createDeploymentTool({
       revision,
       logPath,
       errorPath,
-      familyChatEnabled,
-      familyChatReplyEnabled,
     });
     awaitReady(slot, revision);
     writeAtomic(slotMetadataPath(slot), JSON.stringify({ revision }) + "\n");

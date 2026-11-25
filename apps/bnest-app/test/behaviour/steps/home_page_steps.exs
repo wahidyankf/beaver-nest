@@ -597,10 +597,6 @@ defmodule BnestApp.Behaviour.ChatSteps do
 
   # --- phase-8 FE ADD rows ---
 
-  step "family chat is {string}", %{args: [setting]} = context do
-    prepare(context, :family_chat_flag, [setting])
-  end
-
   step "a visitor opens the home page", context do
     context.behaviour_driver.open(context, "/")
   end

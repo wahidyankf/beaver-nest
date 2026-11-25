@@ -16,11 +16,11 @@ authenticated family chat feature: an Absinthe GraphQL schema/resolver layer
 shell (not a LiveView), and Web Push delivery with retry and a retention task the Scheduler runs as a second registered
 task. A message may answer one earlier message in the same room: `send_family_chat_message` accepts an optional
 `replyToMessageId`, and every message type exposes a nullable `replyTo` carrying the answered message's id, sender, and
-a bounded preview of its text. The whole feature is implemented and tested behind the `BNEST_FAMILY_CHAT_ENABLED` flag,
-which still defaults to off; quoting is gated independently by `BNEST_FAMILY_CHAT_REPLY_ENABLED`, which also defaults to
-off. Browser-level acceptance belongs to [bnest-app-be-e2e](../bnest-app-be-e2e/README.md) (backend boundary, no reverse
-proxy) and [bnest-app-fe-e2e](../bnest-app-fe-e2e/README.md) (frontend/PWA, full Caddy rollout); the reusable Elixir BDD
-engine is [ex-bdd](https://github.com/wahidyankf/ex-bdd), extracted from this repository and tag-pinned at v0.1.0.
+a bounded preview of its text. The whole feature always ships: the room and its quoting go live with every release, with
+no flag to enable. Browser-level acceptance belongs to [bnest-app-be-e2e](../bnest-app-be-e2e/README.md) (backend
+boundary, no reverse proxy) and [bnest-app-fe-e2e](../bnest-app-fe-e2e/README.md) (frontend/PWA, full Caddy rollout);
+the reusable Elixir BDD engine is [ex-bdd](https://github.com/wahidyankf/ex-bdd), extracted from this repository and
+tag-pinned at v0.1.0.
 
 The generic scheduler persists contextual definitions and run claims in authoritative SQLite, dispatches only the tasks
 its configuration registers through one supervised task pool, renews leases, and fences file publication by attempt. The

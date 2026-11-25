@@ -55,7 +55,6 @@ import {
   requireWorld,
   ROOM_PATH,
   ROOM_SLUG,
-  routeRevision,
   rowFor,
   scrollHistoryTo,
   sendThroughComposer,
@@ -831,10 +830,13 @@ step("a message sent by another member now appears", async () => {
   );
 });
 
-// --- Rule: Experience release candidate proof ------------------------------------
+// --- Rule: Release candidate proof ------------------------------------
 
-step("Caddy has promoted the flag-enabled experience candidate", () => {
-  routeRevision(true);
+step("Caddy has promoted the release candidate", () => {
+  // The candidate is freshly promoted: no member has opened the room
+  // against it yet, and its wire holds no requests from a previous route.
+  expect(!hasActivePage(), "a page is already open against the candidate");
+  expect(server().wire.length === 0, "the candidate already served requests");
 });
 
 step("two members each open {string}", async (pathname) => {
@@ -896,7 +898,7 @@ step(
   },
 );
 
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
 step("neither member sees a duplicate or lost message", async () => {
   const expected = server()
     .messages.map((message) => message.id)

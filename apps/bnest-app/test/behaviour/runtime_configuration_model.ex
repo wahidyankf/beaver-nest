@@ -63,7 +63,6 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationModel do
   def session_for(_runner, _models), do: :fixture
 
   def boolean_default("BNEST_IDENTITY_CUTOVER"), do: false
-  def boolean_default("BNEST_FAMILY_CHAT_ENABLED"), do: false
   def boolean_default("BNEST_COOKIE_SECURE"), do: false
 
   def boolean_for(_name, "(unset)"), do: {:ok, false}

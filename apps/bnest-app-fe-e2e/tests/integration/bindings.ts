@@ -213,7 +213,7 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A smaller screen from the soft keyboard keeps the Codex composer on screen
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
-// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home offers the Family chat link
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A failed write-enable stays read-only and says so
@@ -224,7 +224,6 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a generated image
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page offers a Start chatting link
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
 // @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid

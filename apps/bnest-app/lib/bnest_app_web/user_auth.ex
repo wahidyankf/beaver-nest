@@ -97,18 +97,6 @@ defmodule BnestAppWeb.UserAuth do
 
   def require_admin_role(conn, _options), do: not_found(conn)
 
-  @doc false
-  def family_chat_enabled?, do: Application.get_env(:bnest_app, :family_chat_enabled, false)
-
-  # Runtime (not compile-time) gate, mirroring `cutover_enabled?/0`: the
-  # compatibility release ships this route/controller in code with the flag
-  # off (a genuinely dormant shell, not merely an unlinked page — a 404, the
-  # same "not found" shape every other role/flag gate in this module uses),
-  # and the later experience release flips it on without a redeploy.
-  def require_family_chat_enabled(conn, _options) do
-    if family_chat_enabled?(), do: conn, else: not_found(conn)
-  end
-
   def on_mount(:require_authenticated_user, _params, session, socket) do
     case session["current_user"] do
       %{"userId" => _user_id} = user ->

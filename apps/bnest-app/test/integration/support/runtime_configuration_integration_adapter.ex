@@ -407,9 +407,6 @@ defmodule BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter do
       "BNEST_IDENTITY_CUTOVER" ->
         Keyword.get(config[:bnest_app], :identity_cutover_enabled, false)
 
-      "BNEST_FAMILY_CHAT_ENABLED" ->
-        Keyword.get(config[:bnest_app], :family_chat_enabled, false)
-
       "BNEST_COOKIE_SECURE" ->
         get_in(config, [:bnest_app, :session_cookie, :secure]) == true
     end

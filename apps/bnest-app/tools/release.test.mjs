@@ -21,13 +21,11 @@ import test, { after, beforeEach } from "node:test";
 import { caddyfile, slots } from "./caddy-config.mjs";
 import {
   boundedReleaseEnvironment,
-  executeExperienceRelease,
   executeRelease,
   exitCodeFor,
-  experienceGateManifest,
   gateManifest,
   MachineHost,
-  parseMode,
+  refuseRemovedMode,
   ReleaseError,
   render,
   requiredOrigin,
@@ -72,6 +70,7 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
       "fe-e2e-quick",
       "release-recovery-e2e",
       "release-load-e2e",
+      "release-family-chat-e2e",
       "repository",
     ],
   );
@@ -92,6 +91,7 @@ test("owns one fixed uncached gate manifest without duplicate application quick 
       "bnest-app",
       "bnest-app",
       "bnest-app-be-e2e",
+      "bnest-app-fe-e2e",
       "bnest-app-fe-e2e",
       "bnest-app-fe-e2e",
       "bnest-app-fe-e2e",
@@ -171,14 +171,12 @@ test("enables account identity cutover in every managed slot", () => {
 });
 
 test("passes the existing runtime VAPID values to every managed slot", () => {
-  // Tech-doc 007: deployment passes the existing runtime VAPID values to both
-  // slots, unconditionally (not gated on `BNEST_FAMILY_CHAT_ENABLED`), since
-  // `config/runtime.exs` raises in `:prod` on every boot when these are
-  // absent -- a candidate that launchd starts without them never becomes
-  // ready, regardless of which feature flags are set. `launchAgent`'s
-  // `variables` object is a hard-coded allowlist (unlike a plain
-  // `...process.env` spread), so a key missing from it here is a key the
-  // launchd-managed process never receives.
+  // Deployment passes the existing runtime VAPID values to both slots
+  // unconditionally, since `config/runtime.exs` raises in `:prod` on every
+  // boot when these are absent -- a candidate that launchd starts without
+  // them never becomes ready. `launchAgent`'s `variables` object is a
+  // hard-coded allowlist (unlike a plain `...process.env` spread), so a key
+  // missing from it here is a key the launchd-managed process never receives.
   const source = toolSource("deployment.mjs", "launchd.mjs");
   assert.match(
     source,
@@ -834,206 +832,43 @@ test("launches every deployment slot through one shared RELEASE_DISTRIBUTION=non
   assert.match(source, /RELEASE_DISTRIBUTION: "none"/u);
 });
 
-test("reuses the exact reviewed compatibility SHA with only the flag-on candidate proof", () => {
-  // Tech-doc 009's Experience Release Procedure: no repository edit,
-  // migration, or schema contraction is allowed, so the experience release's
-  // own gate manifest re-runs nothing the compatibility release already
-  // proved -- only the new two-`test-user-`-context proof this SHA has
-  // never faced with the flag on.
-  assert.deepEqual(
-    experienceGateManifest.map(({ id }) => id),
-    ["experience-release-e2e"],
+test("proves the two-member draft/offline/exact-once candidate before promotion", () => {
+  // The single-stage release keeps the two-`test-user-`-context
+  // draft/offline-queue/reconnect/exact-once proof as an ordinary gate: the
+  // same grep the removed second-stage manifest ran, now against the ordinary
+  // candidate, before promotion. Exactly one gate carries it.
+  const grep =
+    "Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate";
+  const carriers = gateManifest.filter(({ arguments: arguments_ }) =>
+    arguments_.includes(grep),
   );
-  const gate = experienceGateManifest[0];
+  assert.equal(carriers.length, 1);
+  const gate = carriers[0];
+  assert.equal(gate.id, "release-family-chat-e2e");
   assert.ok(gate.arguments.includes("--skip-nx-cache"));
   assert.equal(gate.arguments[2], "bnest-app-fe-e2e");
-  assert.deepEqual(gate.arguments.slice(-2), [
-    "--grep",
-    "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
-  ]);
+  assert.deepEqual(gate.arguments.slice(-2), ["--grep", grep]);
 });
 
-test("threads --family-chat-enabled from deploy:prepare into the launchd plist only when requested", () => {
-  // Tech-doc 009 step 1: the experience candidate is the only slot ever
-  // started with `BNEST_FAMILY_CHAT_ENABLED=true`; every ordinary
-  // compatibility-release slot must keep omitting the key entirely so
-  // `config/runtime.exs`'s default (`false`) governs unchanged.
-  const source = toolSource("deployment.mjs", "launchd.mjs");
-  assert.match(
-    source,
-    /arguments_\.includes\(\s*"--family-chat-enabled"\s*\)/u,
-  );
-  assert.match(
-    source,
-    /familyChatEnabled\s*\?\s*\{\s*BNEST_FAMILY_CHAT_ENABLED:\s*"true"\s*\}\s*:\s*\{\}/u,
-  );
-  assert.match(source, /familyChatEnabled = false/u);
+test("deploy:prepare accepts no family-chat flag key", () => {
+  // The room and its replies ship in every slot, so there is no flag to
+  // thread: neither the orchestrator nor either service adapter may parse,
+  // forward, or emit a family-chat environment key.
+  const source = toolSource("deployment.mjs", "launchd.mjs", "systemd.mjs");
+  assert.doesNotMatch(source, /family-chat-enabled/u);
+  assert.doesNotMatch(source, /familyChatEnabled/u);
+  assert.doesNotMatch(source, /familyChatReplyEnabled/u);
+  assert.doesNotMatch(source, /BNEST_FAMILY_CHAT/u);
 });
 
-test("threads --family-chat-reply-enabled the same way, and only for the experience candidate", () => {
-  // Quoting is gated independently of the room it lives in, so the two flags
-  // travel separately: a compatibility-release slot omits this key and still
-  // answers `replyTo` for any caller, which is the whole reason the reply
-  // bundle is safe to ship one release ahead of the flag. Only the
-  // experience candidate asks for it, and it asks through `release.mjs` --
-  // asserted here too, because a plist built correctly from an argument
-  // nobody passes is still a flag nobody turns on.
-  const deployment = toolSource("deployment.mjs", "launchd.mjs");
-  assert.match(
-    deployment,
-    /arguments_\.includes\(\s*"--family-chat-reply-enabled",?\s*\)/u,
-  );
-  assert.match(
-    deployment,
-    /familyChatReplyEnabled\s*\?\s*\{\s*BNEST_FAMILY_CHAT_REPLY_ENABLED:\s*"true"\s*\}\s*:\s*\{\}/u,
-  );
-  assert.match(deployment, /familyChatReplyEnabled = false/u);
-
-  const release = readFileSync(
-    new URL("./release.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(release, /"--family-chat-reply-enabled"/u);
-});
-
-function fakeExperienceHost(overrides = {}) {
-  const calls = [];
-  const host = {
-    calls,
-    experiencePreflight: async () => {
-      calls.push("preflight");
-      return { revision, activeSlot: "blue" };
-    },
-    runGates: async () => calls.push("gates"),
-    prepareExperienceCandidate: async (slot) =>
-      calls.push(`experience-candidate:${slot}`),
-    discardCandidate: async (slot) => calls.push(`discard:${slot}`),
-    recoverActivation: async () => {
-      calls.push("recover-activation");
-      return "candidate-cleanup";
-    },
-    activate: async (slot) => calls.push(`activate:${slot}`),
-    proveRouted: async () => calls.push("routed"),
-    drainAndCleanup: async (slot) => calls.push(`cleanup:${slot}`),
-    rollback: async () => calls.push("rollback"),
-    releaseLock: async () => calls.push("unlock"),
-    ...overrides,
-  };
-  return host;
-}
-
-test("promotes a same-revision flag-on candidate without building or migrating", async () => {
-  const host = fakeExperienceHost();
-  const result = await executeExperienceRelease(host, { drainMs: 0 });
-  assert.equal(result.outcome, "passed");
-  assert.equal(result.releaseRevision, revision);
-  assert.equal(result.migrationState, "not-required");
-  assert.deepEqual(host.calls, [
-    "preflight",
-    "gates",
-    "experience-candidate:green",
-    "activate:green",
-    "routed",
-    "cleanup:blue",
-    "unlock",
-  ]);
-  assert.ok(result.evidenceIds.includes("experience-candidate-proof"));
-  assert.ok(!result.evidenceIds.includes("convergence"));
-});
-
-test("never discards the shared artifact when the flag-on candidate fails", async () => {
-  // The candidate and the currently-routed slot share one artifact on disk
-  // (the same already-reviewed revision); discarding it on failure would
-  // delete the artifact production is still serving from.
-  const host = fakeExperienceHost({
-    prepareExperienceCandidate: async (slot) => {
-      host.calls.push(`experience-candidate:${slot}`);
-      throw new ReleaseError("candidate", "candidate failed");
-    },
-  });
-  const result = await executeExperienceRelease(host);
-  assert.equal(result.outcome, "failed");
-  assert.equal(result.errorCategory, "candidate");
-  assert.deepEqual(host.calls.slice(-3), [
-    "experience-candidate:green",
-    "discard:green",
-    "unlock",
-  ]);
-  assert.ok(!("discardArtifact" in host));
-});
-
-test("rolls back a flag-on promotion that never reaches routed proof", async () => {
-  const host = fakeExperienceHost({
-    proveRouted: async () => {
-      host.calls.push("routed");
-      throw new ReleaseError("routed-proof", "routed proof failed");
-    },
-  });
-  const result = await executeExperienceRelease(host);
-  assert.equal(result.outcome, "rolled-back");
-  assert.deepEqual(host.calls.slice(-4), [
-    "routed",
-    "rollback",
-    "discard:green",
-    "unlock",
-  ]);
-});
-
-test("rolls back the flag-on candidate when drain finds a continuity failure", async () => {
-  const host = fakeExperienceHost({
-    drainAndCleanup: async (slot) => {
-      host.calls.push(`cleanup:${slot}`);
-      throw new ReleaseError("continuity", "health failed");
-    },
-  });
-  const result = await executeExperienceRelease(host);
-  assert.equal(result.outcome, "rolled-back");
-  assert.deepEqual(host.calls.slice(-4), [
-    "cleanup:blue",
-    "rollback",
-    "discard:green",
-    "unlock",
-  ]);
-});
-
-test("selects the release mode from --mode, defaulting to compatibility", () => {
-  // The mode check lives in parseMode so the unknown-mode scenario can drive
-  // it without spawning the tool; main dispatches on its answer.
-  assert.equal(parseMode([]), "compatibility");
-  assert.equal(parseMode(["--mode", "compatibility"]), "compatibility");
-  assert.equal(parseMode(["--mode", "experience"]), "experience");
+test("refuses the removed --mode flag before any host is built", () => {
+  assert.doesNotThrow(() => refuseRemovedMode(["--revision", revision]));
   assert.throws(
-    () => parseMode(["--mode", "bogus"]),
+    () => refuseRemovedMode(["--mode", "compatibility"]),
     (error) =>
       error instanceof ReleaseError &&
       error.category === "configuration" &&
-      /Unknown release mode: bogus/u.test(error.message),
-  );
-  const source = readFileSync(
-    new URL("./release.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(
-    source,
-    /mode === "experience"\s*\?\s*await executeExperienceRelease/u,
-  );
-});
-
-test("derives the experience release revision from the routed slot, not the checkout HEAD", () => {
-  // The delivery's own compatibility release for this SHA, and every
-  // `learnings.md` update after it, moves `origin/main` past whatever is
-  // currently routed -- the experience release's revision must come from
-  // live `proxy:status`, never from `assertReleaseSource()`'s no-argument
-  // return (the checkout's current HEAD).
-  const source = readFileSync(
-    new URL("./release.mjs", import.meta.url),
-    "utf8",
-  );
-  assert.match(source, /const revision = proxyStatus\.activeRevision;/u);
-  assert.match(source, /await host\.experiencePreflight\(options\.revision\)/u);
-  assert.match(
-    source,
-    /await host\.runGates\(releaseRevision, experienceGateManifest, false\)/u,
+      /--mode.*removed/u.test(error.message),
   );
 });
 
@@ -1486,8 +1321,6 @@ function slotOptions(overrides = {}) {
     revision,
     logPath: join(systemdDeployment, "logs", "blue.log"),
     errorPath: join(systemdDeployment, "logs", "blue.error.log"),
-    familyChatEnabled: false,
-    familyChatReplyEnabled: false,
     ...overrides,
   };
 }
@@ -1585,23 +1418,12 @@ test("systemd unit: puts a PATH that names node's directory in the unit", async 
   });
 });
 
-test("systemd unit: carries the family-chat flags only when they are given", async () => {
+test("systemd unit: carries no family-chat variable", async () => {
   await withEnvironment(systemdEnvironment(), async () => {
     const systemd = await import("./systemd.mjs");
-    systemd.installSlotService(
-      "green",
-      slotOptions({
-        familyChatEnabled: true,
-        familyChatReplyEnabled: true,
-      }),
-    );
-    const flagged = readFileSync(unitFile(systemd.unitNames.green), "utf8");
-    assert.match(flagged, /BNEST_FAMILY_CHAT_ENABLED=true/u);
-    assert.match(flagged, /BNEST_FAMILY_CHAT_REPLY_ENABLED=true/u);
-
     systemd.installSlotService("green", slotOptions());
-    const plain = readFileSync(unitFile(systemd.unitNames.green), "utf8");
-    assert.doesNotMatch(plain, /BNEST_FAMILY_CHAT/u);
+    const unit = readFileSync(unitFile(systemd.unitNames.green), "utf8");
+    assert.doesNotMatch(unit, /FAMILY_CHAT/u);
   });
 });
 
@@ -1640,10 +1462,7 @@ test("systemd unit: carries every launchd slot variable with the same value, exc
     const systemd = await import("./systemd.mjs");
     const launchd = await import("./launchd.mjs");
     const { paths } = await import("./deployment-support.mjs");
-    const options = slotOptions({
-      familyChatEnabled: true,
-      familyChatReplyEnabled: true,
-    });
+    const options = slotOptions();
     // The macOS adapter writes its real plist here, so the comparison reads the
     // allowlist the launchd path ships rather than a copy of it.
     launchd.installSlotService("green", options);
@@ -2601,148 +2420,42 @@ test("development commands: each npm test command runs its Nx target under a HIP
   }
 });
 
-// BN-REL-03: release --mode experience re-promotes the routed artifact with
-// the family chat flags on. A real host with recording run/deployment doubles
-// proves it: no new build and no migration run, the revision is the routed
-// one, the idle slot is prepared with both family chat flags, and the only
-// gate is the two-member experience E2E.
-// @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release --mode experience re-promotes the routed artifact with the family chat flags on
-test("release: experience mode re-promotes the routed artifact with the family chat flags on", async () => {
-  const root = deploymentTempRoot("rel-experience");
-  try {
-    mkdirSync(join(root, "releases", revision), { recursive: true });
-    const calls = [];
-    const statusJson = JSON.stringify({
-      caddyReady: true,
-      activeSlot: "blue",
-      activeRevision: revision,
-    });
-    const host = new MachineHost({
-      BNEST_DEPLOY_ROOT: root,
-      BNEST_PRODUCTION_ORIGIN: "https://service.example",
-      HIPPO_BIN: "/bin/true",
-    });
-    host.deployment = (command, arguments_ = []) => {
-      calls.push(["deployment", command, ...arguments_]);
-      return { status: 0, stdout: statusJson };
-    };
-    host.run = (command, arguments_ = []) => {
-      calls.push(["run", command, ...arguments_]);
-      if (command === "curl")
-        return {
-          status: 0,
-          stdout: `HTTP/1.1 200 OK\r\nx-bnest-revision: ${revision}\r\n`,
-        };
-      return { status: 0, stdout: "" };
-    };
-    host.assertReleaseSource = () => {};
-    host.assertCapacity = () => {};
-    host.assertPorts = () => {};
-    host.assertActiveHealth = () => {};
-    host.startResourceMonitor = () => {};
-    host.stopResourceMonitor = () => ({ healthFailures: 0 });
-
-    const result = await executeExperienceRelease(host, { drainMs: 0 });
-    assert.equal(result.outcome, "passed");
-    assert.equal(result.migrationState, "not-required");
-    assert.equal(result.releaseRevision, revision);
-
-    // The idle slot is prepared with both family chat flags.
-    assert.ok(
-      calls.some(
-        (call) =>
-          call[0] === "deployment" &&
-          call[1] === "deploy:prepare" &&
-          call.includes("--slot") &&
-          call.includes("green") &&
-          call.includes("--family-chat-enabled") &&
-          call.includes("--family-chat-reply-enabled"),
-      ),
-      "the idle slot is prepared with the family chat flags on",
-    );
-    // Its only gate is the experience release E2E, run once.
-    const gates = calls.filter(
-      (call) => call[0] === "run" && call[1] === "npm",
-    );
-    assert.equal(gates.length, 1);
-    assert.deepEqual(gates[0].slice(2), [
-      "exec",
-      "--",
-      "nx",
-      ...experienceGateManifest[0].arguments,
-    ]);
-    // No new build, no migration, and the serving artifact is never discarded.
-    for (const call of calls) {
-      assert.ok(call[1] !== "release:build", "no new build");
-      assert.ok(call[1] !== "release:migrate", "no migration");
-    }
-    assert.ok(
-      calls.every(
-        (call) => call[1] !== "deploy:retire" || !call.includes("green"),
-      ),
-      "the serving artifact survives",
-    );
-    assert.equal(existsSync(join(root, "release.lock")), false);
-
-    // An explicit --revision must match the routed revision. The preflight
-    // throws (it never runs gates against a revision that is not routed), so
-    // the release stops before any gate, build, or promotion.
-    const mismatch = new MachineHost({
-      BNEST_DEPLOY_ROOT: root,
-      BNEST_PRODUCTION_ORIGIN: "https://service.example",
-      HIPPO_BIN: "/bin/true",
-    });
-    mismatch.assertReleaseSource = () => {};
-    mismatch.assertCapacity = () => {};
-    mismatch.assertPorts = () => {};
-    mismatch.startResourceMonitor = () => {};
-    mismatch.deployment = () => ({ status: 0, stdout: statusJson });
-    await assert.rejects(
-      mismatch.experiencePreflight("fedcba9876543210fedcba9876543210fedcba98"),
-      (error) =>
-        error instanceof ReleaseError &&
-        error.category === "preflight" &&
-        /Requested revision is not the currently routed revision/u.test(
-          error.message,
-        ),
-    );
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-// BN-REL-04 integration: node tools/release.mjs --mode bogus prints one JSON
-// result with outcome failed, errorCategory configuration, a null revision,
-// and exits 1, having taken no lock and touched no slot.
-// @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: An unknown release mode stops with a configuration error
-test("release integration: an unknown release mode stops with a configuration error", () => {
+// BN-REL-04 integration: node tools/release.mjs --mode, with any value, prints
+// one JSON result with outcome failed, errorCategory configuration, a null
+// revision, and the removal named on stderr; it exits 1, having taken no lock
+// and touched no slot.
+// @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release:run fails closed when --mode is passed at all, with an error naming its removal
+test("release integration: fails closed when --mode is passed at all, with an error naming its removal", () => {
   const deployment = deploymentTempRoot("rel-mode");
   try {
-    const result = spawnSync(
-      process.execPath,
-      [
-        fileURLToPath(new URL("./release.mjs", import.meta.url)),
-        "--mode",
-        "bogus",
-      ],
-      {
-        encoding: "utf8",
-        env: systemdEnvironment({ BNEST_DEPLOY_ROOT: deployment }),
-      },
-    );
-    assert.equal(result.status, 1);
-    assert.deepEqual(JSON.parse(result.stdout), {
-      schemaVersion: 1,
-      releaseRevision: null,
-      fromState: "preflight",
-      toState: "stopped",
-      outcome: "failed",
-      evidenceIds: [],
-      durationMs: JSON.parse(result.stdout).durationMs,
-      nextTransition: "diagnose",
-      errorCategory: "configuration",
-      migrationState: "not-required",
-    });
+    for (const mode of ["experience", "compatibility"]) {
+      const result = spawnSync(
+        process.execPath,
+        [
+          fileURLToPath(new URL("./release.mjs", import.meta.url)),
+          "--mode",
+          mode,
+        ],
+        {
+          encoding: "utf8",
+          env: systemdEnvironment({ BNEST_DEPLOY_ROOT: deployment }),
+        },
+      );
+      assert.equal(result.status, 1, `--mode ${mode} must fail`);
+      assert.match(result.stderr, /--mode.*removed/u);
+      assert.deepEqual(JSON.parse(result.stdout), {
+        schemaVersion: 1,
+        releaseRevision: null,
+        fromState: "preflight",
+        toState: "stopped",
+        outcome: "failed",
+        evidenceIds: [],
+        durationMs: JSON.parse(result.stdout).durationMs,
+        nextTransition: "diagnose",
+        errorCategory: "configuration",
+        migrationState: "not-required",
+      });
+    }
     assert.deepEqual(readdirSync(deployment, { recursive: true }), []);
   } finally {
     rmSync(deployment, { recursive: true, force: true });
@@ -3020,8 +2733,6 @@ test("deployment: prepare and promote take a blue or green slot", async () => {
     assert.deepEqual(installed[1], slot);
     assert.equal(installed[2].revision, revision);
     assert.equal(installed[2].productionHost, "service.example");
-    assert.equal(installed[2].familyChatEnabled, false);
-    assert.equal(installed[2].familyChatReplyEnabled, false);
     assert.deepEqual(
       JSON.parse(readFileSync(join(paths.slots, `${slot}.json`), "utf8")),
       {
@@ -4179,6 +3890,7 @@ test("development commands: each Nx target runs the checks it names, in order", 
         "mix format --check-formatted",
         "mix credo --strict",
         "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny-warnings --report-unused-disable-directives assets/js",
+        "npm exec -- oxlint -A all -D no-restricted-globals --deny-warnings assets/test/unit",
         "mix deps.unlock --check-unused",
       ],
       [],
@@ -4209,9 +3921,7 @@ test("development commands: each Nx target runs the checks it names, in order", 
     ],
     [
       "test:integration",
-      [
-        "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --exclude ci-exempt --max-cases 1 test/integration",
-      ],
+      ["tools/test-integration-denied.sh"],
       ["test-data:cleanup"],
       undefined,
     ],

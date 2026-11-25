@@ -120,28 +120,7 @@ export const gateManifest = [
     ],
   },
   {
-    id: "repository",
-    arguments: [
-      "run",
-      "-p",
-      "rhino-consumer",
-      "-t",
-      "test:repo",
-      "--skip-nx-cache",
-    ],
-  },
-];
-
-// Tech-doc 009's Experience Release Procedure reuses the exact reviewed
-// compatibility SHA already proven by `gateManifest` above -- no repository
-// edit, migration, or schema contraction is allowed. The one thing that SHA
-// has never proven is the flag-on candidate's own behavior, so this is the
-// only gate the experience release re-runs: the two-`test-user-`-context
-// draft/offline-queue/reconnect/exact-once proof (`family_chat.feature`'s
-// "Experience release candidate proof" rule).
-export const experienceGateManifest = [
-  {
-    id: "experience-release-e2e",
+    id: "release-family-chat-e2e",
     arguments: [
       "run",
       "-p",
@@ -153,7 +132,18 @@ export const experienceGateManifest = [
       "--workers",
       "1",
       "--grep",
-      "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
+      "Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate",
+    ],
+  },
+  {
+    id: "repository",
+    arguments: [
+      "run",
+      "-p",
+      "rhino-consumer",
+      "-t",
+      "test:repo",
+      "--skip-nx-cache",
     ],
   },
 ];
@@ -441,216 +431,6 @@ export async function executeRelease(host, options = {}) {
   }
 }
 
-// Tech-doc 009's Experience Release Procedure: reuse the exact reviewed
-// compatibility SHA already routed in production, and promote a second
-// candidate built from that SAME revision but booted with
-// `BNEST_FAMILY_CHAT_ENABLED=true` -- no new build, no migration, no
-// repository edit. Unlike `executeRelease`, this never creates a new
-// artifact, so its recovery paths never call `host.discardArtifact`: the
-// revision's artifact is the one currently serving production traffic and
-// must survive every failure branch below untouched.
-export async function executeExperienceRelease(host, options = {}) {
-  const startedAt = Date.now();
-  const evidenceIds = [];
-  let releaseRevision = null;
-  let fromState = "preflight";
-  let activated = false;
-  let activationAttempted = false;
-  let routed = false;
-  let priorSlot = null;
-  let candidateSlot = null;
-
-  try {
-    const preflight = await host.experiencePreflight(options.revision);
-    releaseRevision = preflight.revision;
-    priorSlot = preflight.activeSlot;
-    evidenceIds.push("preflight");
-
-    fromState = "pre-artifact-gates";
-    await host.runGates(releaseRevision, experienceGateManifest, false);
-    evidenceIds.push(...experienceGateManifest.map(({ id }) => id));
-
-    candidateSlot = priorSlot === "blue" ? "green" : "blue";
-    fromState = "candidate-proof";
-    await host.prepareExperienceCandidate(candidateSlot, releaseRevision);
-    evidenceIds.push("experience-candidate-proof");
-
-    fromState = "promote";
-    activationAttempted = true;
-    await host.activate(candidateSlot);
-    activated = true;
-    evidenceIds.push("promotion");
-
-    fromState = "routed-proof";
-    await host.proveRouted(releaseRevision);
-    routed = true;
-    evidenceIds.push("routed-liveview");
-
-    fromState = "cleanup";
-    await host.drainAndCleanup(priorSlot, releaseRevision, options.drainMs);
-    evidenceIds.push("cleanup");
-
-    return result({
-      releaseRevision,
-      fromState,
-      toState: "complete",
-      outcome: "passed",
-      evidenceIds,
-      startedAt,
-      nextTransition: "complete",
-      errorCategory: null,
-      migrationState: "not-required",
-    });
-  } catch (error) {
-    const releaseError =
-      error instanceof ReleaseError
-        ? error
-        : new ReleaseError("preflight", "Unexpected release failure");
-
-    if (activationAttempted && !activated) {
-      try {
-        const recovery = await host.recoverActivation(priorSlot, candidateSlot);
-        evidenceIds.push(recovery);
-        return result({
-          releaseRevision,
-          fromState,
-          toState: "stopped",
-          outcome: recovery === "rollback" ? "rolled-back" : "failed",
-          evidenceIds,
-          startedAt,
-          nextTransition: "diagnose",
-          errorCategory: releaseError.category,
-          migrationState: "not-required",
-        });
-      } catch {
-        return result({
-          releaseRevision,
-          fromState,
-          toState: "stopped",
-          outcome: "failed",
-          evidenceIds,
-          startedAt,
-          nextTransition: "recover-route",
-          errorCategory: "rollback",
-          migrationState: "not-required",
-        });
-      }
-    }
-
-    if (!activated && candidateSlot && fromState === "candidate-proof") {
-      try {
-        await host.discardCandidate(candidateSlot);
-        evidenceIds.push("candidate-cleanup");
-      } catch {
-        return result({
-          releaseRevision,
-          fromState,
-          toState: "stopped",
-          outcome: "failed",
-          evidenceIds,
-          startedAt,
-          nextTransition: "cleanup",
-          errorCategory: "cleanup",
-          migrationState: "not-required",
-        });
-      }
-    }
-
-    if (activated && !routed) {
-      try {
-        await host.rollback();
-        await host.discardCandidate(candidateSlot);
-        evidenceIds.push("rollback");
-
-        return result({
-          releaseRevision,
-          fromState,
-          toState: "stopped",
-          outcome: "rolled-back",
-          evidenceIds,
-          startedAt,
-          nextTransition: "diagnose",
-          errorCategory: releaseError.category,
-          migrationState: "not-required",
-        });
-      } catch {
-        return result({
-          releaseRevision,
-          fromState,
-          toState: "stopped",
-          outcome: "failed",
-          evidenceIds,
-          startedAt,
-          nextTransition: "recover-route",
-          errorCategory: "rollback",
-          migrationState: "not-required",
-        });
-      }
-    }
-
-    if (routed) {
-      if (["capacity", "continuity"].includes(releaseError.category)) {
-        try {
-          await host.rollback();
-          await host.discardCandidate(candidateSlot);
-          evidenceIds.push("rollback");
-          return result({
-            releaseRevision,
-            fromState,
-            toState: "stopped",
-            outcome: "rolled-back",
-            evidenceIds,
-            startedAt,
-            nextTransition: "preflight",
-            errorCategory: releaseError.category,
-            migrationState: "not-required",
-          });
-        } catch {
-          return result({
-            releaseRevision,
-            fromState,
-            toState: "stopped",
-            outcome: "failed",
-            evidenceIds,
-            startedAt,
-            nextTransition: "recover-route",
-            errorCategory: "rollback",
-            migrationState: "not-required",
-          });
-        }
-      }
-
-      return result({
-        releaseRevision,
-        fromState,
-        toState: "stopped",
-        outcome: "failed",
-        evidenceIds,
-        startedAt,
-        nextTransition: "cleanup",
-        errorCategory: releaseError.category,
-        migrationState: "not-required",
-      });
-    }
-
-    return result({
-      releaseRevision,
-      fromState,
-      toState: "stopped",
-      outcome: releaseError.outcome,
-      evidenceIds,
-      startedAt,
-      nextTransition: ["deferred", "queued"].includes(releaseError.outcome)
-        ? "preflight"
-        : "diagnose",
-      errorCategory: releaseError.category,
-      migrationState: "not-required",
-    });
-  } finally {
-    await host.releaseLock();
-  }
-}
-
 function result(fields) {
   return {
     schemaVersion: 1,
@@ -725,73 +505,15 @@ export class MachineHost {
     };
   }
 
-  // Tech-doc 009's Experience Release Procedure reuses whatever revision is
-  // *currently routed in production*, not the checkout's current `origin/main`
-  // HEAD -- by the time this runs, `main` will almost always have moved past
-  // it (this delivery's own `learnings.md` updates are proof). Checkout
-  // hygiene is still asserted (clean, on `main`, synced with `origin/main`),
-  // but the release revision itself comes from live `proxy:status`, and an
-  // explicit `--revision` (if given) is only a sanity check against that.
-  async experiencePreflight(requestedRevision) {
-    this.assertReleaseSource();
-
-    if (!this.acquireLock("experience")) {
-      writePrivateJson(this.queuePath, {
-        schemaVersion: 1,
-        revision: "experience",
-      });
-      throw new ReleaseError(
-        "concurrency",
-        "A release already owns the host lock",
-        "queued",
-      );
-    }
-    rmSync(this.queuePath, { force: true });
-
-    this.assertCapacity();
-    const statusResult = this.deployment("proxy:status");
-    const proxyStatus = parseLastJson(statusResult.stdout, "proxy status");
-    if (!proxyStatus.caddyReady)
-      throw new ReleaseError("preflight", "Active Caddy route is not ready");
-
-    const revision = proxyStatus.activeRevision;
-    if (!/^[0-9a-f]{40}$/u.test(revision))
-      throw new ReleaseError("preflight", "Routed revision is invalid");
-    if (requestedRevision && requestedRevision !== revision)
-      throw new ReleaseError(
-        "preflight",
-        "Requested revision is not the currently routed revision",
-      );
-    if (!existsSync(join(this.deploymentRoot, "releases", revision)))
-      throw new ReleaseError(
-        "preflight",
-        "No release artifact exists for the routed revision",
-      );
-
-    mkdirSync(this.logsPath, { recursive: true });
-    this.logPath = join(this.logsPath, `release-${revision}-experience.log`);
-    writeFileSync(this.logPath, "", { encoding: "utf8", mode: 0o600 });
-
-    this.assertPorts(proxyStatus.activeSlot);
-    this.startResourceMonitor(revision);
-    this.log("experience preflight passed");
-    return { activeSlot: proxyStatus.activeSlot, revision };
-  }
-
-  // `checkRevision = false` is for `executeExperienceRelease` only: its
-  // `revision` is an already-routed, already-built past commit, not the
-  // current checkout's HEAD, so pinning gate runs to it would always fail.
-  // Checkout hygiene (clean, on `main`, synced with `origin/main`) is still
-  // asserted either way -- only the exact-revision-equality half is skipped.
-  async runGates(revision, manifest, checkRevision = true) {
+  async runGates(revision, manifest) {
     for (const gate of manifest) {
-      this.assertReleaseSource(checkRevision ? revision : undefined);
+      this.assertReleaseSource(revision);
       this.run("npm", ["exec", "--", "nx", ...gate.arguments], {
         cwd: repositoryRoot,
         category: "gate",
         env: boundedReleaseEnvironment(this.environment),
       });
-      this.assertReleaseSource(checkRevision ? revision : undefined);
+      this.assertReleaseSource(revision);
       this.log(`gate passed ${gate.id} ${revision}`);
       this.assertCapacity();
       this.assertActiveHealth();
@@ -871,32 +593,6 @@ export class MachineHost {
     this.deployment("deploy:prepare", ["--slot", slot, "--revision", revision]);
     this.verifyCandidateRevision(slot, revision);
     this.log(`candidate passed ${slot} ${revision}`);
-  }
-
-  // Tech-doc 009's Experience Release Procedure step 2: the candidate is the
-  // exact same reviewed revision already routed, launched a second time on
-  // the inactive slot with `BNEST_FAMILY_CHAT_ENABLED=true`. The intended
-  // flag state itself is proven by `deployment.mjs`'s own deterministic
-  // plist generation (`release.test.mjs` asserts `--family-chat-enabled`
-  // reaches `launchAgent`'s environment unconditionally) plus the
-  // `experience-release-e2e` gate's real authenticated proof that the
-  // flag-on room is actually reachable; this method proves only what
-  // `prepareCandidate` proves for an ordinary candidate -- identical
-  // revision -- since re-deriving flag state from an unauthenticated
-  // `/health/ready` probe is not possible (the room sits behind
-  // `:authenticated_browser`).
-  async prepareExperienceCandidate(slot, revision) {
-    this.assertCapacity();
-    this.deployment("deploy:prepare", [
-      "--slot",
-      slot,
-      "--revision",
-      revision,
-      "--family-chat-enabled",
-      "--family-chat-reply-enabled",
-    ]);
-    this.verifyCandidateRevision(slot, revision);
-    this.log(`experience candidate passed ${slot} ${revision}`);
   }
 
   verifyCandidateRevision(slot, revision) {
@@ -1450,15 +1146,16 @@ function argumentValue(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
-// Exported pure so the release-mode scenario can assert the refusal without
-// spawning the tool: any value outside compatibility and experience stops
-// with a configuration error before any host is constructed.
-export function parseMode(argv) {
-  const index = argv.indexOf("--mode");
-  const mode = index >= 0 ? argv[index + 1] : "compatibility";
-  if (!["compatibility", "experience"].includes(mode))
-    throw new ReleaseError("configuration", `Unknown release mode: ${mode}`);
-  return mode;
+// Exported pure so the release:run scenario can assert the refusal without
+// spawning the tool: the --mode flag was removed with the family-chat release
+// stages, so passing it at all stops with a configuration error that names
+// the removal, before any host is constructed.
+export function refuseRemovedMode(argv) {
+  if (argv.includes("--mode"))
+    throw new ReleaseError(
+      "configuration",
+      "The --mode flag was removed with the family-chat release stages; run release:run without --mode",
+    );
 }
 
 // Exported pure so the exit-status scenario can assert the mapping without
@@ -1478,17 +1175,15 @@ async function main() {
   let outputResult;
   try {
     const revision = argumentValue("--revision");
-    const mode = parseMode(process.argv.slice(2));
+    refuseRemovedMode(process.argv.slice(2));
     const host = new MachineHost();
-    outputResult =
-      mode === "experience"
-        ? await executeExperienceRelease(host, { revision })
-        : await executeRelease(host, { revision });
+    outputResult = await executeRelease(host, { revision });
   } catch (error) {
     const releaseError =
       error instanceof ReleaseError
         ? error
         : new ReleaseError("configuration", "Release initialization failed");
+    process.stderr.write(`${releaseError.message}\n`);
     outputResult = result({
       releaseRevision: null,
       fromState: "preflight",

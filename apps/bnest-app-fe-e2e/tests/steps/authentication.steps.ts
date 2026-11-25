@@ -226,7 +226,7 @@ Then("no identity cookie is set", async ({ page }) => {
 let cutoverOffBaseURL: string | undefined;
 
 Given("identity cutover is off", async () => {
-  await ensureCandidate(candidatePort, undefined, undefined, false);
+  await ensureCandidate(candidatePort, false);
   // `localhost`, not `127.0.0.1`: the endpoint's `check_origin` only allows
   // the configured `localhost` host, so the LiveView socket from a
   // `127.0.0.1` page origin is refused and the room never connects.

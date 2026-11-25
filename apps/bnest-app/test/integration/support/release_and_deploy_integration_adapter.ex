@@ -27,13 +27,10 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.IntegrationAdapter do
   defdelegate assert_json_result(context, outcome), to: Unit
   defdelegate throwing_host(context, category, outcome), to: Unit
   defdelegate assert_exit_status(context, outcome, status), to: Unit
-  defdelegate experience_host(context), to: Unit
-  defdelegate run_experience_release(context), to: Unit
-  defdelegate assert_experience_candidate(context), to: Unit
-  defdelegate assert_only_experience_gate(context), to: Unit
   defdelegate release_arguments(context, args), to: Unit
-  defdelegate parse_mode(context), to: Unit
-  defdelegate assert_mode_refusal(context, category, message), to: Unit
+  defdelegate parse_arguments(context), to: Unit
+  defdelegate assert_refused_exit(context, message), to: Unit
+  defdelegate assert_no_host(context), to: Unit
   defdelegate artifact_state(context, revision, artifact, worktree), to: Unit
   defdelegate run_artifact_command(context, command), to: Unit
   defdelegate assert_artifact_calls(context, calls, prints), to: Unit

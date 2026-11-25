@@ -110,7 +110,7 @@ Given("the signed-in child is ready", async ({ page }) => {
 });
 
 Given("the local browser is ready", async ({ page }) => {
-  await ensureCandidate(candidatePort, undefined, undefined, false);
+  await ensureCandidate(candidatePort, false);
   await page.context().clearCookies();
   revisionUrl = `http://localhost:${candidatePort}`;
 });

@@ -7,56 +7,51 @@ import {
   type InstanceIdentities,
 } from "../support/instance-identities";
 import {
-  promoteCandidateWithFlag,
+  promoteCompatibleCandidate,
   restorePrimaryRoute,
 } from "../support/routed-rollout";
 
-// Tech-doc 009's Experience Release Procedure steps 2-3: repeat the
-// candidate/revision/readiness promotion sequence with the flag flipped on,
-// then use two `test-user-` contexts against that now-routed candidate to
-// prove draft, offline queue, reconnect, catch-up, FIFO drain, and
-// exact-once rendering. Both members open the room only *after* promotion:
-// `require_family_chat_enabled/2` (user_auth.ex) returns a genuine 404 while
-// the flag is off, so a member can never be "in the room" on a flag-off
-// slot -- there is nothing to reconnect *from*. The room is a plain Phoenix
-// controller, never a LiveView (tech-doc 005), so it reuses
-// `family-chat.steps.ts`'s own real readiness signal
-// (`data-connection-state`) rather than `[data-phx-main]`.
+// The single-stage release's candidate proof: promote the ordinary
+// candidate, then use two `test-user-` contexts against that now-routed
+// candidate to prove draft, offline queue, reconnect, catch-up, FIFO drain,
+// and exact-once rendering. Both members open the room only *after*
+// promotion: the room is a plain Phoenix controller, never a LiveView
+// (tech-doc 005), so it reuses `family-chat.steps.ts`'s own real readiness
+// signal (`data-connection-state`) rather than `[data-phx-main]`.
 
 const { Given, Then, When } = createBdd();
 
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
 
-const DRAFT_MESSAGE = "Queued before the experience release promotion";
+const DRAFT_MESSAGE = "Queued before the release candidate promotion";
 let identity: InstanceIdentities;
 let memberAPage: Page;
 let memberBContext: BrowserContext;
 let memberBPage: Page;
 let interceptSend = false;
 
-Given(
-  "Caddy has promoted the flag-enabled experience candidate",
-  async ({ page }) => {
-    interceptSend = false;
-    memberAPage = page;
-    // The member accounts were seeded into this scenario's instance by the Before hook.
-    identity = instanceIdentities();
-    const rollout = await promoteCandidateWithFlag(page, true);
-    expect(rollout.revision).not.toBe(rollout.previousRevision);
+Given("Caddy has promoted the release candidate", async ({ page }) => {
+  interceptSend = false;
+  memberAPage = page;
+  // The member accounts were seeded into this scenario's instance by the Before hook.
+  identity = instanceIdentities();
+  const rollout = await promoteCompatibleCandidate(page, {
+    verifyLiveView: false,
+  });
+  expect(rollout.revision).not.toBe(rollout.previousRevision);
 
-    // `fetch_current_user/2` (user_auth.ex) unconditionally touches
-    // `StorageCoordinator.active_backend/1` on every request, even an
-    // unauthenticated one. That coordinator's cold-start check-and-restart
-    // (storage_coordinator.ex's `ensure_started!/1`) is not itself
-    // serialized: two real requests racing through it as the *first* caller
-    // on a freshly promoted candidate can tear down the Ecto repo pid one
-    // of them is mid-migration-check against (a genuine, independently
-    // reproduced production race -- see learnings.md). One throwaway
-    // request here forces that one-time cold start to resolve
-    // deterministically before either member's real login begins.
-    await page.request.get("/login");
-  },
-);
+  // `fetch_current_user/2` (user_auth.ex) unconditionally touches
+  // `StorageCoordinator.active_backend/1` on every request, even an
+  // unauthenticated one. That coordinator's cold-start check-and-restart
+  // (storage_coordinator.ex's `ensure_started!/1`) is not itself
+  // serialized: two real requests racing through it as the *first* caller
+  // on a freshly promoted candidate can tear down the Ecto repo pid one
+  // of them is mid-migration-check against (a genuine, independently
+  // reproduced production race -- see learnings.md). One throwaway
+  // request here forces that one-time cold start to resolve
+  // deterministically before either member's real login begins.
+  await page.request.get("/login");
+});
 
 Given("two members each open {string}", async ({ browser }, route: string) => {
   await memberAPage.route("**/api/graphql", async (routeHandle) => {

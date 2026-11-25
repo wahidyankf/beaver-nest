@@ -3,7 +3,9 @@
 // is the agreement between the three documents — a subscription that omits
 // `replyTo` while the query includes it produces a room where a reply's
 // quote appears on reload and not on arrival, which is the hardest kind of
-// bug to see (tech-doc 002).
+// bug to see (tech-doc 002). There is exactly one document shape: replies
+// always ship, so every builder takes no options and always carries the
+// quote.
 
 import { describe, expect, it } from "vitest";
 import {
@@ -15,20 +17,15 @@ import {
   sendFamilyChatMessageMutation,
 } from "../../../js/family_chat/operations.js";
 
-const documentsFor = (replies: boolean) => [
-  familyChatMessagesQuery({ replies }),
-  sendFamilyChatMessageMutation({ replies }),
-  familyChatMessageCommittedSubscription({ replies }),
+const documents = () => [
+  familyChatMessagesQuery(),
+  sendFamilyChatMessageMutation(),
+  familyChatMessageCommittedSubscription(),
 ];
 
 describe("messageFields", () => {
-  it("omits the quote when replies are off", () => {
-    expect(messageFields({ replies: false })).toBe(MESSAGE_FIELDS_BASE);
-    expect(messageFields({ replies: false })).not.toContain("replyTo");
-  });
-
-  it("appends the quote when replies are on", () => {
-    const fields = messageFields({ replies: true });
+  it("always appends the quote", () => {
+    const fields = messageFields();
 
     expect(fields).toContain(MESSAGE_FIELDS_BASE.trim());
     expect(fields).toContain(REPLY_FIELDS.trim());
@@ -37,44 +34,29 @@ describe("messageFields", () => {
   it("asks for a flat quote, never a nested one", () => {
     // One `replyTo` in the field list. A second would mean the quote had
     // been given a quote of its own, which the schema cannot serve.
-    const occurrences = messageFields({ replies: true }).match(/replyTo/g);
+    const occurrences = messageFields().match(/replyTo/g);
 
     expect(occurrences).toHaveLength(1);
   });
 });
 
 describe("operation documents", () => {
-  it("all three carry the quote when replies are on", () => {
-    for (const document of documentsFor(true)) {
+  it("all three carry the quote", () => {
+    for (const document of documents()) {
       expect(document).toContain("replyTo");
     }
   });
 
-  it("all three omit the quote when replies are off", () => {
-    for (const document of documentsFor(false)) {
-      expect(document).not.toContain("replyTo");
-    }
-  });
-
   it("all three request exactly the same message fields", () => {
-    for (const replies of [true, false]) {
-      const fields = messageFields({ replies });
-      for (const document of documentsFor(replies)) {
-        expect(document).toContain(fields);
-      }
+    const fields = messageFields();
+    for (const document of documents()) {
+      expect(document).toContain(fields);
     }
   });
 
-  it("only the mutation declares the reply argument, and only when it is on", () => {
-    expect(sendFamilyChatMessageMutation({ replies: true })).toContain(
-      "$replyToMessageId: ID",
-    );
-    expect(sendFamilyChatMessageMutation({ replies: false })).not.toContain(
-      "replyToMessageId",
-    );
-    expect(familyChatMessagesQuery({ replies: true })).not.toContain(
-      "$replyToMessageId",
-    );
+  it("only the mutation declares the reply argument", () => {
+    expect(sendFamilyChatMessageMutation()).toContain("$replyToMessageId: ID");
+    expect(familyChatMessagesQuery()).not.toContain("$replyToMessageId");
   });
 });
 
@@ -84,11 +66,9 @@ describe("the rendered body", () => {
     expect(MESSAGE_FIELDS_BASE).toMatch(/\bbodyHtml\b/u);
   });
 
-  it("is requested by all three documents, with and without replies", () => {
-    for (const replies of [true, false]) {
-      for (const document of documentsFor(replies)) {
-        expect(document).toMatch(/\bbodyHtml\b/u);
-      }
+  it("is requested by all three documents", () => {
+    for (const document of documents()) {
+      expect(document).toMatch(/\bbodyHtml\b/u);
     }
   });
 });

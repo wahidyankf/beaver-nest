@@ -14,17 +14,14 @@ import {
  * session pauses the queue, and an error code is terminal or retryable by
  * tech-doc 008's matrix.
  *
- * `replies` is the room's reply flag. It gates the document, so with the flag
- * off the mutation does not declare `replyToMessageId` at all and an older
- * slot cannot be sent one.
  * @param {string} roomSlug
- * @param {{replies?: boolean, request?: import("./graphql.js").GraphqlRequest}} [options]
+ * @param {{request?: import("./graphql.js").GraphqlRequest}} [options]
  */
 export function createRealTransport(
   roomSlug,
-  { replies = false, request = graphqlRequest } = {},
+  { request = graphqlRequest } = {},
 ) {
-  const document = sendFamilyChatMessageMutation({ replies });
+  const document = sendFamilyChatMessageMutation();
 
   /**
    * @param {{clientMessageId: string, body: string, replyToMessageId?: string}} message
@@ -41,9 +38,7 @@ export function createRealTransport(
         roomSlug,
         clientMessageId,
         body,
-        ...(replies && replyToMessageId !== undefined
-          ? { replyToMessageId }
-          : {}),
+        ...(replyToMessageId === undefined ? {} : { replyToMessageId }),
       });
     } catch {
       return { ok: false, retryable: true };

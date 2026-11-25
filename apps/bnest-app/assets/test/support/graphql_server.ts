@@ -107,9 +107,7 @@ function serverPreview(body: string): string {
 //
 // The revision's GraphQL surface the room's documents touch, copied from
 // `lib/bnest_app_web/schema/types/family_chat_types.ex` and
-// `web_push_types.ex` (and the root fields in `schema.ex`). Both the
-// compatibility revision and the reply-aware one serve this same schema; the
-// reply flag gates only what the browser asks for and renders.
+// `web_push_types.ex` (and the root fields in `schema.ex`).
 
 type FieldSet = Record<string, string | null>;
 

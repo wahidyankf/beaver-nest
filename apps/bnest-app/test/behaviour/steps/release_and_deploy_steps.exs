@@ -69,47 +69,29 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploySteps do
     adapter(context).assert_exit_status(context, outcome, status)
   end
 
-  # release --mode experience re-promotes the routed artifact with the family
-  # chat flags on (BN-REL-03).
-
-  step("an experience host records its calls", context) do
-    context = commands(context)
-    adapter(context).experience_host(context)
-  end
-
-  step("release --mode experience runs for the routed revision", context) do
-    context = commands(context)
-    adapter(context).run_experience_release(context)
-  end
-
-  step(
-    "it never builds, migrates, or discards an artifact and prepares with the family chat flags on",
-    context
-  ) do
-    context = commands(context)
-    adapter(context).assert_experience_candidate(context)
-  end
-
-  step("its only gate is the experience release E2E", context) do
-    context = commands(context)
-    adapter(context).assert_only_experience_gate(context)
-  end
-
-  # An unknown release mode stops with a configuration error (BN-REL-04).
+  # The removed --mode flag fails closed before any host exists (ADR 008).
 
   step("the release arguments are {string}", %{args: [args]} = context) do
     context = commands(context)
     adapter(context).release_arguments(context, args)
   end
 
-  step("the mode is parsed", context) do
+  step("release:run parses its arguments", context) do
     context = commands(context)
-    adapter(context).parse_mode(context)
+    adapter(context).parse_arguments(context)
   end
 
-  step("it throws configuration {string} before any host exists", %{args: [message]} = context) do
+  step(
+    "it exits with a non-zero status and its stderr says {string}",
+    %{args: [message]} = context
+  ) do
     context = commands(context)
-    adapter(context).assert_mode_refusal(context, "configuration", message)
+    adapter(context).assert_refused_exit(context, message)
+  end
+
+  step("no host is created", context) do
+    context = commands(context)
+    adapter(context).assert_no_host(context)
   end
 
   # release:build, release:migrate, and release:converge each run one step

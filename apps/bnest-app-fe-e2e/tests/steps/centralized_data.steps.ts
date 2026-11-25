@@ -173,7 +173,7 @@ Then("the migration page shows {string}", async ({ page }, line: string) => {
 When(
   "the visitor opens the migration page on the cutover-off candidate",
   async ({ page }) => {
-    await ensureCandidate(candidatePort, undefined, undefined, false);
+    await ensureCandidate(candidatePort, false);
     await page.goto(`http://localhost:${candidatePort}/data-migration`);
     await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
   },

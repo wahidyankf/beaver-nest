@@ -24,4 +24,15 @@ defmodule BnestAppWeb.PageHTMLTest do
     refute html =~ "sifat-allah"
     refute html =~ "Misi hafal 40 sifat Allah"
   end
+
+  test "home always renders the family chat entry" do
+    html =
+      render_to_string(BnestAppWeb.PageHTML, "home", "html",
+        flash: %{},
+        current_user: @current_user
+      )
+
+    assert html =~ ~s(href="/family-chat")
+    assert html =~ ~s(data-role="family-chat-entry")
+  end
 end

@@ -2045,19 +2045,6 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     end
   end
 
-  def prepare_behaviour(context, :family_chat_flag, [setting]) do
-    previous = Application.get_env(:bnest_app, :family_chat_enabled)
-
-    ExUnit.Callbacks.on_exit(fn ->
-      if is_nil(previous),
-        do: Application.delete_env(:bnest_app, :family_chat_enabled),
-        else: Application.put_env(:bnest_app, :family_chat_enabled, previous)
-    end)
-
-    Application.put_env(:bnest_app, :family_chat_enabled, setting == "enabled")
-    context
-  end
-
   def prepare_behaviour(context, :write_session_refused, _args) do
     ExUnit.Callbacks.on_exit(fn ->
       Application.delete_env(:bnest_app, :refuse_workspace_write)

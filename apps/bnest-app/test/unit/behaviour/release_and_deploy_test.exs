@@ -60,29 +60,17 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployTest do
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-  # @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release --mode experience re-promotes the routed artifact with the family chat flags on
-  test "the experience release re-promotes the routed artifact with the flags on" do
-    result =
-      context()
-      |> Adapter.experience_host()
-      |> Adapter.run_experience_release()
-      |> Adapter.assert_experience_candidate()
-      |> Adapter.assert_only_experience_gate()
-
-    assert result.commands.result.outcome == "passed"
-    assert result.commands.result.migration_state == "not-required"
-  end
-
-  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-  # @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: An unknown release mode stops with a configuration error
-  test "an unknown mode stops before any host exists" do
-    assert Model.parse_mode([]) == {:ok, "compatibility"}
-    assert Model.parse_mode(["--mode", "experience"]) == {:ok, "experience"}
-
+  # @scenario specs/apps/bnest/app-be/behaviours/release_and_deploy.feature: release:run fails closed when --mode is passed at all, with an error naming its removal
+  test "a removed --mode flag fails closed before any host exists" do
     context()
-    |> Adapter.release_arguments("--mode bogus")
-    |> Adapter.parse_mode()
-    |> Adapter.assert_mode_refusal("configuration", "Unknown release mode: bogus")
+    |> Adapter.release_arguments(
+      "--mode experience --revision 0123456789abcdef0123456789abcdef01234567"
+    )
+    |> Adapter.parse_arguments()
+    |> Adapter.assert_refused_exit(
+      "The --mode flag was removed with the family-chat release stages; run release:run without --mode"
+    )
+    |> Adapter.assert_no_host()
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

@@ -82,11 +82,11 @@ const finePointerScenario = /@fine-pointer/u;
 // them on `tablet-chromium`/`mobile-chromium` too would replay the exact
 // same write against a database that already has it from the `chromium`
 // project's run, so — like the one-time setup scenario — they run on
-// chromium only. (Confirmed live: without this exclusion, the experience
-// release candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
+// chromium only. (Confirmed live: without this exclusion, the release
+// candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
 // matching messages on the second and third project runs.)
 const sqliteStorageScenario =
-  /A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate/u;
+  /A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate/u;
 
 export default defineConfig({
   testDir,

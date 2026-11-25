@@ -90,14 +90,13 @@ target directly. It first enforces behaviour coverage and rebuilds browser asset
 stale generated CSS or JavaScript from masking a UI regression. It then cleans stale marked roots, creates paired
 flat-file and SQLite roots with the same run marker, leases `4010` by default from the exclusive `4010`–`4019` E2E pool
 (disjoint from `bnest-app-be-e2e`'s `4030`–`4039` pool), and uses [playwright.config.mts](playwright.config.mts) to
-start an isolated primary `bnest-app` behind Caddy at the exact `http://localhost:<port>` public origin with
-`BNEST_FAMILY_CHAT_REPLY_ENABLED=true`, because the browser surface this project owns exists only when that flag is on.
-Compatibility scenarios pin the flag per candidate instead, so a reply-aware and a reply-free backend can be routed
-against one another within the same run. Desktop, tablet, mobile, and parallel workers never assert mutable aggregate
-counts. Reconnect scenarios start a revision-distinct candidate against the same test instance, reload the Caddy
-upstream, prove the routed revision and readiness, and await automatic LiveView reconnection without `page.reload()`.
-The harness never reuses a development server or production data, cleans only its validated paired roots, and records a
-trace on first retry.
+start an isolated primary `bnest-app` behind Caddy at the exact `http://localhost:<port>` public origin with the family
+chat room and its replies always on. Cross-revision scenarios route one revision's bundle against another revision's
+server within the same run to prove they stay compatible. Desktop, tablet, mobile, and parallel workers never assert
+mutable aggregate counts. Reconnect scenarios start a revision-distinct candidate against the same test instance, reload
+the Caddy upstream, prove the routed revision and readiness, and await automatic LiveView reconnection without
+`page.reload()`. The harness never reuses a development server or production data, cleans only its validated paired
+roots, and records a trace on first retry.
 
 ## Test Instances
 
@@ -209,7 +208,7 @@ database through production routes, except the `mix run -e` reads and writes lis
 - `tests/steps/family-chat-keyboard-stop.steps.ts` owns the keyboard focus checks of the Family Chat diagram rule: focus
   stays in a message while its diagram picture replaces the source, and the keyboard stop can move to an older message.
 - `tests/support/family-chat-reply.ts` and `tests/support/family-chat-reply-room.ts` own reply-scenario state, the
-  shared locators for the menu, strip, and quote card, and rooms pinned to a chosen value of the reply flag.
+  shared locators for the menu, strip, and quote card, and the room that reply scenarios open.
 - `tests/support/family-chat-resume.ts` owns stored-read-position reads/writes and settled scroll-placement assertions.
 - `tests/support/family-chat-composer.ts` owns composer focus-loss recording.
 - `tests/support/family-chat-seeding.ts` owns shared-room history top-up and away-member posting.

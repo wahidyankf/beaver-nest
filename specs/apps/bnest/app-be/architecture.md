@@ -64,10 +64,10 @@ Elixir/OTP and Phoenix were selected for supervision, process isolation, and dur
 user-owned state and durable schedule claims in a server-managed local SQLite database; verified legacy flat files are
 retired after cutover instead of remaining as an unbounded rollback copy. It publishes independently verified snapshot
 pairs to an ignored folder observed by Dropbox, but the sync client is neither authoritative storage nor complete
-disaster recovery. The compatibility revision adds an authenticated GraphQL surface (queries, mutations, and an Absinthe
-subscription) serving the family chat feature, plus outbound Web Push delivery to each participant's subscribed browser
-endpoints; both are implemented and tested behind the `BNEST_FAMILY_CHAT_ENABLED` flag, which still defaults to off in
-this revision (see [Architectural Constraints](#architectural-constraints)).
+disaster recovery. The family chat feature adds an authenticated GraphQL surface (queries, mutations, and an Absinthe
+subscription) that serves the room, plus outbound Web Push delivery to each participant's subscribed browser endpoints;
+both are implemented and tested, and every release serves them without a feature flag (see
+[Architectural Constraints](#architectural-constraints)).
 
 ## Container View
 
@@ -448,8 +448,7 @@ contexts are reached only through their facades, to seed accounts, messages, sub
   controller or TestInstance module, and no production module refers to them. Only the router's compile-time gate may
   mount the testing routes, and it is false for production.
 - The family chat feature (GraphQL schema, resolvers, push delivery, and the second Scheduler handler) is fully
-  implemented and tested but gated end-to-end behind `BNEST_FAMILY_CHAT_ENABLED`, which still defaults to `false` (off)
-  in this compatibility revision; only a later experience-release phase flips it on in production.
+  implemented and tested, and every release serves it live; no feature flag gates it.
 
 ## Behaviour Traceability
 

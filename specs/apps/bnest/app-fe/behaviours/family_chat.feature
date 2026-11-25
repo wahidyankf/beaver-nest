@@ -187,17 +187,11 @@ Feature: Family chat room
     And the family room sends 1 messages
 
   @fe-vitest-unit
-  # Exemption(integration): the actions control is drawn by the browser from the room's reply flag, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Messages have an actions control exactly when replies are on
+  # Exemption(integration): the actions control is drawn by the browser from each committed message, which Phoenix.LiveViewTest never renders; alternative-proof: bnest-app-fe-e2e:test:e2e / Every message in the history has an actions control
   @integration-exempt
-  Scenario Outline: Messages have an actions control exactly when replies are on
-    Given the room is served with replies turned <setting>
+  Scenario: Every message in the history has an actions control
     When a visitor opens "/family-chat/ruang-keluarga" with at least one committed message
-    Then <expectation>
-
-    Examples:
-      | setting | expectation                                         |
-      | off     | no message in the history has an actions control    |
-      | on      | every message in the history has an actions control |
+    Then every message in the history has an actions control
 
   Rule: Composing a reply
 
@@ -844,7 +838,7 @@ Feature: Family chat room
     Then a message sent by another member now appears
     And the page does not reload
 
-  Rule: Experience release candidate proof
+  Rule: Release candidate proof
 
   # This scenario's two near-simultaneous authenticated first requests
   # against a freshly promoted candidate independently reproduced a real
@@ -854,10 +848,10 @@ Feature: Family chat room
   # `:global.trans/2` serialization (storage_coordinator.ex); see
   # learnings.md for the reproduction evidence.
   @fe-vitest-unit
-  # Exemption(integration): promoting Caddy to a flag-transitioned release candidate and driving two independent browser contexts against it crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+  # Exemption(integration): promoting Caddy to a release candidate and driving two independent browser contexts against it crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
   @integration-exempt
-  Scenario: Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
-    Given Caddy has promoted the flag-enabled experience candidate
+  Scenario: Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate
+    Given Caddy has promoted the release candidate
     And two members each open "/family-chat/ruang-keluarga"
     And one member queues a message while offline
     When the offline member's connection is restored
@@ -1558,16 +1552,3 @@ Feature: Family chat room
       | tablet 768x1024   |
       | desktop 1024x768  |
       | desktop 1440x900  |
-
-  Rule: Dormant when the family chat flag is off
-
-  # Exemption(e2e): the e2e server boots once with the flag on and a scenario cannot restart it with the flag off; alternative-proof: bnest-app:test:integration / With family chat off the room is not found, even for a signed-in user
-  @e2e-exempt
-  Scenario: With family chat off the room is not found, even for a signed-in user
-    Given family chat is "disabled"
-    When a visitor opens "/family-chat"
-    Then the room answers not found with the body "Not found"
-    When a visitor opens "/family-chat/ruang-keluarga"
-    Then the room answers not found with the body "Not found"
-    When a visitor opens "/"
-    Then the page does not offer the "Family chat" link to "/family-chat"

@@ -27,9 +27,8 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   # force-converges this key once"; and "Push retention remains a separate
   # fixed disabled seed at 00:15 WIB and becomes enabled only after old-slot
   # drain." Unlike `activate_when_compatible!/0` below (a `boot`-time
-  # self-heal gated on `family_chat_enabled`, i.e. tech-doc 007's experience
-  # flag), release tooling calls this directly, once, right after the prior
-  # slot's drain -- independent of that flag, matching the Gherkin "Rule:
+  # self-heal with the same effect), release tooling calls this directly,
+  # once, right after the prior slot's drain -- matching the Gherkin "Rule:
   # One-time backup schedule convergence" scenario's own driver, which calls
   # `Scheduler.converge_backup_time!/2` the same way.
   @spec converge_after_drain!() :: :ok
@@ -60,19 +59,17 @@ defmodule BnestApp.Release.Migrations.FamilyChat do
   end
 
   # Tech-doc 002: the retention seed ships `enabled = 0` "during mixed-
-  # version overlap"; once compatible code is active (`family_chat_enabled`
-  # -- tech-doc 007's compatibility/experience release flag), a compatible
-  # slot both enables the retention schedule and converges the pre-existing
-  # backup schedule to 18:00 UTC. Both go through the same CAS-on-`revision
-  # = 1` seam as `Scheduler.converge_backup_time!/2` (see its moduledoc), so
-  # calling this on every boot -- rather than requiring a precise "slot
-  # fully drained" signal this module has no way to observe -- is safe: it
-  # takes effect at most once, ever, and never overrides a later operator
-  # edit to either schedule.
+  # version overlap"; once compatible code is active, a compatible slot both
+  # enables the retention schedule and converges the pre-existing backup
+  # schedule to 18:00 UTC. There is no flag to stage this behind anymore, so
+  # compatible code is always active. Both go through the same CAS-on-
+  # `revision = 1` seam as `Scheduler.converge_backup_time!/2` (see its
+  # moduledoc), so calling this on every boot -- rather than requiring a
+  # precise "slot fully drained" signal this module has no way to
+  # observe -- is safe: it takes effect at most once, ever, and never
+  # overrides a later operator edit to either schedule.
   defp activate_when_compatible! do
-    if Application.get_env(:bnest_app, :family_chat_enabled, false) do
-      do_converge_after_drain!()
-    end
+    do_converge_after_drain!()
 
     :ok
   end

@@ -60,11 +60,11 @@ LiveView, and browser asset. It renders through the same Phoenix process that ho
 [`app-be`](../app-be/architecture.md); the split here is by observable contract, not by a second deployed system.
 Elixir/Phoenix LiveView was selected so server-rendered HTML and a persistent WebSocket connection stay authoritative
 without a separate client-side data store. Caddy promotes a healthy blue or green Phoenix release with a bounded
-WebSocket drain; compatible LiveView clients reconnect without a manual refresh. The compatibility revision adds a
-family chat room route that is GraphQL-driven rather than LiveView-driven (see [Component View](#component-view)), and a
-service-worker push subscription that, once granted, receives notifications directly from the browser vendor's Web Push
-service — a delivery path that never crosses Tailscale Serve or Caddy. Both are implemented and tested behind the
-`BNEST_FAMILY_CHAT_ENABLED` flag, which still defaults to off in this revision.
+WebSocket drain; compatible LiveView clients reconnect without a manual refresh. The family chat room route is
+GraphQL-driven rather than LiveView-driven (see [Component View](#component-view)), and a service-worker push
+subscription that, once granted, receives notifications directly from the browser vendor's Web Push service — a delivery
+path that never crosses Tailscale Serve or Caddy. Both are implemented and tested, and every release serves them without
+a feature flag.
 
 ## Container View
 
@@ -257,10 +257,10 @@ around it — and drives every subsequent read, send, and live update over Graph
 [`app-be`](../app-be/architecture.md)'s schema and `UserSocket`, bypassing the LiveView event pattern the other routes
 use. That browser-owned module set under `assets/js/family_chat/*` includes the per-message action menu, the
 reply-target state the composer and outbox share, and the bounded jump that walks older pages to reach a quoted message;
-the route's shell also passes the browser a reply-enabled flag, which gates the requested GraphQL fields, the menu, and
-the composer strip together. The service worker is drawn as a second external container here (not a `routes` component)
-because it runs independently of any open route: it can display a push notification, extend the offline app-shell cache,
-or retry a queued outbox entry while no family chat tab is open.
+the route's shell also marks the room as reply-enabled, and that marking gates the requested GraphQL fields, the menu,
+and the composer strip together. The service worker is drawn as a second external container here (not a `routes`
+component) because it runs independently of any open route: it can display a push notification, extend the offline
+app-shell cache, or retry a queued outbox entry while no family chat tab is open.
 
 The chat reply renderer (`BnestAppWeb.ChatMarkdown`) and the shared message body component
 (`BnestAppWeb.ChatComponents`) run inside the Chat LiveView, and the image route (`BnestAppWeb.ChatImageController`) is

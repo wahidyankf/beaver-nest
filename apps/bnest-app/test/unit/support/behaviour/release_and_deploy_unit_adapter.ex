@@ -101,57 +101,36 @@ defmodule BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter do
     context
   end
 
-  # Experience releases (BN-REL-03).
-
-  def experience_host(context), do: put_commands(context, %{host: new_host()})
-
-  def run_experience_release(context) do
-    put_commands(context, %{result: Model.run_experience_release(context.commands.host)})
-  end
-
-  def assert_experience_candidate(context) do
-    %{result: result} = context.commands
-    calls = result.evidence
-
-    for forbidden <- ["build", "migration", "discard"] do
-      if Enum.any?(calls, &String.contains?(&1, forbidden)),
-        do: raise("the experience release touches #{forbidden}")
-    end
-
-    unless Enum.any?(
-             calls,
-             &(&1 == "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")
-           ),
-           do: raise("the idle slot is not prepared with the family chat flags on")
-
-    context
-  end
-
-  def assert_only_experience_gate(context) do
-    %{result: result} = context.commands
-    gates = Enum.filter(result.evidence, &String.starts_with?(&1, "gates:"))
-
-    unless gates == ["gates:experience-release-e2e"],
-      do: raise("the experience release runs #{inspect(gates)}")
-
-    context
-  end
-
-  # Unknown modes (BN-REL-04).
+  # The removed --mode flag fails closed before any host exists (ADR 008).
 
   def release_arguments(context, args) do
     put_commands(context, %{argv: String.split(args, " ", trim: true)})
   end
 
-  def parse_mode(context) do
-    put_commands(context, %{parsed: Model.parse_mode(context.commands.argv)})
+  def parse_arguments(context) do
+    put_commands(context, %{parsed: Model.parse_arguments(context.commands.argv)})
   end
 
-  def assert_mode_refusal(context, category, message) do
+  def assert_refused_exit(context, message) do
+    %{outcome: outcome} = Model.configuration_error()
+
     case context.commands.parsed do
-      {:error, ^category, ^message} -> context
-      other -> raise("mode parsed as #{inspect(other)}, expected a #{category} refusal")
+      {:error, "configuration", ^message} ->
+        unless Model.exit_code_for(outcome) == 1,
+          do: raise("a configuration refusal must exit 1")
+
+        context
+
+      other ->
+        raise("arguments parsed as #{inspect(other)}, expected the refusal #{message}")
     end
+  end
+
+  def assert_no_host(context) do
+    if Map.has_key?(context.commands, :host),
+      do: raise("a host was created before the refusal")
+
+    context
   end
 
   # Artifact steps (BN-REL-06).

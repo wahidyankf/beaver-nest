@@ -232,15 +232,9 @@ Feature: Beaver Nest chat
     And the page offers the "Start chatting" link to "/chat"
     And the page does not offer the "Misi hafal 40 sifat Allah" link to "/apps/sifat-allah"
 
-  Scenario Outline: Home shows Family chat only when the room is enabled
-    Given family chat is "<setting>"
+  Scenario: Home offers the Family chat link
     When a visitor opens the home page
-    Then <expectation>
-
-    Examples:
-      | setting  | expectation                                                        |
-      | enabled  | the page offers the "Family chat" link to "/family-chat"           |
-      | disabled | the page does not offer the "Family chat" link to "/family-chat"   |
+    Then the page offers the "Family chat" link to "/family-chat"
 
   Scenario Outline: A runner exit or invalid runner output shows one fixed line
     Given a visitor opens "/chat"

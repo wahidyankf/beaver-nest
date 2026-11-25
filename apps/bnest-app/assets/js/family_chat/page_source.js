@@ -14,14 +14,14 @@ export const MESSAGE_PAGE_SIZE = 50;
 
 /**
  * @param {string} roomSlug
- * @param {{replies?: boolean, request?: import("./graphql.js").GraphqlRequest}} [options]
+ * @param {{request?: import("./graphql.js").GraphqlRequest}} [options]
  * @returns {{fetchPage: FetchPage}}
  */
 export function createRealPageSource(
   roomSlug,
-  { replies = false, request = graphqlRequest } = {},
+  { request = graphqlRequest } = {},
 ) {
-  const document = familyChatMessagesQuery({ replies });
+  const document = familyChatMessagesQuery();
 
   /** @type {FetchPage} */
   async function fetchPage({ beforeId, afterId, limit }) {

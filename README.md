@@ -80,9 +80,9 @@ npm exec -- nx run -p bnest-app -t storage:migrate -- --activate`).
   GraphQL-driven room route (not a LiveView), an IndexedDB send outbox with reconnect/backoff, and Web Push delivery
   with a retry/retention job on a second scheduler handler. Inside that room a member can answer one earlier message by
   quoting it: the reply carries a bounded preview of the message it answers and renders a quote card that returns the
-  reader to the original. Both `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` default to off, so a
-  slot can ship the room reply-aware and stay reply-free, and a compatibility release ships with both absent. The routed
-  production slot has both on.
+  reader to the original. Earlier releases gated the room and its replies behind two flags so a slot could ship the
+  room reply-aware and stay reply-free; both flags are removed, and every release serves the room and its replies live
+  from its first promotion.
 
 ## Run locally
 

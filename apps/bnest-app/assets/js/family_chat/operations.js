@@ -31,17 +31,12 @@ export const REPLY_FIELDS = `
 `;
 
 /**
- * The message field list as a function of one flag, so the compatibility and
- * experience releases ship the same bundle. The flag gates the requested
- * fields, the action menu, and the composer strip together: there is no state
- * in which the browser asks for a field it will not render, or renders a
- * quote it did not ask for.
- * @param {{replies: boolean}} options
+ * The one message field list every document shares. Replies always ship,
+ * so there is no state in which the browser asks for a field it will not
+ * render, or renders a quote it did not ask for.
  */
-export function messageFields({ replies }) {
-  return replies
-    ? `${MESSAGE_FIELDS_BASE}${REPLY_FIELDS}`
-    : MESSAGE_FIELDS_BASE;
+export function messageFields() {
+  return `${MESSAGE_FIELDS_BASE}${REPLY_FIELDS}`;
 }
 
 export const FAMILY_CHAT_ROOM_QUERY = `
@@ -55,13 +50,12 @@ export const FAMILY_CHAT_ROOM_QUERY = `
  * must stay in step. A subscription that omitted `replyTo` while the query
  * included it would produce a room where a reply's quote appears on reload
  * and not on arrival.
- * @param {{replies: boolean}} options
  */
-export function familyChatMessagesQuery({ replies }) {
+export function familyChatMessagesQuery() {
   return `
   query FamilyChatMessages($roomSlug: String!, $beforeId: ID, $afterId: ID, $limit: Int) {
     familyChatMessages(roomSlug: $roomSlug, beforeId: $beforeId, afterId: $afterId, limit: $limit) {
-      nodes { ${messageFields({ replies })} }
+      nodes { ${messageFields()} }
       hasOlder
       hasNewer
     }
@@ -69,30 +63,23 @@ export function familyChatMessagesQuery({ replies }) {
 `;
 }
 
-/**
- * With the flag off the argument is not declared at all, so an older slot
- * that has not yet learned it cannot be sent one.
- * @param {{replies: boolean}} options
- */
-export function sendFamilyChatMessageMutation({ replies }) {
-  const declaration = replies ? ", $replyToMessageId: ID" : "";
-  const argument = replies ? "\n      replyToMessageId: $replyToMessageId" : "";
+export function sendFamilyChatMessageMutation() {
   return `
-  mutation SendFamilyChatMessage($roomSlug: String!, $clientMessageId: ID!, $body: String!${declaration}) {
+  mutation SendFamilyChatMessage($roomSlug: String!, $clientMessageId: ID!, $body: String!, $replyToMessageId: ID) {
     sendFamilyChatMessage(
       roomSlug: $roomSlug
       clientMessageId: $clientMessageId
-      body: $body${argument}
-    ) { ${messageFields({ replies })} }
+      body: $body
+      replyToMessageId: $replyToMessageId
+    ) { ${messageFields()} }
   }
 `;
 }
 
-/** @param {{replies: boolean}} options */
-export function familyChatMessageCommittedSubscription({ replies }) {
+export function familyChatMessageCommittedSubscription() {
   return `
   subscription FamilyChatMessageCommitted($roomSlug: String!) {
-    familyChatMessageCommitted(roomSlug: $roomSlug) { ${messageFields({ replies })} }
+    familyChatMessageCommitted(roomSlug: $roomSlug) { ${messageFields()} }
   }
 `;
 }

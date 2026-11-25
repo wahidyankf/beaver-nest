@@ -62,7 +62,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestAppWeb.Pwa
   alias BnestAppWeb.SifatAllahLive
   alias BnestAppWeb.StorageLive
-  alias BnestAppWeb.UserAuth
   alias Mix.Tasks.Bnest.Backup.Reconcile
   alias Phoenix.HTML.Safe
   alias Phoenix.LiveView.{Socket, Utils}
@@ -170,35 +169,26 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   # The browser lands wherever the router's "/family-chat" action redirects it to.
-  # A location naming no room the visitor may open is the controller's "Not found" page,
-  # as is every family chat address while the flag is off.
+  # A location naming no room the visitor may open is the controller's "Not found" page.
   def open(context, "/family-chat") do
-    if UserAuth.family_chat_enabled?() do
-      location = family_chat_redirect_location()
-      slug = String.replace_prefix(location, "/family-chat/", "")
+    location = family_chat_redirect_location()
+    slug = String.replace_prefix(location, "/family-chat/", "")
 
-      case FamilyChat.get_room_for("test-user-unit", slug) do
-        {:ok, _room} ->
-          context |> render_family_chat_room(slug) |> Map.put(:route, location)
+    case FamilyChat.get_room_for("test-user-unit", slug) do
+      {:ok, _room} ->
+        context |> render_family_chat_room(slug) |> Map.put(:route, location)
 
-        {:error, _safe_error} ->
-          context
-          |> Map.put(:route, location)
-          |> Map.put(:page, LazyHTML.from_fragment("Not found"))
-      end
-    else
-      not_found_page(context, "/family-chat")
+      {:error, _safe_error} ->
+        context
+        |> Map.put(:route, location)
+        |> Map.put(:page, LazyHTML.from_fragment("Not found"))
     end
   end
 
   def open(context, "/family-chat/" <> slug) do
-    if UserAuth.family_chat_enabled?() do
-      case FamilyChat.get_room_for("test-user-unit", slug) do
-        {:ok, _room} -> render_family_chat_room(context, slug)
-        {:error, _safe_error} -> not_found_page(context, "/family-chat/" <> slug)
-      end
-    else
-      not_found_page(context, "/family-chat/" <> slug)
+    case FamilyChat.get_room_for("test-user-unit", slug) do
+      {:ok, _room} -> render_family_chat_room(context, slug)
+      {:error, _safe_error} -> not_found_page(context, "/family-chat/" <> slug)
     end
   end
 
@@ -2466,7 +2456,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
-  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home shows Family chat only when the room is enabled
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home offers the Family chat link
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -2483,26 +2473,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
   # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: With family chat off the room is not found, even for a signed-in user
-  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
   # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
   # --- phase-8 FE ADD rows ---
-
-  def prepare_behaviour(context, :family_chat_flag, [setting]) do
-    previous = Application.get_env(:bnest_app, :family_chat_enabled)
-
-    ExUnit.Callbacks.on_exit(fn ->
-      if is_nil(previous),
-        do: Application.delete_env(:bnest_app, :family_chat_enabled),
-        else: Application.put_env(:bnest_app, :family_chat_enabled, previous)
-    end)
-
-    Application.put_env(:bnest_app, :family_chat_enabled, setting == "enabled")
-    context
-  end
 
   def prepare_behaviour(context, :write_session_refused, _args) do
     ExUnit.Callbacks.on_exit(fn ->

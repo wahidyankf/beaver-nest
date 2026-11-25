@@ -32,24 +32,16 @@ Feature: Bnest release and deploy
       | preflight   | failed      | 1      |
       | concurrency | rolled-back | 1      |
 
-  Rule: Release modes re-promote the routed artifact or stop unknown modes
+  Rule: Release refuses the removed --mode flag
 
-  # The routed slots, Caddy and the artifact directory are host state; the
-  # scenario carries an integration reference to its model execution below.
-  # Exemption(e2e): the release cannot run from inside its own gate; alternative-proof: bnest-app-fe-e2e:test:e2e / Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate
+  # The mode check runs before any host exists; the release unit suite runs the real command.
+  # Exemption(e2e): the mode check runs below every public boundary; alternative-proof: release:test / release:run fails closed when --mode is passed at all, with an error naming its removal
   @e2e-exempt
-  Scenario: release --mode experience re-promotes the routed artifact with the family chat flags on
-    Given an experience host records its calls
-    When release --mode experience runs for the routed revision
-    Then it never builds, migrates, or discards an artifact and prepares with the family chat flags on
-    And its only gate is the experience release E2E
-
-  # Exemption(e2e): the mode check runs below every public boundary; alternative-proof: bnest-app:test:integration / An unknown release mode stops with a configuration error
-  @e2e-exempt
-  Scenario: An unknown release mode stops with a configuration error
-    Given the release arguments are "--mode bogus"
-    When the mode is parsed
-    Then it throws configuration "Unknown release mode: bogus" before any host exists
+  Scenario: release:run fails closed when --mode is passed at all, with an error naming its removal
+    Given the release arguments are "--mode experience --revision 0123456789abcdef0123456789abcdef01234567"
+    When release:run parses its arguments
+    Then it exits with a non-zero status and its stderr says "The --mode flag was removed with the family-chat release stages; run release:run without --mode"
+    And no host is created
 
   Rule: Artifact steps run one step each against the immutable artifact
 

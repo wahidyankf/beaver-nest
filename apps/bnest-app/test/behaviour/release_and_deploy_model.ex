@@ -38,26 +38,6 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
     end
   end
 
-  @doc "Runs the model experience release over a recording model host."
-  def run_experience_release(host) do
-    host = record(host, "preflight")
-    host = record(host, "gates:experience-release-e2e")
-
-    host =
-      record(host, "prepare-experience:green:--family-chat-enabled:--family-chat-reply-enabled")
-
-    host = record(host, "promotion")
-    host = record(host, "routed-liveview")
-    host = record(host, "cleanup")
-
-    %{
-      outcome: "passed",
-      migration_state: "not-required",
-      evidence: host.calls,
-      revision: host.revision
-    }
-  end
-
   defp record(host, step), do: %{host | calls: host.calls ++ [step]}
 
   defp passed_result(host) do
@@ -111,18 +91,13 @@ defmodule BnestApp.Behaviour.ReleaseAndDeployModel do
   def exit_code_for(outcome) when outcome in ["passed", "queued", "deferred"], do: 0
   def exit_code_for(_), do: 1
 
-  @doc "Parses a release mode the way the tool does."
-  def parse_mode(argv) do
-    case Enum.find_index(argv, &(&1 == "--mode")) do
-      nil ->
-        {:ok, "compatibility"}
+  @mode_removed "The --mode flag was removed with the family-chat release stages; run release:run without --mode"
 
-      index ->
-        case Enum.at(argv, index + 1) do
-          mode when mode in ["compatibility", "experience"] -> {:ok, mode}
-          bogus -> {:error, "configuration", "Unknown release mode: #{bogus}"}
-        end
-    end
+  @doc "Parses the release arguments the way the tool does: any --mode fails closed."
+  def parse_arguments(argv) do
+    if "--mode" in argv,
+      do: {:error, "configuration", @mode_removed},
+      else: :ok
   end
 
   @doc "Renders the one printed JSON result line with the reviewed field set."
