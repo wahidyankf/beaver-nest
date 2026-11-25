@@ -10,51 +10,51 @@ delivered by the one running `bnest-app` process and are aggregated by [`specs/a
 
 ```mermaid
 flowchart TB
-    accTitle: System Context
-    accDescr {
-        Flowchart with 8 nodes and 7 connections. Nodes: Person Family member Uses the private family application,
-        Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route
-        to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest
-        backend Authenticated data Scheduled backups, External system Local Codex installation Model discovery Read-only
-        Codex threads, External system Dropbox sync client Synchronizes verified backup pairs, External system
-        Browser-vendor Web Push service Delivers VAPID-signed encrypted payloads. Connections: Person Family member Uses
-        the private family application to External system Tailscale Serve Private HTTPS route to stable local proxy
-        (Browser requests via app-fe), Person Administrator Manages schedules and backup settings to External system
-        Tailscale Serve Private HTTPS route to stable local proxy (Admin requests via app-fe), External system Tailscale
-        Serve Private HTTPS route to stable local proxy to Container Caddy Loopback reverse proxy Blue/green upstream
-        drain (Loopback HTTP), Container Caddy Loopback reverse proxy Blue/green upstream drain to Software system Bnest
-        backend Authenticated data Scheduled backups (Loopback HTTP WebSocket), Software system Bnest backend
-        Authenticated data Scheduled backups to External system Local Codex installation Model discovery Read-only Codex
-        threads (Local processes), Software system Bnest backend Authenticated data Scheduled backups to External system
-        Dropbox sync client Synchronizes verified backup pairs (Verified snapshot pairs), Software system Bnest backend
-        Authenticated data Scheduled backups to External system Browser-vendor Web Push service Delivers VAPID-signed
-        encrypted payloads (Signed encrypted push payloads).
-    }
-    visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
-    admin(["Person<br/><b>Administrator</b><br/>Manages schedules<br/>and backup settings"])
-    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route<br/>to stable local proxy"}}
-    caddy["Container<br/><b>Caddy</b><br/>Loopback reverse proxy<br/>Blue/green upstream drain"]
-    backend[["Software system<br/><b>Bnest backend</b><br/>Authenticated data<br/>Scheduled backups"]]
-    codex{{"External system<br/><b>Local Codex installation</b><br/>Model discovery<br/>Read-only Codex threads"}}
-    dropbox{{"External system<br/><b>Dropbox sync client</b><br/>Synchronizes verified<br/>backup pairs"}}
-    webpush{{"External system<br/><b>Browser-vendor<br/>Web Push service</b><br/>Delivers VAPID-signed<br/>encrypted payloads"}}
+accTitle: System Context
+accDescr {
+Flowchart with 8 nodes and 7 connections. Nodes: Person Family member Uses the private family application,
+Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route
+to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest
+backend Authenticated data Scheduled backups, External system Local Codex installation Model discovery Read-only
+Codex threads, External system Dropbox sync client Synchronizes verified backup pairs, External system
+Browser-vendor Web Push service Delivers VAPID-signed encrypted payloads. Connections: Person Family member Uses
+the private family application to External system Tailscale Serve Private HTTPS route to stable local proxy
+(Browser requests via app-fe), Person Administrator Manages schedules and backup settings to External system
+Tailscale Serve Private HTTPS route to stable local proxy (Admin requests via app-fe), External system Tailscale
+Serve Private HTTPS route to stable local proxy to Container Caddy Loopback reverse proxy Blue/green upstream
+drain (Loopback HTTP), Container Caddy Loopback reverse proxy Blue/green upstream drain to Software system Bnest
+backend Authenticated data Scheduled backups (Loopback HTTP WebSocket), Software system Bnest backend
+Authenticated data Scheduled backups to External system Local Codex installation Model discovery Read-only Codex
+threads (Local processes), Software system Bnest backend Authenticated data Scheduled backups to External system
+Dropbox sync client Synchronizes verified backup pairs (Verified snapshot pairs), Software system Bnest backend
+Authenticated data Scheduled backups to External system Browser-vendor Web Push service Delivers VAPID-signed
+encrypted payloads (Signed encrypted push payloads).
+}
+visitor(["Person<br><b>Family member</b><br>Uses the private<br>family application"])
+admin(["Person<br><b>Administrator</b><br>Manages schedules<br>and backup settings"])
+tailscale{{"External system<br><b>Tailscale Serve</b><br>Private HTTPS route<br>to stable local proxy"}}
+caddy["Container<br><b>Caddy</b><br>Loopback reverse proxy<br>Blue/green upstream drain"]
+backend[["Software system<br><b>Bnest backend</b><br>Authenticated data<br>Scheduled backups"]]
+codex{{"External system<br><b>Local Codex installation</b><br>Model discovery<br>Read-only Codex threads"}}
+dropbox{{"External system<br><b>Dropbox sync client</b><br>Synchronizes verified<br>backup pairs"}}
+webpush{{"External system<br><b>Browser-vendor<br>Web Push service</b><br>Delivers VAPID-signed<br>encrypted payloads"}}
 
-    visitor -.->|Browser requests<br/>via app-fe| tailscale
-    admin -.->|Admin requests<br/>via app-fe| tailscale
-    tailscale -->|Loopback HTTP| caddy
-    caddy -->|Loopback HTTP<br/>WebSocket| backend
-    backend -->|Local processes| codex
-    backend -->|Verified snapshot pairs| dropbox
-    backend -->|Signed encrypted<br/>push payloads| webpush
+visitor -.->|Browser requests<br>via app-fe| tailscale
+admin -.->|Admin requests<br>via app-fe| tailscale
+tailscale -->|Loopback HTTP| caddy
+caddy -->|Loopback HTTP<br>WebSocket| backend
+backend -->|Local processes| codex
+backend -->|Verified snapshot pairs| dropbox
+backend -->|Signed encrypted<br>push payloads| webpush
 
-    classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef system fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
-    class visitor,admin person
-    class backend system
-    class tailscale,codex,dropbox,webpush external
-    class caddy system
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef system fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+class visitor,admin person
+class backend system
+class tailscale,codex,dropbox,webpush external
+class caddy system
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The backend surface serves every authenticated request and scheduled job for the one 24/7 `bnest-app` process. Family
@@ -73,57 +73,57 @@ this revision (see [Architectural Constraints](#architectural-constraints)).
 
 ```mermaid
 flowchart TB
-    accTitle: Container View
-    accDescr {
-        Flowchart with 9 nodes and 8 connections. Nodes: External container app-fe browser/PWA See
-        app-fe/architecture.md, External system Local Codex installation, External system Dropbox sync client, External
-        system Web Push service, Container Phoenix backend domain Elixir / Phoenix / Bandit, Container / data store
-        Local SQLite database Records and schedules Claims and safe results, Container / data store Backup folder Owned
-        snapshots and safe receipts, Container / data store Legacy flat files Migration source Removed after proof,
-        Container Codex bridge processes Node.js / Codex SDK and CLI. Connections: Container Phoenix backend domain
-        Elixir / Phoenix / Bandit to Container / data store Local SQLite database Records and schedules Claims and safe
-        results (Typed atomic operations), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container /
-        data store Backup folder Owned snapshots and safe receipts (Verified owned pairs), Container / data store Legacy
-        flat files Migration source Removed after proof to Container Phoenix backend domain Elixir / Phoenix / Bandit
-        (Verified migration input), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container Codex bridge
-        processes Node.js / Codex SDK and CLI (Ports and JSON lines), External container app-fe browser/PWA See
-        app-fe/architecture.md to Container Phoenix backend domain Elixir / Phoenix / Bandit (HTTP and WebSocket events,
-        session cookie), Container Codex bridge processes Node.js / Codex SDK and CLI to External system Local Codex
-        installation (Discovers models runs or resumes threads), Container / data store Backup folder Owned snapshots
-        and safe receipts to External system Dropbox sync client (Filesystem sync), Container Phoenix backend domain
-        Elixir / Phoenix / Bandit to External system Web Push service (Signed encrypted push payloads).
-    }
-    frontend[["External container<br/><b>app-fe browser/PWA</b><br/>See app-fe/architecture.md"]]
-    codex{{"External system<br/><b>Local Codex installation</b>"}}
-    dropbox{{"External system<br/><b>Dropbox sync client</b>"}}
-    webpush{{"External system<br/><b>Web Push service</b>"}}
+accTitle: Container View
+accDescr {
+Flowchart with 9 nodes and 8 connections. Nodes: External container app-fe browser/PWA See
+app-fe/architecture.md, External system Local Codex installation, External system Dropbox sync client, External
+system Web Push service, Container Phoenix backend domain Elixir / Phoenix / Bandit, Container / data store
+Local SQLite database Records and schedules Claims and safe results, Container / data store Backup folder Owned
+snapshots and safe receipts, Container / data store Legacy flat files Migration source Removed after proof,
+Container Codex bridge processes Node.js / Codex SDK and CLI. Connections: Container Phoenix backend domain
+Elixir / Phoenix / Bandit to Container / data store Local SQLite database Records and schedules Claims and safe
+results (Typed atomic operations), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container /
+data store Backup folder Owned snapshots and safe receipts (Verified owned pairs), Container / data store Legacy
+flat files Migration source Removed after proof to Container Phoenix backend domain Elixir / Phoenix / Bandit
+(Verified migration input), Container Phoenix backend domain Elixir / Phoenix / Bandit to Container Codex bridge
+processes Node.js / Codex SDK and CLI (Ports and JSON lines), External container app-fe browser/PWA See
+app-fe/architecture.md to Container Phoenix backend domain Elixir / Phoenix / Bandit (HTTP and WebSocket events,
+session cookie), Container Codex bridge processes Node.js / Codex SDK and CLI to External system Local Codex
+installation (Discovers models runs or resumes threads), Container / data store Backup folder Owned snapshots
+and safe receipts to External system Dropbox sync client (Filesystem sync), Container Phoenix backend domain
+Elixir / Phoenix / Bandit to External system Web Push service (Signed encrypted push payloads).
+}
+frontend[["External container<br><b>app-fe browser/PWA</b><br>See app-fe/architecture.md"]]
+codex{{"External system<br><b>Local Codex installation</b>"}}
+dropbox{{"External system<br><b>Dropbox sync client</b>"}}
+webpush{{"External system<br><b>Web Push service</b>"}}
 
-    subgraph backend["Software system: Bnest backend"]
-        direction TB
-        phoenix["Container<br/><b>Phoenix backend domain</b><br/>Elixir / Phoenix / Bandit"]
-        runtime[("Container / data store<br/><b>Local SQLite database</b><br/>Records and schedules<br/>Claims and safe results")]
-        backup[("Container / data store<br/><b>Backup folder</b><br/>Owned snapshots<br/>and safe receipts")]
-        legacy_runtime[("Container / data store<br/><b>Legacy flat files</b><br/>Migration source<br/>Removed after proof")]
-        bridge["Container<br/><b>Codex bridge processes</b><br/>Node.js / Codex SDK and CLI"]
+subgraph backend["Software system: Bnest backend"]
+direction TB
+phoenix["Container<br><b>Phoenix backend domain</b><br>Elixir / Phoenix / Bandit"]
+runtime[("Container / data store<br><b>Local SQLite database</b><br>Records and schedules<br>Claims and safe results")]
+backup[("Container / data store<br><b>Backup folder</b><br>Owned snapshots<br>and safe receipts")]
+legacy_runtime[("Container / data store<br><b>Legacy flat files</b><br>Migration source<br>Removed after proof")]
+bridge["Container<br><b>Codex bridge processes</b><br>Node.js / Codex SDK and CLI"]
 
-        phoenix -->|Typed atomic operations| runtime
-        phoenix -->|Verified owned pairs| backup
-        legacy_runtime -->|Verified migration input| phoenix
-        phoenix -->|Ports and JSON lines| bridge
-    end
+phoenix -->|Typed atomic operations| runtime
+phoenix -->|Verified owned pairs| backup
+legacy_runtime -->|Verified migration input| phoenix
+phoenix -->|Ports and JSON lines| bridge
+end
 
-    frontend -->|HTTP and WebSocket<br/>events, session cookie| phoenix
-    bridge -->|Discovers models<br/>runs or resumes threads| codex
-    backup -->|Filesystem sync| dropbox
-    phoenix -->|Signed encrypted<br/>push payloads| webpush
+frontend -->|HTTP and WebSocket<br>events, session cookie| phoenix
+bridge -->|Discovers models<br>runs or resumes threads| codex
+backup -->|Filesystem sync| dropbox
+phoenix -->|Signed encrypted<br>push payloads| webpush
 
-    classDef container fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
-    classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    class phoenix,bridge container
-    class runtime,legacy_runtime,backup data
-    class frontend,codex,dropbox,webpush external
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef container fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+class phoenix,bridge container
+class runtime,legacy_runtime,backup data
+class frontend,codex,dropbox,webpush external
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The Phoenix backend domain, SQLite storage, temporary flat-file migration source, backup folder, and Node bridges run on
@@ -183,80 +183,80 @@ duplicating state. Blue/green release slots remain independent; no cross-slot Pu
 
 ```mermaid
 flowchart TB
-    accTitle: Component View
-    accDescr {
-        Flowchart with 14 nodes and 27 connections. Nodes: External container app-fe browser/PWA, External container
-        Codex bridge processes, External system Web Push service, Component Inbound adapters BnestAppWeb, BnestAppCli
-        Release entry points, Context Identity Bootstrap, login, sessions Roles and authorization, Context Preferences
-        Per-user theme, Context Storage Records, lock, lifecycle Import and recovery, Context Operations Admin panels
-        Liveness and readiness, Context Scheduler Claims and retries Configured task ports, Context Backup VACUUM and
-        quick check Receipts, retention, reconciliation, restore drill, Context CodexChat Transcripts, model access
-        Agent session port, Context SifatAllah Quiz and progress, Context FamilyChat Rooms and messages Replies and
-        publishing, and 1 more. Connections: app-fe to Inbound adapters (Opaque cookie, events, GraphQL over
-        UserSocket), Inbound adapters to each of the ten context facades, Identity to Storage (Accounts and sessions),
-        Operations to Scheduler and Storage, FamilyChat to Scheduler (Catch-up convergence), PushNotifications to
-        FamilyChat (Committed messages), Scheduler to Backup and PushNotifications (Dispatches claims through task
-        ports), Preferences, CodexChat, SifatAllah, Scheduler, Backup, PushNotifications and FamilyChat to Storage
-        (Records through adapters), CodexChat to Codex bridge processes (Ports and JSON lines), and PushNotifications to
-        Web Push service (Signed encrypted push payloads).
-    }
-    frontend(["External container<br/><b>app-fe browser/PWA</b>"])
-    bridge{{"External container<br/><b>Codex bridge processes</b>"}}
-    webpush{{"External system<br/><b>Web Push service</b>"}}
+accTitle: Component View
+accDescr {
+Flowchart with 14 nodes and 27 connections. Nodes: External container app-fe browser/PWA, External container
+Codex bridge processes, External system Web Push service, Component Inbound adapters BnestAppWeb, BnestAppCli
+Release entry points, Context Identity Bootstrap, login, sessions Roles and authorization, Context Preferences
+Per-user theme, Context Storage Records, lock, lifecycle Import and recovery, Context Operations Admin panels
+Liveness and readiness, Context Scheduler Claims and retries Configured task ports, Context Backup VACUUM and
+quick check Receipts, retention, reconciliation, restore drill, Context CodexChat Transcripts, model access
+Agent session port, Context SifatAllah Quiz and progress, Context FamilyChat Rooms and messages Replies and
+publishing, and 1 more. Connections: app-fe to Inbound adapters (Opaque cookie, events, GraphQL over
+UserSocket), Inbound adapters to each of the ten context facades, Identity to Storage (Accounts and sessions),
+Operations to Scheduler and Storage, FamilyChat to Scheduler (Catch-up convergence), PushNotifications to
+FamilyChat (Committed messages), Scheduler to Backup and PushNotifications (Dispatches claims through task
+ports), Preferences, CodexChat, SifatAllah, Scheduler, Backup, PushNotifications and FamilyChat to Storage
+(Records through adapters), CodexChat to Codex bridge processes (Ports and JSON lines), and PushNotifications to
+Web Push service (Signed encrypted push payloads).
+}
+frontend(["External container<br><b>app-fe browser/PWA</b>"])
+bridge{{"External container<br><b>Codex bridge processes</b>"}}
+webpush{{"External system<br><b>Web Push service</b>"}}
 
-    subgraph phoenix["Container: Phoenix<br/>backend domain"]
-        direction TB
+subgraph phoenix["Container: Phoenix<br>backend domain"]
+direction TB
 
-        inbound["Component<br/><b>Inbound adapters</b><br/>BnestAppWeb, BnestAppCli<br/>Release entry points"]
-        identity["Context<br/><b>Identity</b><br/>Bootstrap, login, sessions<br/>Roles and authorization"]
-        preferences["Context<br/><b>Preferences</b><br/>Per-user theme"]
-        storage["Context<br/><b>Storage</b><br/>Records, lock, lifecycle<br/>Import and recovery"]
-        operations["Context<br/><b>Operations</b><br/>Admin panels<br/>Liveness and readiness"]
-        scheduler["Context<br/><b>Scheduler</b><br/>Claims and retries<br/>Configured task ports"]
-        backup["Context<br/><b>Backup</b><br/>VACUUM and quick check<br/>Receipts, retention,<br/>reconciliation, restore drill"]
-        codexchat["Context<br/><b>CodexChat</b><br/>Transcripts, model access<br/>Agent session port"]
-        sifatallah["Context<br/><b>SifatAllah</b><br/>Quiz and progress"]
-        familychat["Context<br/><b>FamilyChat</b><br/>Rooms and messages<br/>Replies and publishing"]
-        push["Context<br/><b>PushNotifications</b><br/>VAPID delivery, retry<br/>Retention task"]
+inbound["Component<br><b>Inbound adapters</b><br>BnestAppWeb, BnestAppCli<br>Release entry points"]
+identity["Context<br><b>Identity</b><br>Bootstrap, login, sessions<br>Roles and authorization"]
+preferences["Context<br><b>Preferences</b><br>Per-user theme"]
+storage["Context<br><b>Storage</b><br>Records, lock, lifecycle<br>Import and recovery"]
+operations["Context<br><b>Operations</b><br>Admin panels<br>Liveness and readiness"]
+scheduler["Context<br><b>Scheduler</b><br>Claims and retries<br>Configured task ports"]
+backup["Context<br><b>Backup</b><br>VACUUM and quick check<br>Receipts, retention,<br>reconciliation, restore drill"]
+codexchat["Context<br><b>CodexChat</b><br>Transcripts, model access<br>Agent session port"]
+sifatallah["Context<br><b>SifatAllah</b><br>Quiz and progress"]
+familychat["Context<br><b>FamilyChat</b><br>Rooms and messages<br>Replies and publishing"]
+push["Context<br><b>PushNotifications</b><br>VAPID delivery, retry<br>Retention task"]
 
-        inbound --> identity
-        inbound --> preferences
-        inbound --> storage
-        inbound --> operations
-        inbound --> scheduler
-        inbound --> backup
-        inbound --> codexchat
-        inbound --> sifatallah
-        inbound --> familychat
-        inbound --> push
-        identity -->|Accounts and sessions| storage
-        operations -->|Schedule state| scheduler
-        operations -->|Storage lifecycle| storage
-        familychat -->|Catch-up convergence| scheduler
-        push -->|Committed messages| familychat
-        scheduler -->|Dispatches claims<br/>through task ports| backup
-        scheduler -->|Dispatches retention<br/>claims via task ports| push
-        preferences -->|Records through<br/>adapters| storage
-        codexchat -->|Records through<br/>adapters| storage
-        sifatallah -->|Records through<br/>adapters| storage
-        scheduler -->|Schedule ledger<br/>through adapters| storage
-        backup -->|Snapshot source<br/>through adapters| storage
-        push -->|Subscriptions<br/>through adapters| storage
-        familychat -->|Rooms and messages<br/>through adapters| storage
-    end
+inbound --> identity
+inbound --> preferences
+inbound --> storage
+inbound --> operations
+inbound --> scheduler
+inbound --> backup
+inbound --> codexchat
+inbound --> sifatallah
+inbound --> familychat
+inbound --> push
+identity -->|Accounts and sessions| storage
+operations -->|Schedule state| scheduler
+operations -->|Storage lifecycle| storage
+familychat -->|Catch-up convergence| scheduler
+push -->|Committed messages| familychat
+scheduler -->|Dispatches claims<br>through task ports| backup
+scheduler -->|Dispatches retention<br>claims via task ports| push
+preferences -->|Records through<br>adapters| storage
+codexchat -->|Records through<br>adapters| storage
+sifatallah -->|Records through<br>adapters| storage
+scheduler -->|Schedule ledger<br>through adapters| storage
+backup -->|Snapshot source<br>through adapters| storage
+push -->|Subscriptions<br>through adapters| storage
+familychat -->|Rooms and messages<br>through adapters| storage
+end
 
-    frontend -->|Opaque cookie, events,<br/>GraphQL over UserSocket| inbound
-    codexchat -->|Ports and JSON lines| bridge
-    push -->|Signed encrypted<br/>push payloads| webpush
+frontend -->|Opaque cookie, events,<br>GraphQL over UserSocket| inbound
+codexchat -->|Ports and JSON lines| bridge
+push -->|Signed encrypted<br>push payloads| webpush
 
-    classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef process fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
-    class frontend external
-    class inbound,identity,preferences,storage,operations,scheduler,backup,codexchat,sifatallah,familychat component
-    class push component
-    class bridge,webpush process
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef process fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+class frontend external
+class inbound,identity,preferences,storage,operations,scheduler,backup,codexchat,sifatallah,familychat component
+class push component
+class bridge,webpush process
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 `app-fe` owns the LiveView route/presentation layer (`ChatLive`, `SifatAllahLive`) that renders this domain's state;
@@ -324,52 +324,52 @@ the test build. It adds no node to the production system, container or component
 
 ```mermaid
 flowchart TB
-    accTitle: Test Build Component View
-    accDescr {
-        Flowchart with 11 nodes and 9 connections. Nodes: External container Test runner holds the run secret, Component
-        Testing Control test build only, Component TestInstance test support only, five existing context facades
-        Identity, FamilyChat, PushNotifications, SifatAllah and CodexChat, existing Storage lifecycle facade, Data store
-        Test instance SQLite, and Production build with no testing endpoint or module. Connections: Test runner to
-        Testing Control (direct loopback HTTP), Testing Control to TestInstance (spawn, seed, delete), TestInstance to
-        Storage (stop, pointer, migrate, activate), TestInstance to each of the five seeding facades (seed through
-        facades), and Storage to the test instance database (empty file per test).
-    }
-    runner(["External container<br/><b>Test runner</b><br/>Holds the run secret"])
-    prod>"Production build<br/><b>No testing endpoint or module</b>"]
+accTitle: Test Build Component View
+accDescr {
+Flowchart with 11 nodes and 9 connections. Nodes: External container Test runner holds the run secret, Component
+Testing Control test build only, Component TestInstance test support only, five existing context facades
+Identity, FamilyChat, PushNotifications, SifatAllah and CodexChat, existing Storage lifecycle facade, Data store
+Test instance SQLite, and Production build with no testing endpoint or module. Connections: Test runner to
+Testing Control (direct loopback HTTP), Testing Control to TestInstance (spawn, seed, delete), TestInstance to
+Storage (stop, pointer, migrate, activate), TestInstance to each of the five seeding facades (seed through
+facades), and Storage to the test instance database (empty file per test).
+}
+runner(["External container<br><b>Test runner</b><br>Holds the run secret"])
+prod>"Production build<br><b>No testing endpoint or module</b>"]
 
-    subgraph testbuild["Test build only: MIX_ENV=test"]
-        direction TB
-        controls["Component<br/><b>Testing Control</b><br/>Loopback, header-gated routes<br/>Stock 404 on any failed guard"]
-        instance["Component<br/><b>TestInstance</b><br/>Spawn, migrate, seed, drop<br/>Test support only"]
-    end
+subgraph testbuild["Test build only: MIX_ENV=test"]
+direction TB
+controls["Component<br><b>Testing Control</b><br>Loopback, header-gated routes<br>Stock 404 on any failed guard"]
+instance["Component<br><b>TestInstance</b><br>Spawn, migrate, seed, drop<br>Test support only"]
+end
 
-    identity["Context facade<br/><b>Identity</b><br/>Bootstrap and accounts"]
-    familychat["Context facade<br/><b>FamilyChat</b><br/>Send entry point"]
-    push["Context facade<br/><b>PushNotifications</b><br/>Subscribe entry point"]
-    sifatallah["Context facade<br/><b>SifatAllah</b><br/>Save progress"]
-    codexchat["Context facade<br/><b>CodexChat</b><br/>Transcript store"]
-    storage["Context facade<br/><b>Storage</b><br/>Stop, pointer, migrate"]
-    db[("Data store<br/><b>Test instance SQLite</b><br/>Empty, migrated per test")]
+identity["Context facade<br><b>Identity</b><br>Bootstrap and accounts"]
+familychat["Context facade<br><b>FamilyChat</b><br>Send entry point"]
+push["Context facade<br><b>PushNotifications</b><br>Subscribe entry point"]
+sifatallah["Context facade<br><b>SifatAllah</b><br>Save progress"]
+codexchat["Context facade<br><b>CodexChat</b><br>Transcript store"]
+storage["Context facade<br><b>Storage</b><br>Stop, pointer, migrate"]
+db[("Data store<br><b>Test instance SQLite</b><br>Empty, migrated per test")]
 
-    runner -->|Direct loopback HTTP,<br/>run secret header| controls
-    controls -->|Spawn, seed, delete| instance
-    instance -->|Stop, pointer,<br/>migrate, activate| storage
-    instance -->|Seed through facades| identity
-    instance -->|Seed through facades| familychat
-    instance -->|Seed through facades| push
-    instance -->|Seed through facades| sifatallah
-    instance -->|Seed through facades| codexchat
-    storage -->|Empty file per test| db
+runner -->|Direct loopback HTTP,<br>run secret header| controls
+controls -->|Spawn, seed, delete| instance
+instance -->|Stop, pointer,<br>migrate, activate| storage
+instance -->|Seed through facades| identity
+instance -->|Seed through facades| familychat
+instance -->|Seed through facades| push
+instance -->|Seed through facades| sifatallah
+instance -->|Seed through facades| codexchat
+storage -->|Empty file per test| db
 
-    classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef store fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
-    classDef absent fill:#FFFFFF,stroke:#000000,color:#000000,stroke-width:2px,stroke-dasharray:5 5
-    class runner external
-    class controls,instance component
-    class db store
-    class prod absent
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef store fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+classDef absent fill:#FFFFFF,stroke:#000000,color:#000000,stroke-width:2px,stroke-dasharray:5 5
+class runner external
+class controls,instance component
+class db store
+class prod absent
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The dashed node is the production build. No route, module or edge in this view reaches it. Testing Control has four

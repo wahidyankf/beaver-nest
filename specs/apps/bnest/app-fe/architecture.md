@@ -10,49 +10,49 @@ delivered by the one running `bnest-app` process and are aggregated by [`specs/a
 
 ```mermaid
 flowchart TB
-    accTitle: System Context
-    accDescr {
-        Flowchart with 7 nodes and 7 connections. Nodes: Person Family member Uses the private family application,
-        Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route
-        to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest
-        frontend Rendered routes Installable PWA, External system Bnest backend See app-be/architecture.md, External
-        system Browser-vendor Web Push service Delivers push events to the service worker. Connections: Person Family
-        member Uses the private family application to External system Tailscale Serve Private HTTPS route to stable
-        local proxy (Remote HTTPS / WebSocket), External system Tailscale Serve Private HTTPS route to stable local
-        proxy to Container Caddy Loopback reverse proxy Blue/green upstream drain (Loopback HTTP), Container Caddy
-        Loopback reverse proxy Blue/green upstream drain to Software system Bnest frontend Rendered routes Installable
-        PWA (Loopback HTTP WebSocket), Person Family member Uses the private family application to Software system Bnest
-        frontend Rendered routes Installable PWA (Direct home-host connection), Person Administrator Manages schedules
-        and backup settings to Software system Bnest frontend Rendered routes Installable PWA (Private admin UI),
-        Software system Bnest frontend Rendered routes Installable PWA to External system Bnest backend See
-        app-be/architecture.md (HTTP and WebSocket events, session cookie), External system Browser-vendor Web Push
-        service Delivers push events to the service worker to Software system Bnest frontend Rendered routes Installable
-        PWA (Push event to service worker).
-    }
-    visitor(["Person<br/><b>Family member</b><br/>Uses the private<br/>family application"])
-    admin(["Person<br/><b>Administrator</b><br/>Manages schedules<br/>and backup settings"])
-    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route<br/>to stable local proxy"}}
-    caddy["Container<br/><b>Caddy</b><br/>Loopback reverse proxy<br/>Blue/green upstream drain"]
-    frontend[["Software system<br/><b>Bnest frontend</b><br/>Rendered routes<br/>Installable PWA"]]
-    backend{{"External system<br/><b>Bnest backend</b><br/>See app-be/architecture.md"}}
-    webpush{{"External system<br/><b>Browser-vendor<br/>Web Push service</b><br/>Delivers push events<br/>to the service worker"}}
+accTitle: System Context
+accDescr {
+Flowchart with 7 nodes and 7 connections. Nodes: Person Family member Uses the private family application,
+Person Administrator Manages schedules and backup settings, External system Tailscale Serve Private HTTPS route
+to stable local proxy, Container Caddy Loopback reverse proxy Blue/green upstream drain, Software system Bnest
+frontend Rendered routes Installable PWA, External system Bnest backend See app-be/architecture.md, External
+system Browser-vendor Web Push service Delivers push events to service worker. Connections: Person Family
+member Uses the private family application to External system Tailscale Serve Private HTTPS route to stable
+local proxy (Remote HTTPS / WebSocket), External system Tailscale Serve Private HTTPS route to stable local
+proxy to Container Caddy Loopback reverse proxy Blue/green upstream drain (Loopback HTTP), Container Caddy
+Loopback reverse proxy Blue/green upstream drain to Software system Bnest frontend Rendered routes Installable
+PWA (Loopback HTTP WebSocket), Person Family member Uses the private family application to Software system Bnest
+frontend Rendered routes Installable PWA (Direct home-host connection), Person Administrator Manages schedules
+and backup settings to Software system Bnest frontend Rendered routes Installable PWA (Private admin UI),
+Software system Bnest frontend Rendered routes Installable PWA to External system Bnest backend See
+app-be/architecture.md (HTTP and WebSocket events, session cookie), External system Browser-vendor Web Push
+service Delivers push events to service worker to Software system Bnest frontend Rendered routes Installable
+PWA (Push event to service worker).
+}
+visitor(["Person<br><b>Family member</b><br>Uses the private<br>family application"])
+admin(["Person<br><b>Administrator</b><br>Manages schedules<br>and backup settings"])
+tailscale{{"External system<br><b>Tailscale Serve</b><br>Private HTTPS route<br>to stable local proxy"}}
+caddy["Container<br><b>Caddy</b><br>Loopback reverse proxy<br>Blue/green upstream drain"]
+frontend[["Software system<br><b>Bnest frontend</b><br>Rendered routes<br>Installable PWA"]]
+backend{{"External system<br><b>Bnest backend</b><br>See app-be/architecture.md"}}
+webpush{{"External system<br><b>Browser-vendor<br>Web Push service</b><br>Delivers push events<br>to service worker"}}
 
-    visitor -->|Remote HTTPS / WebSocket| tailscale
-    tailscale -->|Loopback HTTP| caddy
-    caddy -->|Loopback HTTP<br/>WebSocket| frontend
-    visitor -.->|Direct home-host<br/>connection| frontend
-    admin -->|Private admin UI| frontend
-    frontend -->|HTTP and WebSocket<br/>events, session cookie| backend
-    webpush -.->|Push event<br/>to service worker| frontend
+visitor -->|Remote HTTPS / WebSocket| tailscale
+tailscale -->|Loopback HTTP| caddy
+caddy -->|Loopback HTTP<br>WebSocket| frontend
+visitor -.->|Direct home-host<br>connection| frontend
+admin -->|Private admin UI| frontend
+frontend -->|HTTP and WebSocket<br>events, session cookie| backend
+webpush -.->|Push event<br>to service worker| frontend
 
-    classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef system fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
-    class visitor,admin person
-    class frontend system
-    class tailscale,backend,webpush external
-    class caddy system
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef system fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+class visitor,admin person
+class frontend system
+class tailscale,backend,webpush external
+class caddy system
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The frontend surface is the one place family members and administrators interact with Bnest: every rendered route,
@@ -70,69 +70,69 @@ service — a delivery path that never crosses Tailscale Serve or Caddy. Both ar
 
 ```mermaid
 flowchart TB
-    accTitle: Container View
-    accDescr {
-        Flowchart with 11 nodes and 10 connections. Nodes: Person Family member, Person Administrator, External system
-        Tailscale Serve Private HTTPS route, Container Caddy Loopback blue/green reverse proxy, External container
-        Phoenix backend domain See app-be/architecture.md, External system Web Push service, Container Browser /
-        installed PWA HTML, CSS, JavaScript LiveView client, Container / data store Browser legacy sources Allow-listed
-        values Retained until accepted import, Container / data store Room read position Last read message per member
-        and room, Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary, Container
-        Service worker App-shell cache Push permission and events IndexedDB outbox. Connections: Container Browser /
-        installed PWA HTML, CSS, JavaScript LiveView client to Container Phoenix route/LiveView shell Renders rendered
-        UI over the backend boundary (HTTP and WebSocket events and renders), Container Browser / installed PWA HTML,
-        CSS, JavaScript LiveView client to Container / data store Browser legacy sources Allow-listed values Retained
-        until accepted import (Confirmed compatibility import), Container Browser / installed PWA HTML, CSS, JavaScript
-        LiveView client to Container / data store Room read position Last read message per member and room (Remembers
-        the last read message), Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container
-        Service worker App-shell cache Push permission and events IndexedDB outbox (Registers and posts messages),
-        Person Family member to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses), Person
-        Administrator to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses admin settings),
-        External system Tailscale Serve Private HTTPS route to Container Caddy Loopback blue/green reverse proxy
-        (Loopback HTTP WebSocket), Container Caddy Loopback blue/green reverse proxy to Container Phoenix route/LiveView
-        shell Renders rendered UI over the backend boundary (Loopback HTTP WebSocket), Container Phoenix route/LiveView
-        shell Renders rendered UI over the backend boundary to External container Phoenix backend domain See
-        app-be/architecture.md (Domain calls), Container Service worker App-shell cache Push permission and events
-        IndexedDB outbox to External system Web Push service (Push event).
-    }
-    visitor(["Person<br/><b>Family member</b>"])
-    admin(["Person<br/><b>Administrator</b>"])
-    tailscale{{"External system<br/><b>Tailscale Serve</b><br/>Private HTTPS route"}}
-    caddy["Container<br/><b>Caddy</b><br/>Loopback blue/green<br/>reverse proxy"]
-    backend{{"External container<br/><b>Phoenix backend domain</b><br/>See app-be/architecture.md"}}
-    webpush{{"External system<br/><b>Web Push service</b>"}}
+accTitle: Container View
+accDescr {
+Flowchart with 11 nodes and 10 connections. Nodes: Person Family member, Person Administrator, External system
+Tailscale Serve Private HTTPS route, Container Caddy Loopback blue/green reverse proxy, External container
+Phoenix backend domain See app-be/architecture.md, External system Web Push service, Container Browser /
+installed PWA HTML, CSS, JavaScript LiveView client, Container / data store Browser legacy sources Allow-listed
+values Kept until import accepted, Container / data store Room read position Last read message per member
+and room, Container Phoenix route/LiveView shell Renders rendered UI over the backend boundary, Container
+Service worker App-shell cache Push permission and events IndexedDB outbox. Connections: Container Browser /
+installed PWA HTML, CSS, JavaScript LiveView client to Container Phoenix route/LiveView shell Renders rendered
+UI over the backend boundary (HTTP and WebSocket events and renders), Container Browser / installed PWA HTML,
+CSS, JavaScript LiveView client to Container / data store Browser legacy sources Allow-listed values Retained
+until accepted import (Confirmed compatibility import), Container Browser / installed PWA HTML, CSS, JavaScript
+LiveView client to Container / data store Room read position Last read message per member and room (Remembers
+the last read message), Container Browser / installed PWA HTML, CSS, JavaScript LiveView client to Container
+Service worker App-shell cache Push permission and events IndexedDB outbox (Registers and posts messages),
+Person Family member to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses), Person
+Administrator to Container Browser / installed PWA HTML, CSS, JavaScript LiveView client (Uses admin settings),
+External system Tailscale Serve Private HTTPS route to Container Caddy Loopback blue/green reverse proxy
+(Loopback HTTP WebSocket), Container Caddy Loopback blue/green reverse proxy to Container Phoenix route/LiveView
+shell Renders rendered UI over the backend boundary (Loopback HTTP WebSocket), Container Phoenix route/LiveView
+shell Renders rendered UI over the backend boundary to External container Phoenix backend domain See
+app-be/architecture.md (Domain calls), Container Service worker App-shell cache Push permission and events
+IndexedDB outbox to External system Web Push service (Push event).
+}
+visitor(["Person<br><b>Family member</b>"])
+admin(["Person<br><b>Administrator</b>"])
+tailscale{{"External system<br><b>Tailscale Serve</b><br>Private HTTPS route"}}
+caddy["Container<br><b>Caddy</b><br>Loopback blue/green<br>reverse proxy"]
+backend{{"External container<br><b>Phoenix backend domain</b><br>See app-be/architecture.md"}}
+webpush{{"External system<br><b>Web Push service</b>"}}
 
-    subgraph frontend["Software system: Bnest frontend"]
-        direction TB
-        browser["Container<br/><b>Browser / installed PWA</b><br/>HTML, CSS, JavaScript<br/>LiveView client"]
-        legacy[("Container / data store<br/><b>Browser legacy sources</b><br/>Allow-listed values<br/>Retained until accepted import")]
-        readmarker[("Container / data store<br/><b>Room read position</b><br/>Last read message per<br/>member and room")]
-        routes["Container<br/><b>Phoenix route/LiveView shell</b><br/>Renders rendered UI<br/>over the backend boundary"]
-        worker["Container<br/><b>Service worker</b><br/>App-shell cache<br/>Push permission and events<br/>IndexedDB outbox"]
+subgraph frontend["Software system: Bnest frontend"]
+direction TB
+browser["Container<br><b>Browser / installed PWA</b><br>HTML, CSS, JavaScript<br>LiveView client"]
+legacy[("Container / data store<br><b>Browser legacy sources</b><br>Allow-listed values<br>Kept until import accepted")]
+readmarker[("Container / data store<br><b>Room read position</b><br>Last read message per<br>member and room")]
+routes["Container<br><b>Phoenix route/LiveView shell</b><br>Renders rendered UI<br>over the backend boundary"]
+worker["Container<br><b>Service worker</b><br>App-shell cache<br>Push permission and events<br>IndexedDB outbox"]
 
-        browser -->|HTTP and WebSocket<br/>events and renders| routes
-        browser -->|Confirmed<br/>compatibility import| legacy
-        browser -->|Remembers the last<br/>read message| readmarker
-        browser -->|Registers and<br/>posts messages| worker
-    end
+browser -->|HTTP and WebSocket<br>events and renders| routes
+browser -->|Confirmed<br>compatibility import| legacy
+browser -->|Remembers the last<br>read message| readmarker
+browser -->|Registers and<br>posts messages| worker
+end
 
-    visitor -->|Uses| browser
-    admin -->|Uses admin settings| browser
-    tailscale -->|Loopback HTTP<br/>WebSocket| caddy
-    caddy -->|Loopback HTTP<br/>WebSocket| routes
-    routes -->|Domain calls| backend
-    worker -->|Push event| webpush
+visitor -->|Uses| browser
+admin -->|Uses admin settings| browser
+tailscale -->|Loopback HTTP<br>WebSocket| caddy
+caddy -->|Loopback HTTP<br>WebSocket| routes
+routes -->|Domain calls| backend
+worker -->|Push event| webpush
 
-    classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef container fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
-    classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
-    class visitor,admin person
-    class browser,routes,worker container
-    class legacy,readmarker data
-    class tailscale,backend,webpush external
-    class caddy container
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef person fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef container fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+classDef external fill:#DE8F05,stroke:#000000,color:#000000,stroke-width:2px
+class visitor,admin person
+class browser,routes,worker container
+class legacy,readmarker data
+class tailscale,backend,webpush external
+class caddy container
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The route/LiveView shell runs inside the same Phoenix OTP application as the backend domain; it is drawn as its own
@@ -149,106 +149,106 @@ the room reads it when it opens to decide where to place the visitor, and no ser
 
 ```mermaid
 flowchart TB
-    accTitle: Component View
-    accDescr {
-        Flowchart with 16 nodes and 25 connections. Nodes: External container Browser / installed PWA, External
-        container Service worker, External data store Allow-listed browser sources, External container Phoenix backend
-        domain, Component Chat LiveView BnestAppWeb.ChatLive, Component Chat Markdown renderer BnestAppWeb.ChatMarkdown,
-        Component Shared message body BnestAppWeb.ChatComponents, Component Chat image route
-        BnestAppWeb.ChatImageController, Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive, Component Home/auth
-        routes Login, setup, redirects, Component Admin settings UI Storage, schedules, Component Browser import UI
-        data-migration route, Component Family chat route FamilyChatController, not a LiveView, Component Family chat
-        message body message_body.js and message_content_stops.js, Component Diagram renderer assets/js/diagrams,
-        Component Diagram engine lazy bundle in a hidden same-origin frame. Connections: Component Chat LiveView
-        BnestAppWeb.ChatLive to External container Phoenix backend domain (Chat/learning events), Component Chat
-        LiveView BnestAppWeb.ChatLive to Component Shared message body BnestAppWeb.ChatComponents (Renders replies as
-        Markdown), Component Shared message body BnestAppWeb.ChatComponents to Component Chat Markdown renderer
-        BnestAppWeb.ChatMarkdown (Markdown to safe HTML), External container Phoenix backend domain to Component Shared
-        message body BnestAppWeb.ChatComponents (bodyHtml field), Component Chat LiveView BnestAppWeb.ChatLive to
-        Component Diagram renderer assets/js/diagrams (ChatDiagrams hook), External container Browser / installed PWA to
-        Component Family chat message body message_body.js and message_content_stops.js (bodyHtml over GraphQL),
-        Component Family chat message body message_body.js and message_content_stops.js to Component Diagram renderer
-        assets/js/diagrams (Server HTML with diagram markers), Component Diagram renderer assets/js/diagrams to
-        Component Diagram engine lazy bundle in a hidden same-origin frame (Loads on first draw), Component Chat image
-        route BnestAppWeb.ChatImageController to External container Phoenix backend domain (Repository image lookup),
-        External container Browser / installed PWA to Component Chat image route BnestAppWeb.ChatImageController (Image
-        requests GET /chat/images/*), Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive to External container
-        Phoenix backend domain (Chat/learning events), Component Home/auth routes Login, setup, redirects to External
-        container Phoenix backend domain (Auth events), Component Admin settings UI Storage, schedules to External
-        container Phoenix backend domain (Admin events), Component Browser import UI data-migration route to External
-        container Phoenix backend domain (Confirmed source values), Component Family chat route FamilyChatController,
-        not a LiveView to External container Phoenix backend domain (Renders shell, then browser owns it), External
-        container Browser / installed PWA to Component Chat LiveView BnestAppWeb.ChatLive (Chat events and renders),
-        External container Browser / installed PWA to Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive
-        (Learning events renders), External container Browser / installed PWA to Component Home/auth routes Login,
-        setup, redirects (Protected events), External container Browser / installed PWA to Component Admin settings UI
-        Storage, schedules (Admin-only events), External container Browser / installed PWA to Component Browser import
-        UI data-migration route (Confirmed source values), External container Browser / installed PWA to External data
-        store Allow-listed browser sources (Web Storage API until accepted import), and 4 more.
-    }
-    browser(["External container<br/><b>Browser / installed PWA</b>"])
-    worker(["External container<br/><b>Service worker</b>"])
-    legacy[("External data store<br/><b>Allow-listed browser sources</b>")]
-    backend{{"External container<br/><b>Phoenix backend domain</b>"}}
+accTitle: Component View
+accDescr {
+Flowchart with 16 nodes and 25 connections. Nodes: External container Browser / installed PWA, External
+container Service worker, External data store Allow-listed browser sources, External container Phoenix backend
+domain, Component Chat LiveView BnestAppWeb.ChatLive, Component Chat Markdown renderer BnestAppWeb.ChatMarkdown,
+Component Shared message body BnestAppWeb.ChatComponents, Component Chat image route
+BnestAppWeb.ChatImageController, Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive, Component Home/auth
+routes Login, setup, redirects, Component Admin settings UI Storage, schedules, Component Browser import UI
+data-migration route, Component Family chat route FamilyChatController, not a LiveView, Component Family chat
+message body message_body.js and message_content_stops.js, Component Diagram renderer assets/js/diagrams,
+Component Diagram engine lazy bundle in a hidden same-origin frame. Connections: Component Chat LiveView
+BnestAppWeb.ChatLive to External container Phoenix backend domain (Chat/learning events), Component Chat
+LiveView BnestAppWeb.ChatLive to Component Shared message body BnestAppWeb.ChatComponents (Renders replies as
+Markdown), Component Shared message body BnestAppWeb.ChatComponents to Component Chat Markdown renderer
+BnestAppWeb.ChatMarkdown (Markdown to safe HTML), External container Phoenix backend domain to Component Shared
+message body BnestAppWeb.ChatComponents (bodyHtml field), Component Chat LiveView BnestAppWeb.ChatLive to
+Component Diagram renderer assets/js/diagrams (ChatDiagrams hook), External container Browser / installed PWA to
+Component Family chat message body message_body.js and message_content_stops.js (bodyHtml over GraphQL),
+Component Family chat message body message_body.js and message_content_stops.js to Component Diagram renderer
+assets/js/diagrams (Server HTML with diagram markers), Component Diagram renderer assets/js/diagrams to
+Component Diagram engine lazy bundle in a hidden same-origin frame (Loads on first draw), Component Chat image
+route BnestAppWeb.ChatImageController to External container Phoenix backend domain (Repository image lookup),
+External container Browser / installed PWA to Component Chat image route BnestAppWeb.ChatImageController (Image
+requests GET /chat/images/*), Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive to External container
+Phoenix backend domain (Chat/learning events), Component Home/auth routes Login, setup, redirects to External
+container Phoenix backend domain (Auth events), Component Admin settings UI Storage, schedules to External
+container Phoenix backend domain (Admin events), Component Browser import UI data-migration route to External
+container Phoenix backend domain (Confirmed source values), Component Family chat route FamilyChatController,
+not a LiveView to External container Phoenix backend domain (Renders shell, then browser owns it), External
+container Browser / installed PWA to Component Chat LiveView BnestAppWeb.ChatLive (Chat events and renders),
+External container Browser / installed PWA to Component Sifat Allah LiveView BnestAppWeb.SifatAllahLive
+(Learning events renders), External container Browser / installed PWA to Component Home/auth routes Login,
+setup, redirects (Protected events), External container Browser / installed PWA to Component Admin settings UI
+Storage, schedules (Admin-only events), External container Browser / installed PWA to Component Browser import
+UI data-migration route (Confirmed source values), External container Browser / installed PWA to External data
+store Allow-listed browser sources (Web Storage API until accepted import), and 4 more.
+}
+browser(["External container<br><b>Browser / installed PWA</b>"])
+worker(["External container<br><b>Service worker</b>"])
+legacy[("External data store<br><b>Allow-listed browser sources</b>")]
+backend{{"External container<br><b>Phoenix backend domain</b>"}}
 
-    subgraph routes["Container: Phoenix<br/>route/LiveView shell"]
-        direction LR
-        chat_live["Component<br/><b>Chat LiveView</b><br/>BnestAppWeb.ChatLive"]
-        sifat_live["Component<br/><b>Sifat Allah LiveView</b><br/>BnestAppWeb.SifatAllahLive"]
-        home["Component<br/><b>Home/auth routes</b><br/>Login, setup, redirects"]
-        admin_ui["Component<br/><b>Admin settings UI</b><br/>Storage, schedules"]
-        importer["Component<br/><b>Browser import UI</b><br/>data-migration route"]
-        family_chat["Component<br/><b>Family chat route</b><br/>FamilyChatController,<br/>not a LiveView"]
-        chat_markdown["Component<br/><b>Chat Markdown renderer</b><br/>BnestAppWeb.ChatMarkdown"]
-        chat_components["Component<br/><b>Shared message body</b><br/>BnestAppWeb.ChatComponents"]
-        chat_image["Component<br/><b>Chat image route</b><br/>BnestAppWeb.ChatImageController"]
+subgraph routes["Container: Phoenix<br>route/LiveView shell"]
+direction LR
+chat_live["Component<br><b>Chat LiveView</b><br>BnestAppWeb.ChatLive"]
+sifat_live["Component<br><b>Sifat Allah LiveView</b><br>BnestAppWeb.SifatAllahLive"]
+home["Component<br><b>Home/auth routes</b><br>Login, setup, redirects"]
+admin_ui["Component<br><b>Admin settings UI</b><br>Storage, schedules"]
+importer["Component<br><b>Browser import UI</b><br>data-migration route"]
+family_chat["Component<br><b>Family chat route</b><br>FamilyChatController,<br>not a LiveView"]
+chat_markdown["Component<br><b>Chat Markdown renderer</b><br>BnestAppWeb.ChatMarkdown"]
+chat_components["Component<br><b>Shared message body</b><br>BnestAppWeb.ChatComponents"]
+chat_image["Component<br><b>Chat image route</b><br>BnestAppWeb.ChatImageController"]
 
-        chat_live -->|Chat/learning events| backend
-        sifat_live -->|Chat/learning events| backend
-        home -->|Auth events| backend
-        admin_ui -->|Admin events| backend
-        importer -->|Confirmed source values| backend
-        family_chat -->|Renders shell,<br/>then browser owns it| backend
-        chat_live -->|Renders replies<br/>as Markdown| chat_components
-        chat_components -->|Markdown to<br/>safe HTML| chat_markdown
-        chat_image -->|Repository image lookup| backend
-    end
+chat_live -->|Chat/learning events| backend
+sifat_live -->|Chat/learning events| backend
+home -->|Auth events| backend
+admin_ui -->|Admin events| backend
+importer -->|Confirmed source values| backend
+family_chat -->|Renders shell,<br>then browser owns it| backend
+chat_live -->|Renders replies<br>as Markdown| chat_components
+chat_components -->|Markdown to<br>safe HTML| chat_markdown
+chat_image -->|Repository image lookup| backend
+end
 
-    subgraph assets["Container: Browser assets<br/>assets/js"]
-        direction LR
-        message_body["Component<br/><b>Family chat message body</b><br/>message_body.js and<br/>message_content_stops.js"]
-        diagrams["Component<br/><b>Diagram renderer</b><br/>assets/js/diagrams"]
-        engine["Component<br/><b>Diagram engine</b><br/>lazy bundle in a hidden<br/>same-origin frame"]
+subgraph assets["Container: Browser assets<br>assets/js"]
+direction LR
+message_body["Component<br><b>Family chat message body</b><br>message_body.js and<br>message_content_stops.js"]
+diagrams["Component<br><b>Diagram renderer</b><br>assets/js/diagrams"]
+engine["Component<br><b>Diagram engine</b><br>lazy bundle in a hidden<br>same-origin frame"]
 
-        message_body -->|Server HTML with<br/>diagram markers| diagrams
-        diagrams -->|Loads on first draw| engine
-    end
+message_body -->|Server HTML with<br>diagram markers| diagrams
+diagrams -->|Loads on first draw| engine
+end
 
-    backend -->|bodyHtml field| chat_components
-    chat_live -->|ChatDiagrams hook| diagrams
-    browser -->|bodyHtml<br/>over GraphQL| message_body
+backend -->|bodyHtml field| chat_components
+chat_live -->|ChatDiagrams hook| diagrams
+browser -->|bodyHtml<br>over GraphQL| message_body
 
-    browser -->|Chat events and renders| chat_live
-    browser -->|Learning events<br/>renders| sifat_live
-    browser -->|Protected events| home
-    browser -->|Admin-only events| admin_ui
-    browser -->|Confirmed source values| importer
-    browser -->|Web Storage API<br/>until accepted import| legacy
-    browser -->|Initial page load| family_chat
-    browser -->|Image requests<br/>GET /chat/images/*| chat_image
-    browser -->|GraphQL ops<br/>over UserSocket| backend
-    browser <-->|Outbox, cache,<br/>push permission| worker
-    worker -->|Displays notification| browser
+browser -->|Chat events and renders| chat_live
+browser -->|Learning events<br>renders| sifat_live
+browser -->|Protected events| home
+browser -->|Admin-only events| admin_ui
+browser -->|Confirmed source values| importer
+browser -->|Web Storage API<br>until accepted import| legacy
+browser -->|Initial page load| family_chat
+browser -->|Image requests<br>GET /chat/images/*| chat_image
+browser -->|GraphQL ops<br>over UserSocket| backend
+browser <-->|Outbox, cache,<br>push permission| worker
+worker -->|Displays notification| browser
 
-    classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
-    classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
-    classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
-    class browser,worker external
-    class chat_live,sifat_live,home,admin_ui,importer,family_chat,chat_markdown,chat_components,chat_image component
-    class message_body,diagrams,engine component
-    class legacy data
-    class backend external
-    classDef default fill:#FFFFFF,stroke:#000000,color:#000000
+classDef external fill:#808080,stroke:#000000,color:#000000,stroke-width:2px
+classDef component fill:#0173B2,stroke:#000000,color:#FFFFFF,stroke-width:2px
+classDef data fill:#029E73,stroke:#000000,color:#000000,stroke-width:2px
+class browser,worker external
+class chat_live,sifat_live,home,admin_ui,importer,family_chat,chat_markdown,chat_components,chat_image component
+class message_body,diagrams,engine component
+class legacy data
+class backend external
+classDef default fill:#FFFFFF,stroke:#000000,color:#000000
 ```
 
 The family chat route renders only the initial page shell (room list/composer scaffold); once loaded, the browser
