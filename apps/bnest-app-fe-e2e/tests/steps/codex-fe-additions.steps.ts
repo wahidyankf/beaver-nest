@@ -96,9 +96,8 @@ When("a visitor opens the home page", async ({ page }) => {
 Then(
   "the page does not offer the {string} link to {string}",
   async ({ page }, label: string, linkPath: string) => {
-    await expect(
-      page.locator(`a[href="${linkPath}"]`).filter({ hasText: label }),
-    ).toHaveCount(0);
+    await expect(page.getByRole("link", { name: label })).toHaveCount(0);
+    await expect(page.locator(`a[href="${linkPath}"]`)).toHaveCount(0);
   },
 );
 

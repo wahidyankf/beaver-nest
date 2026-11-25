@@ -4117,9 +4117,18 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   def behaviour_outcome?(context, :chat_entry_link_absent, [label, path]) do
-    context.page
-    |> LazyHTML.query("a[href='#{path}'] strong")
-    |> Enum.all?(fn element -> element |> LazyHTML.text() |> String.trim() != label end)
+    page = context.page
+    no_path_link = page |> LazyHTML.query("a[href='#{path}']") |> Enum.empty?()
+
+    no_labelled_link =
+      page
+      |> LazyHTML.query("a")
+      |> Enum.all?(fn element ->
+        not String.contains?(LazyHTML.text(element), label) and
+          not Enum.any?(LazyHTML.attribute(element, "aria-label"), &String.contains?(&1, label))
+      end)
+
+    no_path_link and no_labelled_link
   end
 
   def behaviour_outcome?(context, :second_session_message, [message]),
