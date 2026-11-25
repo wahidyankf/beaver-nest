@@ -49,7 +49,7 @@ defmodule BnestApp.Behaviour.RuntimeConfigurationTest do
     assert RuntimeSettings.http_port(%{"PORT" => "0"}) == 0
     assert RuntimeSettings.http_port(%{"PORT" => "-5"}) == -5
 
-    # An empty value is set, not unset: origin/main passes "" to Path.expand/1, which
+    # An empty value is set, not unset: origin/main passes "" to the path expander, which
     # resolves it to the working directory. A double records the argument, so the test
     # touches no file system.
     expand_marker = fn raw -> {:expanded, raw} end
