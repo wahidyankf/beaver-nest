@@ -456,7 +456,7 @@ defmodule BnestApp.ScheduledBackupTest do
         {message_id, [read_ms, send_ms]}
       end)
       |> Enum.reduce_while([], fn sample, acc ->
-        if Agent.get(flag, & &1), do: {:halt, acc}, else: {:cont, [sample | acc]}
+        if acc != [] and Agent.get(flag, & &1), do: {:halt, acc}, else: {:cont, [sample | acc]}
       end)
     end
 
