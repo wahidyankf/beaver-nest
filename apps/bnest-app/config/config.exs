@@ -12,8 +12,6 @@ config :bnest_app,
   storage_profile: :production,
   runtime_root: Path.expand("../../../data/prod", __DIR__),
   identity_cutover_enabled: false,
-  family_chat_enabled: false,
-  family_chat_reply_enabled: false,
   backup_timeout_ms: 1_800_000,
   session_cookie: [
     key: "_bnest_identity",

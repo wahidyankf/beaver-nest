@@ -24,7 +24,7 @@ import {
 
 // The keyboard half of family_chat.feature's reply rules: the end-to-end
 // journey without a pointer, the history's single tab stop, and the quote's
-// computed accessible name (the compatibility revision is in
+// computed accessible name (the cross-revision proof is in
 // `family-chat-rollback-floor.steps.ts`). Split from
 // `family-chat-reply-reading.steps.ts` purely to stay under this project's
 // max-lines lint budget.

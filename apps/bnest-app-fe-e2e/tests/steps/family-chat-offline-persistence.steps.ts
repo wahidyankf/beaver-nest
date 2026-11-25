@@ -41,7 +41,7 @@ When(
     // Aborting every `SendFamilyChatMessage` call (rather than
     // `page.context().setOffline`) keeps the rest of the page's own
     // requests -- and the reload this scenario does next -- working
-    // normally, mirroring `experience-release.steps.ts`'s established
+    // normally, mirroring `release-candidate.steps.ts`'s established
     // "one member queues a message while offline" technique.
     await interfereWithSends(page, "abort");
     // "ruang-keluarga" is one shared room whose history persists across

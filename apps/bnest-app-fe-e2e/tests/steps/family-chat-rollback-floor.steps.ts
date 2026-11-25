@@ -7,7 +7,7 @@ import {
   sendThroughComposer,
 } from "../support/family-chat-delivery";
 import { waitForRoomReady } from "../support/family-chat-resume";
-import { promoteCandidateWithReplyFlag } from "../support/routed-rollout";
+import { promoteCompatibleCandidate } from "../support/routed-rollout";
 import { messageById } from "../support/family-chat-gestures";
 import {
   expectMenuOpenFor,
@@ -34,7 +34,7 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 // had just booted; that returned `Internal Server Error` often enough to make
 // the scenario worthless. The proof does not need a second member.
 
-/** The reply committed after the rollback -- the one the floor itself answered. */
+/** The reply committed after the rollback -- the one the earlier revision itself answered. */
 let floorReplyId = "";
 /** The revision whose bundle the page holds, and the one routed after it. */
 let heldRevision = "";
@@ -121,25 +121,22 @@ async function reloadRoutedRoom(page: Page): Promise<void> {
   await waitForRoomReady(page);
 }
 
-// --- The compatibility revision ------------------------------------------
+// --- The earlier revision ------------------------------------------
 //
-// The page loads the room from a revision routed with the reply flag off --
-// a bundle that never asks for or sends a reply, the closest this suite can
-// hold to one built before replies existed -- and keeps it while the
-// compatibility revision (also flag off, a different build) is routed.
+// The page loads the room from an earlier routed revision -- a bundle built
+// before the currently routed one -- and keeps it while a newer revision
+// (a different build serving the same always-on room) is routed.
 
-Given("the compatibility revision is routed", async ({ page }) => {
+Given("an earlier revision is routed", async ({ page }) => {
   await ensureRoomOpen(page);
-  ({ revision: heldRevision } = await promoteCandidateWithReplyFlag(
-    page,
-    false,
-  ));
+  ({ revision: heldRevision } = await promoteCompatibleCandidate(page, {
+    verifyLiveView: false,
+  }));
   await waitForRoutedReads(page, heldRevision);
   await reloadRoutedRoom(page);
-  ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
-    page,
-    false,
-  ));
+  ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
+    verifyLiveView: false,
+  }));
   expect(routedRevision).not.toBe(heldRevision);
 });
 
@@ -159,8 +156,8 @@ Then("the room loads", async ({ page }) => {
     "data-connection-state",
     "ready",
   );
-  // The feature is off, so neither surface is bound; the room is otherwise
-  // exactly the shipped one.
+  // The room is otherwise exactly the shipped one: the reply strip is part
+  // of the static shell, hidden until a reply target is chosen.
   await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
 });
 
@@ -175,7 +172,7 @@ Then("the visitor can send a message normally", async ({ page }) => {
   expect(await navigationCount(page)).toBe(1);
 });
 
-// --- The rollback floor ----------------------------------------------------
+// --- The rollback ----------------------------------------------------
 
 Given(
   "a visitor holds the reply-aware bundle with a reply on screen",
@@ -183,13 +180,15 @@ Given(
     await ensureRoomOpen(page);
 
     // Seeded before any promotion, against the slot already serving. The
-    // server stores `replyToMessageId` whatever the flag says; only the
-    // browser's willingness to ask for it back is gated.
+    // server stores `replyToMessageId` unconditionally, and every bundle
+    // asks for `replyTo` back.
     scenario.targetBody = uniqueBody("Rollback original");
     scenario.targetId = await postMessage(page, scenario.targetBody);
     await waitForMessage(page, scenario.targetId);
 
-    const { revision } = await promoteCandidateWithReplyFlag(page, true);
+    const { revision } = await promoteCompatibleCandidate(page, {
+      verifyLiveView: false,
+    });
     await waitForRoutedReads(page, revision);
     await reloadRoutedRoom(page);
     await waitForRoutedReads(page, revision);
@@ -214,12 +213,11 @@ Given(
 );
 
 When(
-  "the routed slot is rolled back to the compatibility revision",
+  "the routed slot is rolled back to an earlier revision",
   async ({ page }) => {
-    ({ revision: routedRevision } = await promoteCandidateWithReplyFlag(
-      page,
-      false,
-    ));
+    ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
+      verifyLiveView: false,
+    }));
     // The route moved under a live socket: the prior slot's connection dies
     // and the browser has to re-subscribe against the floor before it can be
     // asked anything. Without this the next step races the reconnect.
@@ -232,12 +230,11 @@ When(
   "the visitor replies again with the bundle it still holds",
   async ({ page }) => {
     // Asserting the quote already on screen would assert stale DOM -- it was
-    // rendered before the rollback and would survive the floor answering with
-    // nothing at all. This reply is composed in the held bundle's own UI and
-    // committed *after* the rollback, so rendering its quote requires the
-    // floor to accept `replyToMessageId` and to serve `replyTo` back with the
-    // reply flag off, which is the asymmetry the compatibility release
-    // depends on (tech-doc 002).
+    // rendered before the rollback and would survive the earlier revision
+    // answering with nothing at all. This reply is composed in the held
+    // bundle's own UI and committed *after* the rollback, so rendering its
+    // quote requires the earlier revision to accept `replyToMessageId` and
+    // to serve `replyTo` back (tech-doc 002).
     await openMenuWithKeyboard(page, scenario.targetId);
     await expectMenuOpenFor(page, scenario.targetId);
     await openMenuItems(page).filter({ hasText: "Reply" }).first().click();

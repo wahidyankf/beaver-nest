@@ -30,9 +30,8 @@ lsof -nP -iTCP:4000 -iTCP:4001 -iTCP:4100 -sTCP:LISTEN
 
 `BNEST_DEPLOY_ROOT`, `BNEST_RUNTIME_ROOT`, `BNEST_DEPLOY_COOKIE_FILE`, `BNEST_DEPLOY_SECRET_KEY_BASE_FILE`, `BNEST_PRODUCTION_ORIGIN`, and `HIPPO_BIN` are machine-local. An unset shell does not mean they are unavailable: a provisioned host keeps them outside the repository between sessions, and the running blue or green launchd unit already names every one of them.
 
-`config/runtime.exs` also requires three Web Push variables unconditionally in `:prod`, independent of whether
-`BNEST_FAMILY_CHAT_ENABLED` is `true` or `false` — a compatibility-release slot fails to boot without them just like
-an experience-release slot does:
+`config/runtime.exs` also requires three Web Push variables unconditionally in `:prod` — a release slot fails
+to boot without them:
 
 | Variable                                 | Meaning                                                           |
 | ---------------------------------------- | ----------------------------------------------------------------- |
@@ -118,15 +117,9 @@ The repository's shell guard refuses `npm exec` without an outer `./hippo run`, 
 
 The run takes tens of minutes because it executes the full gate manifest before building. Expect it to be long-running rather than hung. It prints one JSON result. `outcome` is `passed` on success; `queued` means another release owns the host lock and `deferred` means HIPPO withheld capacity — neither is a failure, and neither leaves a partial cutover. Any other outcome sets a non-zero exit status. A `failed` outcome with `errorCategory: gate` and `evidenceIds: ["preflight"]` stopped in the gates, before any build or cutover, so production is unchanged: read `<deploy-root>/logs/release-<sha>.log` for the failing check. `rolled-back` means the candidate was promoted and then reverted by the release's own monitor; production is back on the previous slot, and the routed-journey sample that tripped it is in `<deploy-root>/metrics/`. Gates that depend on load, such as the browser reconnect scenarios, can fail differently on consecutive attempts on a busy host; diagnose each failure instead of repeating blindly.
 
-A compatibility release ships every feature flag off by design: it omits `BNEST_FAMILY_CHAT_ENABLED` and `BNEST_FAMILY_CHAT_REPLY_ENABLED` from the slot entirely, so `config/runtime.exs` supplies `false` for both. The experience re-promotion passes both as `true`. They are separate variables because the server answers a reply-aware GraphQL document whichever way the second one is set — that asymmetry is what lets the reply bundle ship one release ahead of the flag that reveals it — but there is one experience mode, and it turns both on together.
-
-When the intended production state needs them on, immediately follow with the same revision's experience re-promotion, which reuses the already-built artifact instead of rebuilding:
-
-```sh
-npm exec -- nx run -p bnest-app -t release:run -- --mode experience --revision <sha>
-```
-
-Per [release authorization](../../repo-governance/conventions/release-authorization.md), this step is covered by the same authorization as the compatibility release it follows.
+Every release ships the whole feature set: the room and its replies go live at promotion, with no second
+step. A stale script passing `--mode experience` (or any `--mode`) stops with an error naming the removal —
+run `release:run` without `--mode`.
 
 ## 5. Verify the routed cutover
 

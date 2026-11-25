@@ -642,10 +642,6 @@
           "e2eExempt": false
         },
         {
-          "name": "The message actions control is not drawn when replies are off",
-          "e2eExempt": false
-        },
-        {
           "name": "Every message has an actions control when replies are on",
           "e2eExempt": false
         },
@@ -866,11 +862,11 @@
           "e2eExempt": false
         },
         {
-          "name": "A browser holding the pre-reply bundle loads the room from the new revision",
+          "name": "A browser holding the previous bundle loads the room from the new revision",
           "e2eExempt": false
         },
         {
-          "name": "The rollback floor can still answer the reply-aware bundle",
+          "name": "A rolled-back slot still answers the held reply-aware bundle",
           "e2eExempt": false
         },
         {
@@ -882,7 +878,7 @@
           "e2eExempt": false
         },
         {
-          "name": "Two members prove draft, offline queue, and exact-once catch-up on the flag-enabled experience candidate",
+          "name": "Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate",
           "e2eExempt": false
         },
         {

@@ -100,10 +100,7 @@ function createRoomResume(context, options) {
     roomSlug,
     storage: options.readStorage,
   });
-  const pageSource = createRealPageSource(roomSlug, {
-    replies: options.replies ?? false,
-    request,
-  });
+  const pageSource = createRealPageSource(roomSlug, { request });
   const history = createHistory({
     fetchPage: pageSource.fetchPage,
     store,

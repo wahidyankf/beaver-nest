@@ -26,10 +26,6 @@ defmodule BnestAppWeb.Router do
     plug :require_admin_role
   end
 
-  pipeline :family_chat_enabled do
-    plug :require_family_chat_enabled
-  end
-
   pipeline :api do
     plug :accepts, ["json"]
   end
@@ -117,7 +113,7 @@ defmodule BnestAppWeb.Router do
   end
 
   scope "/", BnestAppWeb do
-    pipe_through [:browser, :authenticated_browser, :family_chat_enabled]
+    pipe_through [:browser, :authenticated_browser]
 
     get "/family-chat", FamilyChatController, :redirect_to_canonical
     get "/family-chat/:slug", FamilyChatController, :room

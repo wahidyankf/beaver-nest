@@ -53,7 +53,6 @@ import {
   requireRow,
   requireWorld,
   ROOM_SLUG,
-  routeRevision,
   rowFor,
   scrollHistoryTo,
   sendThroughComposer,
@@ -768,10 +767,13 @@ step(
   },
 );
 
-// --- Rule: Experience release candidate proof ------------------------------------
+// --- Rule: Release candidate proof ------------------------------------
 
-step("Caddy has promoted the flag-enabled experience candidate", () => {
-  routeRevision(true);
+step("Caddy has promoted the release candidate", () => {
+  // The candidate is freshly promoted: no member has opened the room
+  // against it yet, and its wire holds no requests from a previous route.
+  expect(!hasActivePage(), "a page is already open against the candidate");
+  expect(server().wire.length === 0, "the candidate already served requests");
 });
 
 step("two members each open {string}", async (pathname) => {
