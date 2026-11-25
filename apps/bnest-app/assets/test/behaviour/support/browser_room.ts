@@ -1129,13 +1129,7 @@ export async function openRoomPage(
     await worker.fetch("/assets/css/app.css");
     await worker.fetch("/assets/js/app.js");
   }
-  const page = newPage(
-    "room",
-    member,
-    device,
-    pathname,
-    renderRoom(member),
-  );
+  const page = newPage("room", member, device, pathname, renderRoom(member));
   activate(page);
   installLayout(page);
   page.elements = findElements();

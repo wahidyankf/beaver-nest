@@ -59,11 +59,7 @@ import {
   waitFor,
   watchPendingRows,
 } from "./support/browser_room";
-import {
-  forgetScenario,
-  recall,
-  remember,
-} from "./support/scenario_memory";
+import { forgetScenario, recall, remember } from "./support/scenario_memory";
 
 const registry: StepDefinition[] = [];
 
@@ -1420,17 +1416,14 @@ step(
   },
 );
 
-step(
-  "the routed slot is rolled back to an earlier revision",
-  async () => {
-    // The route change ends the connections to the rolled-back slot; the
-    // page itself, and the bundle it loaded, stay.
-    const page = activePage();
-    dropSockets(page);
-    reconnectSockets(page);
-    await settle();
-  },
-);
+step("the routed slot is rolled back to an earlier revision", async () => {
+  // The route change ends the connections to the rolled-back slot; the
+  // page itself, and the bundle it loaded, stay.
+  const page = activePage();
+  dropSockets(page);
+  reconnectSockets(page);
+  await settle();
+});
 
 step("the visitor replies again with the bundle it still holds", async () => {
   expect(hasActivePage(), "the held page was closed");
