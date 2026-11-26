@@ -29,7 +29,7 @@ Feature: Safe RHINO consumer bootstrap
   Scenario Outline: A downloaded release that fails verification is refused
     Given a downloaded release fails verification because <failure>
     When the RHINO consumer bootstrap downloads and verifies that release
-    Then it exits as invalid configuration and publishes nothing to the cache
+    Then it exits as invalid configuration and publishes nothing to the cache, without executing the payload
 
     Examples:
       | failure                                                       |
@@ -48,7 +48,8 @@ Feature: Safe RHINO consumer bootstrap
   Scenario: A pinned release candidate installs and runs
     Given the consumer lock pins an exact candidate tag and the extracted release reports its stable product version
     When the RHINO consumer bootstrap validates and installs that candidate
-    Then the release runs, and a second run needs no download
+    Then it verifies the stable identity, retains the exact candidate cache path, and the release runs, and a second run
+      needs no download
 
   # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-rhino-bootstrap.sh
   @e2e-exempt
@@ -74,20 +75,24 @@ Feature: Safe RHINO consumer bootstrap
   Scenario Outline: A caller takes over an install whose owner is gone
     Given <stale state>
     When this consumer tries to install the pinned release
-    Then it takes over the abandoned install and installs the pinned release
+    Then it takes over the abandoned install and installs the pinned release, reclaiming only positively stale state
+      while fresh or live preparations remain protected
 
     Examples:
       | stale state                                                              |
       | the earlier install's process has ended                                  |
       | the earlier install's process number now belongs to an unrelated process |
       | an earlier consumer crashed while it was starting its install            |
+      | an incomplete legacy lock left by an earlier consumer                    |
+      | an orphan prepared owner record left by an earlier consumer              |
 
   # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-rhino-bootstrap.sh
   @e2e-exempt
   Scenario Outline: Two callers starting together download once and both run the release
     Given two consumers start against <starting state>
     When both contend for the install
-    Then both execute the release from one download
+    Then both execute the release from one download, a live replacement owner stays owned while the other contends,
+      and no ownership record survives
 
     Examples:
       | starting state                                          |
@@ -114,7 +119,8 @@ Feature: Safe RHINO consumer bootstrap
     Given a cache root holds release directories left untouched past the idle window
     And the host's stat command uses the <dialect> dialect
     When a consumer installs its pinned release and retention runs
-    Then only the pinned release and the most recent idle fallbacks remain
+    Then only the pinned release and the most recent idle fallbacks remain, because retention ranks releases by their
+      real timestamps rather than by diagnostic output
 
     Examples:
       | dialect |

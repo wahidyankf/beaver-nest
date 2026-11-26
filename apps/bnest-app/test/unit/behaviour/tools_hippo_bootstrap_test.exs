@@ -54,6 +54,49 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapModel do
   def download_verdict(:identity_mismatch), do: {:refuse, 125}
   def download_verdict(:ok), do: :install
 
+  # Mirrors the download gate (hippo:504-517): only a verified payload runs.
+  def payload_executes?(:install), do: true
+  def payload_executes?({:refuse, _}), do: false
+
+  # Mirrors reclaim_orphan_install_records (hippo:272-321) and
+  # reclaim_legacy_install_lock (hippo:323-355): a record is reclaimed only when its
+  # owner is positively stale, and an orphan also needs the 300 s expiry.
+  def preparation_reclaim(%{kind: :legacy_lock, owner_stale: stale}),
+    do: if(stale, do: :reclaim, else: :keep)
+
+  def preparation_reclaim(%{kind: :orphan, age_seconds: age, owner_stale: true}) when age >= 300,
+    do: :reclaim
+
+  def preparation_reclaim(%{kind: :orphan}), do: :keep
+
+  # Mirrors the contention outcomes (hippo:382-416, 783-830): one download, the live
+  # owner keeps the install, and no owner record survives.
+  def contention_outcome(:cold_callers),
+    do: %{downloads: 1, owner: :first_caller, owner_records: 0}
+
+  def contention_outcome(:stale_reclaim),
+    do: %{downloads: 1, owner: :live_replacement, owner_records: 0}
+
+  # Mirrors retention ranking (hippo:431-481): releases rank by real timestamp,
+  # newest first, and the two most recent fallbacks are kept.
+  def retained_fallbacks(releases) do
+    releases
+    |> Enum.sort_by(& &1.mtime, :desc)
+    |> Enum.take(2)
+    |> Enum.map(& &1.name)
+  end
+
+  # Mirrors the shared reservation ledger (resource-aware-development.md, Reservations
+  # and Recovery): the queue admits one owner while the other waits, and each owner
+  # makes exactly one attempt.
+  def admission_plan(:queued_then_admitted),
+    do: %{attempts_per_owner: 1, reservations: 2, retries: 0}
+
+  # Mirrors the exit decision table (resource-aware-development.md): exit 125 means
+  # HIPPO started nothing, so a protocol mismatch stops after one attempt.
+  def exit_decision(125, :protocol_mismatch),
+    do: {:stop, 1, ["./hippo status", "drain or upgrade the incompatible client"]}
+
   # Mirrors the cold/warm shape in test-hippo-bootstrap.sh run_cold_then_warm.
   def cache_plan(:empty), do: {:download, 1}
   def cache_plan(:warm_valid), do: {:reuse, 0}
@@ -175,6 +218,9 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
     assert Model.download_verdict(:digest_mismatch) == {:refuse, 125}
     assert Model.download_verdict(:identity_mismatch) == {:refuse, 125}
     assert Model.download_verdict(:ok) == :install
+    refute Model.payload_executes?(Model.download_verdict(:digest_mismatch))
+    refute Model.payload_executes?(Model.download_verdict(:identity_mismatch))
+    assert Model.payload_executes?(Model.download_verdict(:ok))
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -216,6 +262,18 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
     assert Model.wait_verdict(:dead_pid) == :takeover
     assert Model.wait_verdict(:reused_pid) == :takeover
     assert Model.wait_verdict(:crashed) == :takeover
+    # Mirrors run_crash_before_publication: a legacy lock or an orphan record is
+    # reclaimed only when positively stale, and fresh or live records stay.
+    stale = %{owner_stale: true}
+    live = %{owner_stale: false}
+    assert Model.preparation_reclaim(Map.merge(%{kind: :legacy_lock}, stale)) == :reclaim
+    assert Model.preparation_reclaim(Map.merge(%{kind: :legacy_lock}, live)) == :keep
+
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 600}, stale)) ==
+             :reclaim
+
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 10}, stale)) == :keep
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 600}, live)) == :keep
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -224,6 +282,12 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
     # Harness run_concurrent_cold_callers: one download, two runs.
     assert Model.cache_plan(:empty) == {:download, 1}
     assert Model.wait_verdict(:crashed) == :takeover
+    # Mirrors run_concurrent_cold_callers and run_concurrent_stale_reclaimers.
+    assert Model.contention_outcome(:cold_callers) ==
+             %{downloads: 1, owner: :first_caller, owner_records: 0}
+
+    assert Model.contention_outcome(:stale_reclaim) ==
+             %{downloads: 1, owner: :live_replacement, owner_records: 0}
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -248,6 +312,18 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
     assert Model.retention_keep?(%{claimed: false, pinned: false, idle_seconds: 100})
     refute Model.retention_keep?(%{claimed: false, pinned: false, idle_seconds: 604_800})
     refute Model.retention_keep?(%{claimed: false, pinned: false, idle_seconds: 900_000})
+    # Ranking reads real timestamps: the newest releases are kept whatever their names.
+    newest_first_name_last = [
+      %{name: "v8.1.1", mtime: 5},
+      %{name: "v8.1.2", mtime: 4},
+      %{name: "v8.1.3", mtime: 3},
+      %{name: "v8.1.4", mtime: 2},
+      %{name: "v8.1.5", mtime: 1}
+    ]
+
+    assert Model.retained_fallbacks(newest_first_name_last) == ["v8.1.1", "v8.1.2"]
+    oldest_first_name_last = Enum.map(newest_first_name_last, &%{&1 | mtime: 6 - &1.mtime})
+    assert Model.retained_fallbacks(oldest_first_name_last) == ["v8.1.5", "v8.1.4"]
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -319,5 +395,22 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
     assert Model.tiers_nest?(tiers, ceiling)
     refute Model.tiers_nest?([%{cpu: 16, memory: 512}], ceiling)
     refute Model.tiers_nest?([%{cpu: 1, memory: 99_999}], ceiling)
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Concurrent owners survive queued admission without client retry
+  test "queued owners each make one attempt and both hold reservations" do
+    # Mirrors run_concurrent_owners_survive_queued_admission.
+    assert Model.admission_plan(:queued_then_admitted) ==
+             %{attempts_per_owner: 1, reservations: 2, retries: 0}
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A protocol mismatch is never retried as capacity
+  test "protocol mismatch stops after one attempt with operator recovery" do
+    # Mirrors run_protocol_mismatch_is_never_retried and the exit 125 row of
+    # resource-aware-development.md.
+    assert Model.exit_decision(125, :protocol_mismatch) ==
+             {:stop, 1, ["./hippo status", "drain or upgrade the incompatible client"]}
   end
 end

@@ -163,6 +163,33 @@ elif [ "\${1:-}" = run ]; then
     printf '%s\n' "\$HIPPO_DEFAULT_CONFIG" > "\$HIPPO_TEST_POLICY_FILE.config"
     printf '%s\n' "\$HIPPO_DEFAULT_IDENTITY" > "\$HIPPO_TEST_POLICY_FILE.identity"
   fi
+  if [ -n "\${HIPPO_TEST_ATTEMPTS:-}" ]; then
+    printf '%s\n' "\${HIPPO_TEST_OWNER:-owner}" >> "\$HIPPO_TEST_ATTEMPTS"
+  fi
+  if [ -n "\${HIPPO_TEST_REFUSAL:-}" ]; then
+    printf '%s\n' "\$HIPPO_TEST_REFUSAL" >&2
+    exit 125
+  fi
+  if [ -n "\${HIPPO_TEST_QUEUE_ROOT:-}" ]; then
+    queue_owner="\${HIPPO_TEST_OWNER:-owner}"
+    queue_attempt=0
+    until mkdir "\$HIPPO_TEST_QUEUE_ROOT/slot" 2>/dev/null; do
+      : > "\$HIPPO_TEST_QUEUE_ROOT/queued.\$queue_owner"
+      queue_attempt=\$((queue_attempt + 1))
+      [ "\$queue_attempt" -lt 400 ] || exit 96
+      /bin/sleep 0.05
+    done
+    : > "\$HIPPO_TEST_QUEUE_ROOT/reservation.\$queue_owner"
+    if [ -n "\${HIPPO_TEST_HOLD:-}" ]; then
+      hold_attempt=0
+      while [ ! -e "\$HIPPO_TEST_HOLD" ]; do
+        hold_attempt=\$((hold_attempt + 1))
+        [ "\$hold_attempt" -lt 400 ] || exit 96
+        /bin/sleep 0.05
+      done
+    fi
+    rmdir "\$HIPPO_TEST_QUEUE_ROOT/slot"
+  fi
   printf '%s\n' 'run-ok'
 else
   # Staying alive inside the release is how a consumer that is *using* a release
@@ -375,6 +402,8 @@ Two callers starting together download once and both run the release
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
 Retention reclaims releases left idle beyond its window
+Concurrent owners survive queued admission without client retry
+A protocol mismatch is never retried as capacity
 A missing, duplicated, or malformed pin exits 125 before any transport
 A bounded wait for the install guard or lock that runs out exits 124
 A host without flock or lockf exits 125
@@ -547,6 +576,9 @@ run_concurrent_cold_callers() {
 		HIPPO_TEST_CURL_GATE="$gate" "$subject" probe >"$second_result" &
 	second_pid=$!
 	wait_for "the second cold caller to start" claim_exists_for "$cache_root/$test_version" "$second_pid"
+	# With both callers running, the first still owns the install lock.
+	[ -f "$cache_root/$test_version/$host_platform.lock" ]
+	[ "$(sed -n '1p' "$cache_root/$test_version/$host_platform.lock")" = "$first_pid" ]
 	: >"$gate/release"
 	wait "$first_pid"
 	wait "$second_pid"
@@ -633,10 +665,12 @@ run_non_exact_identity_envelope() {
 	set +e
 	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
 		HIPPO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$test_version\",\"commit\":\"$test_commit\",\"version\":\"v0.0.0\"}" \
-		"$subject" probe >/dev/null 2>&1
+		"$subject" probe >"$temporary_root/envelope-output" 2>/dev/null
 	status=$?
 	set -e
 	[ "$status" -eq 125 ]
+	# The envelope is refused before the payload runs, so the payload never spoke.
+	[ ! -s "$temporary_root/envelope-output" ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo.sha256" ]
@@ -1096,6 +1130,42 @@ run_release_ranking_reads_real_timestamps() {
 		[ ! -d "$cache_root/v8.1.2" ]
 		[ ! -d "$cache_root/v8.1.1" ]
 	done
+	# Name order and time order must disagree, or a ranking that sorted by name would pass
+	# the fixture above. Here the newest release carries the first name.
+	for simulated_stat in bsd gnu; do
+		case "$simulated_stat" in
+		bsd)
+			simulated_uname=Darwin
+			simulated_goos=darwin
+			;;
+		*)
+			simulated_uname=Linux
+			simulated_goos=linux
+			;;
+		esac
+		simulated_platform="$simulated_goos-$host_goarch"
+		ranking_version=v9.3.9
+		rm -rf -- "$cache_root" "$curl_count"
+		install_peer_consumer "ranking-$simulated_stat" "$ranking_version"
+		idle_stamp=5
+		for idle_release in v8.1.1 v8.1.2 v8.1.3 v8.1.4 v8.1.5; do
+			mkdir -p "$cache_root/$idle_release"
+			touch -t "20000${idle_stamp}010000" "$cache_root/$idle_release"
+			idle_stamp=$((idle_stamp - 1))
+		done
+		observed=$(PATH="$temporary_root/stat-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+			HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+			HIPPO_TEST_UNAME_S="$simulated_uname" HIPPO_TEST_STAT_EMULATE="$simulated_stat" \
+			HIPPO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$ranking_version\",\"commit\":\"$test_commit\"}" \
+			"$temporary_root/peers/ranking-$simulated_stat/hippo" probe)
+		[ "$observed" = probe-ok ]
+		[ -x "$cache_root/$ranking_version/$simulated_platform/hippo" ]
+		[ -d "$cache_root/v8.1.1" ]
+		[ -d "$cache_root/v8.1.2" ]
+		[ ! -d "$cache_root/v8.1.3" ]
+		[ ! -d "$cache_root/v8.1.4" ]
+		[ ! -d "$cache_root/v8.1.5" ]
+	done
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root" "$curl_count"
 }
@@ -1362,6 +1432,83 @@ EOF
 	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Concurrent owners survive queued admission without client retry
+run_concurrent_owners_survive_queued_admission() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root"
+	# Install once, so the two owners contend only for admission and never for transport.
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	downloads_before=$(download_count)
+
+	queue_root="$temporary_root/shared-root"
+	rm -rf -- "$queue_root"
+	mkdir -p "$queue_root"
+	hold_owner_one="$queue_root/release-owner-one"
+	attempts_one="$temporary_root/attempts-owner-one"
+	attempts_two="$temporary_root/attempts-owner-two"
+	rm -f -- "$attempts_one" "$attempts_two"
+
+	# Owner one is admitted and holds the shared slot until the test releases it.
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_QUEUE_ROOT="$queue_root" HIPPO_TEST_OWNER=owner-one HIPPO_TEST_HOLD="$hold_owner_one" HIPPO_TEST_ATTEMPTS="$attempts_one" \
+		"$subject" run --class ephemeral --resource-tier light -- printf '%s\n' ok >"$temporary_root/owner-one.out" 2>&1 &
+	owner_one=$!
+	wait_for "the first owner to hold its reservation" [ -e "$queue_root/reservation.owner-one" ]
+
+	# Owner two arrives while owner one holds the slot, so it queues instead of admitting.
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_QUEUE_ROOT="$queue_root" HIPPO_TEST_OWNER=owner-two HIPPO_TEST_ATTEMPTS="$attempts_two" \
+		"$subject" run --class ephemeral --resource-tier light -- printf '%s\n' ok >"$temporary_root/owner-two.out" 2>&1 &
+	owner_two=$!
+	wait_for "the second owner to queue behind the first" [ -e "$queue_root/queued.owner-two" ]
+	[ ! -e "$queue_root/reservation.owner-two" ]
+
+	: >"$hold_owner_one"
+	set +e
+	wait "$owner_one"
+	status_one=$?
+	wait "$owner_two"
+	status_two=$?
+	set -e
+	[ "$status_one" -eq 0 ]
+	[ "$status_two" -eq 0 ]
+	[ -e "$queue_root/reservation.owner-one" ]
+	[ -e "$queue_root/reservation.owner-two" ]
+	# One attempt per owner: a client-side retry loop would run a child twice.
+	[ "$(awk 'END { print NR }' "$attempts_one")" -eq 1 ]
+	[ "$(awk 'END { print NR }' "$attempts_two")" -eq 1 ]
+	[ "$(download_count)" -eq "$downloads_before" ]
+	[ "$(cat "$temporary_root/owner-one.out")" = run-ok ]
+	[ "$(cat "$temporary_root/owner-two.out")" = run-ok ]
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A protocol mismatch is never retried as capacity
+run_protocol_mismatch_is_never_retried() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+
+	# The release refuses before its child starts, the way a live incompatible peer does.
+	attempts="$temporary_root/mismatch-attempts"
+	rm -f -- "$attempts"
+	mismatch_message='hippo: [hippo.coordination.protocol-mismatch] live peer coordination state this client cannot safely join; inspect ./hippo status, then drain or upgrade the incompatible client before retrying'
+	set +e
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_CURL_FAIL=1 HIPPO_TEST_OWNER=mismatch HIPPO_TEST_ATTEMPTS="$attempts" \
+		HIPPO_TEST_REFUSAL="$mismatch_message" \
+		"$subject" run --class ephemeral --resource-tier standard -- printf '%s\n' ok >"$temporary_root/mismatch.out" 2>"$temporary_root/mismatch.err"
+	status=$?
+	set -e
+	# Exactly one attempt, the code passed through unchanged, and no child output.
+	[ "$status" -eq 125 ]
+	[ "$(awk 'END { print NR }' "$attempts")" -eq 1 ]
+	[ ! -s "$temporary_root/mismatch.out" ]
+	grep -Fq 'hippo.coordination.protocol-mismatch' "$temporary_root/mismatch.err"
+	grep -Fq './hippo status' "$temporary_root/mismatch.err"
+	grep -Fq 'drain or upgrade' "$temporary_root/mismatch.err"
+}
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
 	# silent, and a corpus that shrank would still end in a pass line. A Scenario
@@ -1402,6 +1549,8 @@ while IFS= read -r scenario; do
 	'A host without flock or lockf exits 125') run_missing_lock_tool_125 ;;
 	'The worker policy comes from the checkout'"'"'s own hippo.local.json, else the primary checkout'"'"'s, and an explicit setting wins') run_worker_policy_resolution ;;
 	'The wrapper hands the release the repository'"'"'s local resource policy') run_local_resource_policy ;;
+	'Concurrent owners survive queued admission without client retry') run_concurrent_owners_survive_queued_admission ;;
+	'A protocol mismatch is never retried as capacity') run_protocol_mismatch_is_never_retried ;;
 	*) exit 1 ;;
 	esac
 done <<EOF

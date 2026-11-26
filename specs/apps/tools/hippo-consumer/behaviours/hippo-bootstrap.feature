@@ -29,7 +29,7 @@ Feature: Safe HIPPO consumer bootstrap
   Scenario Outline: A downloaded release that fails verification is refused
     Given a downloaded release fails verification because <failure>
     When the HIPPO consumer bootstrap downloads and verifies that release
-    Then it exits as invalid configuration and publishes nothing to the cache
+    Then it exits as invalid configuration and publishes nothing to the cache, without executing the payload
 
     Examples:
       | failure                                                       |
@@ -67,20 +67,24 @@ Feature: Safe HIPPO consumer bootstrap
   Scenario Outline: A caller takes over an install whose owner is gone
     Given <stale state>
     When this consumer tries to install the pinned release
-    Then it takes over the abandoned install and installs the pinned release
+    Then it takes over the abandoned install and installs the pinned release, reclaiming only positively stale state
+      while fresh or live preparations remain protected
 
     Examples:
       | stale state                                                              |
       | the earlier install's process has ended                                  |
       | the earlier install's process number now belongs to an unrelated process |
       | an earlier consumer crashed while it was starting its install            |
+      | an incomplete legacy lock left by an earlier consumer                    |
+      | an orphan prepared owner record left by an earlier consumer              |
 
   # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
   @e2e-exempt
   Scenario Outline: Two callers starting together download once and both run the release
     Given two consumers start against <starting state>
     When both contend for the install
-    Then both execute the release from one download
+    Then both execute the release from one download, a live replacement owner stays owned while the other contends,
+      and no ownership record survives
 
     Examples:
       | starting state                                          |
@@ -107,12 +111,29 @@ Feature: Safe HIPPO consumer bootstrap
     Given a cache root holds release directories left untouched past the idle window
     And the host's stat command uses the <dialect> dialect
     When a consumer installs its pinned release and retention runs
-    Then only the pinned release and the most recent idle fallbacks remain
+    Then only the pinned release and the most recent idle fallbacks remain, because retention ranks releases by their
+      real timestamps rather than by diagnostic output
 
     Examples:
       | dialect |
       | BSD     |
       | GNU     |
+
+  # Behaviour: BN-BOOT-14
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario: Concurrent owners survive queued admission without client retry
+    Given a shared coordination root that queues one owner while it admits another
+    When two consumers submit one guarded attempt each
+    Then both owners hold reservations without an exit-code retry loop
+
+  # Behaviour: BN-BOOT-14
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario: A protocol mismatch is never retried as capacity
+    Given a consumer with distinct protocol-mismatch exit 125 receives it before its child starts
+    When the consumer applies the documented exit decision table
+    Then it stops after one attempt and directs the operator to status and drain-or-upgrade recovery
 
   # Carries BN-BOOT-15: pin refusals exit 125 before any transport.
   # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
@@ -173,7 +194,7 @@ Feature: Safe HIPPO consumer bootstrap
       | any checkout                                       | hippo.identity.json as HIPPO_DEFAULT_IDENTITY |
 
   # Carries BN-CFG-24: local resource policy hand-off.
-  # Exemption(e2e): this tool has no browser or server boundary above the wrapper itself; alternative-proof: hippo-consumer:test:integration / The wrapper hands the release the repository's local resource policy
+  # Exemption(e2e): this tool has no browser or server boundary above the wrapper itself; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
   @e2e-exempt
   Scenario: The wrapper hands the release the repository's local resource policy
     Given a checkout whose hippo.local.json declares the light, standard and heavy tiers

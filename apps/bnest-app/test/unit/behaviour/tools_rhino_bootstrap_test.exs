@@ -53,6 +53,44 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapModel do
   def download_verdict(:identity_mismatch), do: {:refuse, 125}
   def download_verdict(:ok), do: :install
 
+  # Mirrors the download gate (rhino:460-478): only a verified payload runs.
+  def payload_executes?(:install), do: true
+  def payload_executes?({:refuse, _}), do: false
+
+  # Mirrors the identity gate: the candidate tag must report its stable product
+  # version, and any other identity is refused with exit 125.
+  def identity_verdict(candidate, reported) do
+    if stable_of(candidate) == reported, do: :install, else: {:refuse, 125}
+  end
+
+  # Mirrors reclaim_orphan_install_records and reclaim_legacy_install_lock: a record
+  # is reclaimed only when its owner is positively stale, and an orphan also needs
+  # the 300 s expiry.
+  def preparation_reclaim(%{kind: :legacy_lock, owner_stale: stale}),
+    do: if(stale, do: :reclaim, else: :keep)
+
+  def preparation_reclaim(%{kind: :orphan, age_seconds: age, owner_stale: true}) when age >= 300,
+    do: :reclaim
+
+  def preparation_reclaim(%{kind: :orphan}), do: :keep
+
+  # Mirrors the contention outcomes: one download, the live owner keeps the install,
+  # and no owner record survives.
+  def contention_outcome(:cold_callers),
+    do: %{downloads: 1, owner: :first_caller, owner_records: 0}
+
+  def contention_outcome(:stale_reclaim),
+    do: %{downloads: 1, owner: :live_replacement, owner_records: 0}
+
+  # Mirrors retention ranking: releases rank by real timestamp, newest first, and the
+  # two most recent fallbacks are kept.
+  def retained_fallbacks(releases) do
+    releases
+    |> Enum.sort_by(& &1.mtime, :desc)
+    |> Enum.take(2)
+    |> Enum.map(& &1.name)
+  end
+
   def cache_plan(:empty), do: {:download, 1}
   def cache_plan(:warm_valid), do: {:reuse, 0}
   def cache_plan(:tampered), do: {:refuse, 99}
@@ -138,6 +176,9 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapTest do
     assert Model.download_verdict(:digest_mismatch) == {:refuse, 125}
     assert Model.download_verdict(:identity_mismatch) == {:refuse, 125}
     assert Model.download_verdict(:ok) == :install
+    refute Model.payload_executes?(Model.download_verdict(:digest_mismatch))
+    refute Model.payload_executes?(Model.download_verdict(:identity_mismatch))
+    assert Model.payload_executes?(Model.download_verdict(:ok))
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -158,6 +199,9 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapTest do
     assert Model.stable_of("v9.8.7-rc.5") == "v9.8.7"
     assert Model.download_verdict(:ok) == :install
     assert Model.cache_plan(:warm_valid) == {:reuse, 0}
+    # Mirrors the stable identity gate: the candidate verifies against its stable version.
+    assert Model.identity_verdict("v9.8.7-rc.5", "v9.8.7") == :install
+    assert Model.identity_verdict("v9.8.7-rc.5", "v9.8.8") == {:refuse, 125}
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -186,6 +230,18 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapTest do
     assert Model.wait_verdict(:dead_pid) == :takeover
     assert Model.wait_verdict(:reused_pid) == :takeover
     assert Model.wait_verdict(:crashed) == :takeover
+    # Mirrors run_crash_before_publication: a legacy lock or an orphan record is
+    # reclaimed only when positively stale, and fresh or live records stay.
+    stale = %{owner_stale: true}
+    live = %{owner_stale: false}
+    assert Model.preparation_reclaim(Map.merge(%{kind: :legacy_lock}, stale)) == :reclaim
+    assert Model.preparation_reclaim(Map.merge(%{kind: :legacy_lock}, live)) == :keep
+
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 600}, stale)) ==
+             :reclaim
+
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 10}, stale)) == :keep
+    assert Model.preparation_reclaim(Map.merge(%{kind: :orphan, age_seconds: 600}, live)) == :keep
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -193,6 +249,12 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapTest do
   test "concurrent cold callers share one download" do
     assert Model.cache_plan(:empty) == {:download, 1}
     assert Model.wait_verdict(:crashed) == :takeover
+    # Mirrors run_concurrent_cold_callers and run_concurrent_stale_reclaimers.
+    assert Model.contention_outcome(:cold_callers) ==
+             %{downloads: 1, owner: :first_caller, owner_records: 0}
+
+    assert Model.contention_outcome(:stale_reclaim) ==
+             %{downloads: 1, owner: :live_replacement, owner_records: 0}
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -213,6 +275,18 @@ defmodule BnestApp.Behaviour.Tools.RhinoBootstrapTest do
   test "only pinned and recent idle fallbacks remain" do
     assert Model.retention_keep?(%{claimed: false, pinned: false, idle_seconds: 100})
     refute Model.retention_keep?(%{claimed: false, pinned: false, idle_seconds: 604_800})
+    # Ranking reads real timestamps: the newest releases are kept whatever their names.
+    newest_first_name_last = [
+      %{name: "v8.1.1", mtime: 5},
+      %{name: "v8.1.2", mtime: 4},
+      %{name: "v8.1.3", mtime: 3},
+      %{name: "v8.1.4", mtime: 2},
+      %{name: "v8.1.5", mtime: 1}
+    ]
+
+    assert Model.retained_fallbacks(newest_first_name_last) == ["v8.1.1", "v8.1.2"]
+    oldest_first_name_last = Enum.map(newest_first_name_last, &%{&1 | mtime: 6 - &1.mtime})
+    assert Model.retained_fallbacks(oldest_first_name_last) == ["v8.1.5", "v8.1.4"]
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

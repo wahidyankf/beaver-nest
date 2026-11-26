@@ -519,6 +519,18 @@ run_exact_candidate_tag_uses_stable_product_identity() {
 		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$stable_product_version\",\"commit\":\"$test_commit\"}" "$subject" probe)
 	[ "$result" = probe-ok ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
+	# The stable identity is verified rather than assumed: an executable that reports
+	# a different stable version is refused before anything is published.
+	rm -rf -- "$cache_root"
+	candidate_mismatch_output="$temporary_root/candidate-identity-output"
+	set +e
+	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"v9.8.8\",\"commit\":\"$test_commit\"}" "$subject" probe >"$candidate_mismatch_output" 2>/dev/null
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	[ ! -s "$candidate_mismatch_output" ]
+	[ ! -e "$cache_root/$candidate_version/$host_platform/rhino" ]
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
 }
@@ -530,10 +542,12 @@ run_non_exact_identity_envelope() {
 	set +e
 	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
 		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$test_version\",\"commit\":\"$test_commit\",\"version\":\"v0.0.0\"}" \
-		"$subject" probe >/dev/null 2>&1
+		"$subject" probe >"$temporary_root/envelope-output" 2>/dev/null
 	status=$?
 	set -e
 	[ "$status" -eq 125 ]
+	# The envelope is refused before the payload runs, so the payload never spoke.
+	[ ! -s "$temporary_root/envelope-output" ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/rhino" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/rhino.sha256" ]
@@ -700,6 +714,9 @@ run_concurrent_cold_callers() {
 		RHINO_TEST_CURL_GATE="$gate" "$subject" probe >"$second_result" &
 	second_pid=$!
 	wait_for "the second cold caller to start" claim_exists_for "$cache_root/$test_version" "$second_pid"
+	# With both callers running, the first still owns the install lock.
+	[ -f "$cache_root/$test_version/$host_platform.lock" ]
+	[ "$(sed -n '1p' "$cache_root/$test_version/$host_platform.lock")" = "$first_pid" ]
 	: >"$gate/release"
 	wait "$first_pid"
 	wait "$second_pid"
@@ -1054,6 +1071,40 @@ run_release_ranking_reads_real_timestamps() {
 		[ ! -d "$cache_root/v8.1.3" ]
 		[ ! -d "$cache_root/v8.1.2" ]
 		[ ! -d "$cache_root/v8.1.1" ]
+	done
+	# Name order and time order must disagree, or a ranking that sorted by name would pass
+	# the fixture above. Here the newest release carries the first name.
+	for simulated_stat in bsd gnu; do
+		case "$simulated_stat" in
+		bsd)
+			simulated_uname=Darwin; simulated_system=apple-darwin
+			;;
+		*)
+			simulated_uname=Linux; simulated_system=unknown-linux-gnu
+			;;
+		esac
+		simulated_platform="$host_architecture-$simulated_system"
+		ranking_version=v9.3.9
+		rm -rf -- "$cache_root" "$curl_count"
+		install_peer_consumer "ranking-$simulated_stat" "$ranking_version"
+		idle_stamp=5
+		for idle_release in v8.1.1 v8.1.2 v8.1.3 v8.1.4 v8.1.5; do
+			mkdir -p "$cache_root/$idle_release"
+			touch -t "20000${idle_stamp}010000" "$cache_root/$idle_release"
+			idle_stamp=$((idle_stamp - 1))
+		done
+		observed=$(PATH="$temporary_root/stat-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+			RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+			RHINO_TEST_UNAME_S="$simulated_uname" RHINO_TEST_STAT_EMULATE="$simulated_stat" \
+			RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$ranking_version\",\"commit\":\"$test_commit\"}" \
+			"$temporary_root/peers/ranking-$simulated_stat/rhino" probe)
+		[ "$observed" = probe-ok ]
+		[ -x "$cache_root/$ranking_version/$simulated_platform/rhino" ]
+		[ -d "$cache_root/v8.1.1" ]
+		[ -d "$cache_root/v8.1.2" ]
+		[ ! -d "$cache_root/v8.1.3" ]
+		[ ! -d "$cache_root/v8.1.4" ]
+		[ ! -d "$cache_root/v8.1.5" ]
 	done
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root" "$curl_count"
