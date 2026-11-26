@@ -283,6 +283,68 @@ defmodule BnestApp.CodexChat.ModelAccessTest do
     end
   end
 
+  describe "same-tier fallback for a saved model the role no longer offers" do
+    test "an admin's old Sol id settles to the latest Sol" do
+      access = resolve(["admin"])
+
+      assert {%{id: @sol}, _effort} = ModelAccess.settle(access, "gpt-5.6-sol", "medium")
+      assert {%{id: @sol}, _effort} = ModelAccess.settle(access, "gpt-6-sol", "medium")
+    end
+
+    test "an admin's old Terra id settles to the latest Terra" do
+      access = resolve(["admin"])
+
+      assert {%{id: @terra}, _effort} = ModelAccess.settle(access, "gpt-5.6-terra", "medium")
+    end
+
+    test "an admin's old Luna id settles to the latest Luna" do
+      access = resolve(["admin"])
+
+      assert {%{id: @luna}, _effort} = ModelAccess.settle(access, "gpt-5.6-luna", "medium")
+    end
+
+    test "the tier match ignores case" do
+      access = resolve(["admin"])
+
+      assert {%{id: @sol}, _effort} = ModelAccess.settle(access, "GPT-5.6-SOL", "medium")
+      assert {%{id: @terra}, _effort} = ModelAccess.settle(access, "Gpt-5.6-Terra", "medium")
+    end
+
+    test "an unknown tier still falls back to the role default" do
+      assert {%{id: @terra}, _effort} =
+               ModelAccess.settle(resolve(["admin"]), "gpt-6-astra", "medium")
+
+      assert {%{id: @luna}, _effort} =
+               ModelAccess.settle(resolve(["children"]), "gpt-6-astra", "medium")
+
+      assert {%{id: @terra}, _effort} =
+               ModelAccess.settle(resolve(["admin"]), "removed-model", "medium")
+    end
+
+    test "a tier the role does not offer still falls back to the role default" do
+      assert {%{id: @terra}, _effort} =
+               ModelAccess.settle(resolve(["parents"]), "gpt-5.6-sol", "medium")
+
+      assert {%{id: @terra}, _effort} = ModelAccess.settle(resolve(["parents"]), @sol, "medium")
+    end
+
+    test "children keep no model choice: every saved model settles to Luna at medium" do
+      child = resolve(["children"])
+
+      saved = ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna", "gpt-6-astra", "removed-model"]
+
+      for id <- saved do
+        assert {%{id: @luna}, "medium"} = ModelAccess.settle(child, id, "high")
+      end
+    end
+
+    test "tier_latest names the latest id of a known tier and nil otherwise" do
+      assert ModelAccess.tier_latest("gpt-5.6-sol") == @sol
+      assert ModelAccess.tier_latest("gpt-6-astra") == nil
+      assert ModelAccess.tier_latest(nil) == nil
+    end
+  end
+
   test "reasoning_effort keeps a supported effort, then max, then the model's default" do
     luna = model(@luna)
 

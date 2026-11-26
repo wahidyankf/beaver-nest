@@ -189,6 +189,46 @@ defmodule BnestApp.CodexChat.TranscriptTest do
              {:ok, Transcript.new()}
   end
 
+  test "upgrading a v1..v3 snapshot keeps the saved model's tier" do
+    snapshots = [
+      {1, "gpt-5.6-sol", "gpt-6.1-sol"},
+      {2, "gpt-6-sol", "gpt-6.1-sol"},
+      {2, "gpt-5.6-terra", "gpt-6.1-terra"},
+      {3, "gpt-5.6-luna", "gpt-6-luna"},
+      {3, "GPT-5.6-SOL", "gpt-6.1-sol"}
+    ]
+
+    for {version, saved, expected} <- snapshots do
+      snapshot = %{
+        "version" => version,
+        "thread_id" => nil,
+        "model" => saved,
+        "reasoning_effort" => "medium",
+        "messages" => [],
+        "pending_turn" => nil
+      }
+
+      assert {:ok, restored} = Transcript.restore(snapshot)
+      assert restored.model == expected
+    end
+  end
+
+  test "upgrading a v1..v3 snapshot without a known tier uses the preferred model" do
+    for saved <- ["gpt-6-astra", "removed-model"] do
+      snapshot = %{
+        "version" => 2,
+        "thread_id" => nil,
+        "model" => saved,
+        "reasoning_effort" => "medium",
+        "messages" => [],
+        "pending_turn" => nil
+      }
+
+      assert {:ok, restored} = Transcript.restore(snapshot)
+      assert restored.model == "gpt-6.1-terra"
+    end
+  end
+
   test "rejects malformed and unsupported snapshots" do
     assert Transcript.restore(%{}) == :error
 
