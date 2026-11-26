@@ -50,7 +50,24 @@ When(
     const item = page
       .locator("[data-role=conversation-item]")
       .filter({ hasText: title });
-    await item.getByRole("button", { name: "Delete" }).click();
+    // The rail delete is an icon button: its accessible name carries the
+    // action, so the locator keys off the stable data-role hook instead.
+    await item.locator("[data-role=delete-conversation]").click();
     await expect(item).toHaveCount(0);
+  },
+);
+
+When(
+  "the visitor renames the conversation {string} to {string}",
+  async ({ page }, title: string, next: string) => {
+    const item = page
+      .locator("[data-role=conversation-item]")
+      .filter({ hasText: title });
+    await item.locator("[data-role=rename-toggle]").click();
+    await item.locator("[data-role=rename-input]").fill(next);
+    await item.locator("[data-role=rename-submit]").click();
+    await expect(
+      page.locator("[data-role=conversation-item]").filter({ hasText: next }),
+    ).toBeVisible();
   },
 );

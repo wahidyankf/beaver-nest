@@ -320,6 +320,11 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.delete_conversation(context, title)
   end
 
+  step "the visitor renames the conversation {string} to {string}",
+       %{args: [title, next]} = context do
+    context.behaviour_driver.rename_conversation(context, title, next)
+  end
+
   step "the study mode is available", context do
     assert context.behaviour_driver.study_mode_available?(context)
     context

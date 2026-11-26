@@ -600,17 +600,34 @@ body:has(.family-chat-shell) {
   font-size: 0.75rem;
 }
 
+/* One compact row per conversation: the edit icon opens the rename form, and
+ * the trash icon deletes. Both keep a 44px touch target. */
+.conversation-actions {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.conversation-rail [data-role="rename-toggle"],
 .conversation-rail [data-role="delete-conversation"] {
-  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
   min-height: 2.75rem;
   border: 2px solid var(--bnest-ink);
-  border-radius: 999px;
-  padding: 0.25rem 0.8rem;
+  border-radius: 0.6rem;
+  padding: 0.25rem;
   background: var(--bnest-paper);
   color: var(--bnest-ink);
-  font-size: 0.8rem;
-  font-weight: 700;
   cursor: pointer;
+}
+
+.conversation-rail [data-role="rename-toggle"]:hover {
+  background: var(--bnest-sun-light);
+}
+
+.conversation-rail [data-role="rename-toggle"][aria-expanded="true"] {
+  background: var(--bnest-sun);
 }
 
 .conversation-rail [data-role="delete-conversation"]:hover {
@@ -618,8 +635,18 @@ body:has(.family-chat-shell) {
   color: var(--bnest-error);
 }
 
+.conversation-rail [data-role="rename-toggle"] svg,
+.conversation-rail [data-role="delete-conversation"] svg {
+  flex: none;
+}
+
 .conversation-rename {
   display: grid;
+  gap: 0.4rem;
+}
+
+.conversation-rename-actions {
+  display: flex;
   gap: 0.4rem;
 }
 
@@ -635,8 +662,8 @@ body:has(.family-chat-shell) {
   font-size: 0.85rem;
 }
 
-.conversation-rail [data-role="rename-submit"] {
-  justify-self: start;
+.conversation-rail [data-role="rename-submit"],
+.conversation-rail [data-role="rename-cancel"] {
   min-height: 2.75rem;
   border: 2px solid var(--bnest-ink);
   border-radius: 999px;
@@ -648,11 +675,21 @@ body:has(.family-chat-shell) {
   cursor: pointer;
 }
 
+.conversation-rail [data-role="rename-submit"] {
+  background: var(--bnest-sun);
+}
+
+.conversation-rail [data-role="rename-submit"]:hover {
+  background: var(--bnest-sun-light);
+}
+
 .conversation-rail [data-role="new-conversation"]:focus-visible,
 .conversation-rail [data-role="select-conversation"]:focus-visible,
+.conversation-rail [data-role="rename-toggle"]:focus-visible,
 .conversation-rail [data-role="delete-conversation"]:focus-visible,
 .conversation-rail [data-role="rename-input"]:focus-visible,
-.conversation-rail [data-role="rename-submit"]:focus-visible {
+.conversation-rail [data-role="rename-submit"]:focus-visible,
+.conversation-rail [data-role="rename-cancel"]:focus-visible {
   outline: 3px solid var(--bnest-coral);
   outline-offset: 2px;
 }
@@ -1109,8 +1146,13 @@ body:has(.family-chat-shell) {
 
   /* On a phone the rail stacks above the panel as a full-width strip: the
    * list scrolls sideways so every conversation stays reachable without
-   * pushing the panel off screen. */
+   * pushing the panel off screen. The strip sticks to the top of the screen
+   * while the page scrolls, so New chat and the conversation cards stay
+   * visible and reachable while the transcript scrolls beneath. */
   .conversation-rail {
+    position: sticky;
+    top: 0;
+    z-index: 1;
     max-height: none;
     overflow: visible;
     border: 0;

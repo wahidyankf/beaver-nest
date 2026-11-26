@@ -659,6 +659,24 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     context
   end
 
+  @impl true
+  def rename_conversation(context, title, next) do
+    id = conversation_id!(context, title)
+
+    context.view
+    |> element("[data-role=rename-toggle][phx-value-id=\"#{id}\"]")
+    |> render_click()
+
+    context.view
+    |> element("form[phx-submit=rename_conversation]")
+    |> render_submit(%{"conversation_id" => id, "title" => next})
+
+    unless conversation_list_shows?(context, next),
+      do: raise("renaming the conversation did not retitle it on the rail")
+
+    context
+  end
+
   defp conversation_selected?(context, title) do
     context.view
     |> render()

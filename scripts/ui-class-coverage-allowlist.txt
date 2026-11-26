@@ -1,0 +1,10 @@
+# ui-class-coverage allowlist — literal classes the gate must not flag.
+#
+# Format: `name # reason`, one per line. A trailing `*` is a prefix (for
+# dynamic families like `is-*`). An entry without a `# reason` fails the gate.
+# This list is for style-less behavior hooks read by scripts, or utilities the
+# extractors cannot spell — never for a typo or a style that should exist.
+# Resolve those by fixing the markup or the stylesheet instead.
+#
+# Empty on purpose: every literal class in the scanned templates is currently
+# defined by a shipped stylesheet.

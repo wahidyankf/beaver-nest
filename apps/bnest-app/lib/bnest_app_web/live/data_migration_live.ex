@@ -45,7 +45,7 @@ defmodule BnestAppWeb.DataMigrationLive do
     <main class="identity-shell">
       <section
         id="browser-import"
-        class="identity-card identity-setup"
+        class="identity-card"
         aria-labelledby="import-title"
         phx-hook="BrowserImport"
       >

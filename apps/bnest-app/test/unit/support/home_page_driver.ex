@@ -750,6 +750,25 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     deleted
   end
 
+  # Renaming opens the edit icon first: the form exists only while renaming.
+  @impl true
+  def rename_conversation(context, title, next) do
+    id = conversation_id!(context, title)
+
+    opened = chat_event(context, "toggle_rename", %{"id" => id})
+
+    renamed =
+      chat_event(opened, "rename_conversation", %{
+        "conversation_id" => id,
+        "title" => next
+      })
+
+    unless conversation_list_shows?(renamed, next),
+      do: raise("renaming the conversation did not retitle it on the rail")
+
+    renamed
+  end
+
   defp conversation_selected?(context, title) do
     context.page
     |> LazyHTML.query(
