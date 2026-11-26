@@ -1173,7 +1173,7 @@ function socketFor(page: Page) {
 function sentSubscription(
   page: Page,
   payload: Record<string, unknown>,
-): { payload: Record<string, unknown>; receipt?: Receipt } {
+): { payload: Record<string, unknown>; receipt: Receipt | undefined } {
   const { sent, receipt } = sentFrames(
     page,
     "socket",
