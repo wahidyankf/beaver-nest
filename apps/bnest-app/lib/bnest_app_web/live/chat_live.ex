@@ -303,7 +303,36 @@ defmodule BnestAppWeb.ChatLive do
   def render(assigns) do
     ~H"""
     <main class="chat-shell">
-      <aside class="conversation-rail" data-role="conversation-rail" aria-label="Chats">
+      <%!-- The overlay that dismisses the drawer on a phone. Desktop CSS hides it. --%>
+      <div class="conversation-scrim" data-role="conversation-scrim" aria-hidden="true"></div>
+      <aside
+        id="conversation-drawer"
+        class="conversation-rail"
+        data-role="conversation-rail"
+        aria-label="Chats"
+      >
+        <div class="conversation-drawer-head">
+          <h2>Chats</h2>
+          <button
+            type="button"
+            data-role="conversation-close"
+            aria-label="Close conversation list"
+            title="Close conversation list"
+          >
+            <svg
+              aria-hidden="true"
+              width="16"
+              height="16"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M3 3l10 10M13 3L3 13" />
+            </svg>
+          </button>
+        </div>
         <button type="button" data-role="new-conversation" phx-click="new_conversation">
           New chat
         </button>
@@ -410,6 +439,29 @@ defmodule BnestAppWeb.ChatLive do
       </aside>
       <section class="chat-panel" aria-labelledby="chat-title">
         <header class="chat-header">
+          <%!-- On a phone the rail is a drawer, so the header holds its toggle. Desktop CSS hides it. --%>
+          <button
+            type="button"
+            class="conversations-toggle"
+            data-role="conversations-toggle"
+            aria-expanded="false"
+            aria-controls="conversation-drawer"
+            aria-label="Chats"
+            title="Chats"
+          >
+            <svg
+              aria-hidden="true"
+              width="20"
+              height="20"
+              viewBox="0 0 20 20"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M3 5h14M3 10h14M3 15h14" />
+            </svg>
+          </button>
           <a href="/" class="brand-identity" aria-label="Beaver Nest home">
             <img
               class="brand-logo"

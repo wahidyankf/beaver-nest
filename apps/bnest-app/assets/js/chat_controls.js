@@ -1,9 +1,17 @@
 // Client-side controls of the Codex chat page (ADR 005): the options panel on a phone, the Clear chat confirmation, and
-// the raw or rendered view of each visitor message.
+// the raw or rendered view of each visitor message. The conversation drawer lives in conversation_drawer.js and is
+// driven from here, so Escape and taps reach it in the same order as the other controls.
 //
 // Each control is a delegated listener on the document, so it keeps working after LiveView patches the page. None of
 // these states goes to the server: the confirmation only reaches it when "Yes, delete" is pressed, which runs the
 // LiveView `clear` event on that button.
+
+import {
+  handleDrawerClick,
+  handleDrawerEscape,
+  installDrawerDesktopClose,
+  isElement,
+} from "./conversation_drawer.js";
 
 const OPEN_CLASS = "is-open";
 
@@ -13,15 +21,6 @@ let movingFocus = false;
 // True from a press that starts inside the confirmation group until the press ends. Safari does not focus a button on
 // click, so the focusout of that press reports no new focus target; the button must still receive its click.
 let pressInsideGroup = false;
-
-// Duck-typed element check: `instanceof Element` fails when the page belongs to another window (happy-dom tests).
-/** @param {unknown} node @returns {node is HTMLElement} */
-function isElement(node) {
-  if (node === null || typeof node !== "object") return false;
-  /** @type {any} */
-  const candidate = node;
-  return typeof candidate.closest === "function";
-}
 
 /** @param {ParentNode} root */
 function confirmationOf(root) {
@@ -148,6 +147,9 @@ function handleClick(event, document) {
   const target = event.target;
   if (!isElement(target)) return;
 
+  // The drawer toggle and its dismiss targets run before the options panel, so a tap on Chats never leaks through.
+  handleDrawerClick(document, target);
+
   closeOptionsOnOutsideTap(document, target);
 
   const options = target.closest("[data-role='chat-options-toggle']");
@@ -192,8 +194,9 @@ function handleClick(event, document) {
 }
 
 /**
- * Escape closes the innermost open thing: the Clear chat confirmation first, then the options panel. When focus was in
- * the panel, it goes back to the Options toggle, so a keyboard user is not left in a closed panel.
+ * Escape closes the innermost open thing: the Clear chat confirmation first, then the conversation drawer, then the
+ * options panel. When focus was in the drawer, it goes back to the Chats toggle, so a keyboard user is not left in a
+ * closed drawer.
  * @param {KeyboardEvent} event
  * @param {Document} document
  */
@@ -215,6 +218,7 @@ function handleEscape(event, document) {
     }
     return;
   }
+  if (handleDrawerEscape(event, document)) return;
   if (!optionsAreOpen(document)) return;
   event.preventDefault();
   setOptions(document, false);
@@ -267,4 +271,5 @@ export function installChatControls(document) {
   document.addEventListener("pointerdown", handlePointerDown);
   document.addEventListener("pointerup", endPress);
   document.addEventListener("pointercancel", endPress);
+  installDrawerDesktopClose(document);
 }

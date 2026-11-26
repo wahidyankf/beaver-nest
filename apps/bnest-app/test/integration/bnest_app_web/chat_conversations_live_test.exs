@@ -24,6 +24,20 @@ defmodule BnestAppWeb.ChatConversationsLiveTest do
     assert [{_id, "New chat", true}] = rail_items(view)
   end
 
+  test "the phone drawer toggle, drawer, scrim and close button are rendered", %{conn: conn} do
+    {conn, _identity} = scenario_authenticated_conn(conn, "chat-conv-drawer", ["admin"])
+    {:ok, view, _html} = live(conn, "/chat")
+
+    assert has_element?(
+             view,
+             "[data-role=conversations-toggle][aria-expanded=false][aria-controls=conversation-drawer]"
+           )
+
+    assert has_element?(view, "#conversation-drawer[data-role=conversation-rail]")
+    assert has_element?(view, "[data-role=conversation-scrim]")
+    assert has_element?(view, "[data-role=conversation-close]")
+  end
+
   test "sending names the conversation from the first message and persists it", %{conn: conn} do
     {conn, identity} = scenario_authenticated_conn(conn, "chat-conv-persist", ["admin"])
     {:ok, view, _html} = live(conn, "/chat")
