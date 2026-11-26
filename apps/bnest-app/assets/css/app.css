@@ -518,6 +518,145 @@ body:has(.family-chat-shell) {
   box-shadow: 0.6rem 0.6rem 0 var(--bnest-shadow);
 }
 
+/* The conversation rail is the sidebar beside the chat panel: the shell gains
+ * a rail column, and the rail reuses the panel's card chrome so the two read
+ * as one surface. The selectors key off the stable data-role hooks the
+ * LiveView renders, so no markup change is needed. */
+.chat-shell {
+  grid-template-columns: minmax(12rem, 16rem) minmax(0, 46rem);
+  justify-content: center;
+  align-items: start;
+  gap: 1rem;
+}
+
+.conversation-rail {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  max-height: calc(var(--vvh, 100dvh) - 2rem);
+  overflow-y: auto;
+  border: 2px solid var(--bnest-ink);
+  border-radius: var(--bnest-card-radius);
+  padding: 0.9rem;
+  background: var(--bnest-paper);
+  box-shadow: 0.6rem 0.6rem 0 var(--bnest-shadow);
+}
+
+.conversation-rail [data-role="new-conversation"] {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 999px;
+  padding: 0.4rem 0.9rem;
+  background: var(--bnest-sun);
+  color: var(--bnest-ink);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conversation-rail [data-role="new-conversation"]:hover {
+  background: var(--bnest-sun-light);
+}
+
+.conversation-rail ul {
+  display: grid;
+  gap: 0.5rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conversation-rail [data-role="conversation-item"] {
+  display: grid;
+  gap: 0.25rem;
+  border: 2px solid transparent;
+  border-radius: 0.8rem;
+  padding: 0.5rem 0.6rem;
+}
+
+/* The selected conversation is the one whose item carries aria-current. */
+.conversation-rail [data-role="conversation-item"][aria-current="true"] {
+  border-color: var(--bnest-ink);
+  background: var(--bnest-sun-light);
+}
+
+.conversation-rail [data-role="select-conversation"] {
+  color: var(--bnest-ink);
+  font-weight: 700;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.conversation-rail [data-role="select-conversation"]:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 0.12em;
+  text-underline-offset: 0.15em;
+}
+
+.conversation-rail [data-role="conversation-updated"] {
+  color: var(--bnest-ink-soft);
+  font-size: 0.75rem;
+}
+
+.conversation-rail [data-role="delete-conversation"] {
+  justify-self: start;
+  min-height: 2.75rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 999px;
+  padding: 0.25rem 0.8rem;
+  background: var(--bnest-paper);
+  color: var(--bnest-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conversation-rail [data-role="delete-conversation"]:hover {
+  background: var(--bnest-error-surface);
+  color: var(--bnest-error);
+}
+
+.conversation-rename {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.conversation-rail [data-role="rename-input"] {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 2.75rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 0.6rem;
+  padding: 0.35rem 0.6rem;
+  background: var(--bnest-paper);
+  color: var(--bnest-ink);
+  font-size: 0.85rem;
+}
+
+.conversation-rail [data-role="rename-submit"] {
+  justify-self: start;
+  min-height: 2.75rem;
+  border: 2px solid var(--bnest-ink);
+  border-radius: 999px;
+  padding: 0.25rem 0.8rem;
+  background: var(--bnest-paper);
+  color: var(--bnest-ink);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.conversation-rail [data-role="new-conversation"]:focus-visible,
+.conversation-rail [data-role="select-conversation"]:focus-visible,
+.conversation-rail [data-role="delete-conversation"]:focus-visible,
+.conversation-rail [data-role="rename-input"]:focus-visible,
+.conversation-rail [data-role="rename-submit"]:focus-visible {
+  outline: 3px solid var(--bnest-coral);
+  outline-offset: 2px;
+}
+
 .chat-header {
   display: flex;
   flex-shrink: 0;
@@ -966,6 +1105,38 @@ body:has(.family-chat-shell) {
   .chat-shell {
     display: block;
     padding: 0;
+  }
+
+  /* On a phone the rail stacks above the panel as a full-width strip: the
+   * list scrolls sideways so every conversation stays reachable without
+   * pushing the panel off screen. */
+  .conversation-rail {
+    max-height: none;
+    overflow: visible;
+    border: 0;
+    border-bottom: 2px solid var(--bnest-ink);
+    border-radius: 0;
+    padding: 0.6rem 0.75rem;
+    box-shadow: none;
+  }
+
+  .conversation-rail [data-role="new-conversation"] {
+    width: auto;
+  }
+
+  .conversation-rail ul {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-start;
+    overflow-x: auto;
+    padding-bottom: 0.25rem;
+  }
+
+  .conversation-rail [data-role="conversation-item"] {
+    flex: 0 0 auto;
+    max-width: 16rem;
+    border-color: var(--bnest-lagoon);
+    background: var(--bnest-paper);
   }
 
   /* The panel is exactly the screen, so the page itself does not scroll and the composer stays on screen. The
