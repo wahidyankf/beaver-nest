@@ -103,7 +103,7 @@ Given("a test seeded a current instance under a seed key", async () => {
   expect(
     await testingControl().seedInstance(instance.instanceId, {
       seedKey,
-      seed: seedBody(instance.instanceId, ["parent"]),
+      seed: seedBody(instance.instanceId, ["parents"]),
     }),
   ).toEqual({ seedKey, applied: true });
 });
@@ -114,7 +114,7 @@ When("a test seeds the current instance under a new seed key", async () => {
     instance.instanceId,
     {
       seedKey,
-      seed: seedBody(instance.instanceId, ["parent"]),
+      seed: seedBody(instance.instanceId, ["parents"]),
     },
   );
 });
@@ -123,7 +123,7 @@ Then(
   "the seed answers applied true and the seeded account can log in",
   async ({ page }) => {
     expect(carried.seedAnswer).toEqual({ seedKey, applied: true });
-    await login(page, seededAccount(currentInstance().instanceId, ["parent"]));
+    await login(page, seededAccount(currentInstance().instanceId, ["parents"]));
   },
 );
 
@@ -134,7 +134,7 @@ When("the test repeats that seed key with the same body", async () => {
     instance.instanceId,
     {
       seedKey,
-      seed: seedBody(instance.instanceId, ["parent"]),
+      seed: seedBody(instance.instanceId, ["parents"]),
     },
   );
 });
@@ -173,7 +173,7 @@ When("a test seeds an instance that is not current", async () => {
   carried.conflict = await conflictOf(
     testingControl().seedInstance(absent, {
       seedKey,
-      seed: seedBody(absent, ["parent"]),
+      seed: seedBody(absent, ["parents"]),
     }),
     [absent, seedKey],
   );
