@@ -288,6 +288,48 @@ Feature: Beaver Nest chat
     And the conversation list shows "Second chat topic"
     And the conversation displays the visitor message "Second chat topic"
 
+  # Exemption(integration): the drawer's open state is client-side browser state Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / A visitor opens and closes the conversation drawer
+  @integration-exempt
+  Scenario: A visitor opens and closes the conversation drawer
+    Given a visitor opens "/chat"
+    When the visitor opens the conversation drawer
+    Then the conversation drawer is open
+    When the visitor closes the conversation drawer
+    Then the conversation drawer is closed
+
+  # Exemption(integration): the drawer's open state is client-side browser state Phoenix.LiveViewTest never runs; alternative-proof: bnest-app-fe-e2e:test:e2e / Opening a conversation from the drawer closes the drawer
+  @integration-exempt
+  Scenario: Opening a conversation from the drawer closes the drawer
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    And the visitor sends "Second chat topic"
+    And a Codex response appears incrementally
+    And the visitor opens the conversation drawer
+    And the visitor opens the conversation "First chat topic"
+    Then the conversation drawer is closed
+    And the conversation displays the visitor message "First chat topic"
+    And the conversation does not display the visitor message "Second chat topic"
+
+  # Exemption(integration): the drawer, its overlay and the scrolled transcript are browser layout results Phoenix.LiveViewTest never computes; alternative-proof: bnest-app-fe-e2e:test:e2e / A phone visitor reaches the newest message and the composer from the drawer
+  @integration-exempt
+  Scenario: A phone visitor reaches the newest message and the composer from the drawer
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    And the visitor sends "Second chat topic"
+    And a Codex response appears incrementally
+    And the visitor opens the conversation drawer
+    Then the conversation drawer is open
+    And the Chats toggle is at least 44 pixels across and tall
+    When the visitor opens the conversation "First chat topic"
+    And the visitor scrolls the conversation to the newest message
+    Then the newest message is fully above the composer
+    And the Codex composer is at the bottom of the screen
+    And the page does not scroll
+
   Rule: Role-scoped Codex access
 
   Scenario: A child is limited to Luna at medium effort
