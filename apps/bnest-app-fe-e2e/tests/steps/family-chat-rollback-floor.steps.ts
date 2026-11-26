@@ -25,6 +25,7 @@ import {
   judgeAgainstRolledBackSlot,
   navigationCount,
   previousRevisionTraffic,
+  refusals,
   reloadRoutedRoom,
   sendPreviousBundleDocuments,
   waitForRoutedReads,
@@ -37,9 +38,9 @@ import {
 // held bundle talking to the newly routed revision.
 //
 // The held bundle's wire is judged against the frozen contract in
-// apps/bnest-app/assets/test/support/family_chat_previous_revision.json. The older page sends the previous bundle's
-// documents, and the rolled-back slot must accept the reply-aware documents. Both promoted candidates are one build,
-// so the fixture is the only earlier contract these scenarios can see.
+// apps/bnest-app/assets/test/support/family_chat_previous_revision.json. The older page's documents are replayed as
+// the previous bundle sends them, and every document the held page sends is judged against the frozen rolled-back
+// schema. Both promoted candidates are one build, so the fixture is the only earlier contract these scenarios can see.
 //
 // Everything is driven from the visitor's own page. An earlier version seeded
 // through a second browser context, which had to log in against a slot that
@@ -69,6 +70,10 @@ Given("the newer app version is live", async ({ page }) => {
     verifyLiveView: false,
   }));
   await waitForRoutedReads(page, heldRevision);
+  // The held page reloads below through the previous bundle's wire, so its history and subscription are the
+  // previous bundle's documents, each judged against the frozen rolled-back schema.
+  await sendPreviousBundleDocuments(page);
+  await judgeAgainstRolledBackSlot(page);
   await reloadRoutedRoom(page);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
@@ -82,8 +87,6 @@ When(
     // Already open, from before the promotion: the held page is the browser.
     expect(new URL(page.url()).pathname).toBe(route);
     expect(await navigationCount(page)).toBe(1);
-    previousRevisionTraffic.documentsSent = 0;
-    await sendPreviousBundleDocuments(page);
     await waitForRoomReady(page);
     await waitForRoutedReads(page, routedRevision);
   },
@@ -97,6 +100,20 @@ Then("the room loads", async ({ page }) => {
   // The room is otherwise exactly the shipped one: the reply strip is part
   // of the static shell, hidden until a reply target is chosen.
   await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
+  // The history query and the subscription both went out as the previous bundle sends them.
+  for (const operation of [
+    "FamilyChatMessages",
+    "FamilyChatMessageCommitted",
+  ]) {
+    expect(
+      previousRevisionTraffic.rewritten.get(operation) ?? 0,
+      `the held page sent no previous-bundle ${operation}`,
+    ).toBeGreaterThan(0);
+  }
+  expect(
+    refusals(),
+    "the rolled-back schema refuses a held page document",
+  ).toEqual([]);
 });
 
 Then("the visitor can send a message normally", async ({ page }) => {
@@ -107,8 +124,8 @@ Then("the visitor can send a message normally", async ({ page }) => {
   // Answered by the newly routed revision, through the held bundle.
   expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
   expect(
-    previousRevisionTraffic.documentsSent,
-    "the older page sent no previous-bundle document",
+    previousRevisionTraffic.rewritten.get("SendFamilyChatMessage") ?? 0,
+    "the older page sent no previous-bundle SendFamilyChatMessage",
   ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
   expect(await navigationCount(page)).toBe(1);
@@ -155,7 +172,6 @@ Given(
 );
 
 When("the app is rolled back to the previous version", async ({ page }) => {
-  previousRevisionTraffic.floorRefusals = [];
   await judgeAgainstRolledBackSlot(page);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
@@ -189,8 +205,8 @@ When(
     await sendThroughComposer(page, uniqueBody("Floor reply"));
     expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
     expect(
-      previousRevisionTraffic.floorRefusals,
-      "the rolled-back slot does not accept the held bundle's documents",
+      refusals(),
+      "the rolled-back slot refuses a document the held bundle sends",
     ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
     expect(sendAttempts(page).at(-1)?.replyToMessageId).toBe(scenario.targetId);
