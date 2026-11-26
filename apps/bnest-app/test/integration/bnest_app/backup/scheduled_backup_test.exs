@@ -38,6 +38,8 @@ defmodule BnestApp.ScheduledBackupTest do
       System.delete_env("BNEST_BACKUP_CONFIG")
       System.delete_env("BNEST_STORAGE_CONFIG")
       File.rm_rf(backup_directory)
+      File.rm_rf(backup_directory <> "-second")
+      File.rm(backup_directory <> "-link")
       File.rm(config_path)
       TestRuntimeRoot.cleanup!(runtime)
     end)
