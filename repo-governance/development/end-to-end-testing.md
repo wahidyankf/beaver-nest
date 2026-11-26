@@ -23,6 +23,8 @@ For rendered-UI changes, audit affected routes, states, layouts, and themes. Che
 
 After automation, manually inspect every affected rendered state in a browser at the exact served origin and each supported viewport class. Exercise the changed interaction and confirm layout, content, focus, and responsive behaviour. Code inspection, inferred CSS behaviour, test results, and design assets are supporting evidence, never substitutes for this rendered check. Record the route, state, viewport class, and pass/fail without private values.
 
+For a scrollable conversation view, prove in a real browser at the exact served origin on a phone viewport that the view scrolls to its newest content with the composer visible; class-presence assertions never satisfy this proof. Attach before-and-after renders captured at the exact affected viewport to the delivery record of every UI fix; a record without both renders is incomplete.
+
 Do not expand this into an unrelated full-site audit. Use synthetic identities and marked cleanup; record only route/state and pass/fail, never private values.
 
 For example:
@@ -31,7 +33,7 @@ For example:
 npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --project chromium --grep "A visitor opens a fresh chat"
 ```
 
-Bnest splits its browser-facing E2E boundary in two: `bnest-app-be-e2e` drives the browser directly against a bare `mix phx.server` (no reverse proxy) to prove backend boundary behaviour, and `bnest-app-fe-e2e` drives it through the full Caddy blue/green rollout apparatus to prove frontend/PWA behaviour, including reconnect. Each `test:e2e` target owns its one HIPPO boundary and exclusive port lease, so callers do not wrap it again. Both drive the browser from the same recursively discovered Gherkin used by Bnest unit and local-only integration tests. They keep fast `test:coverage:behaviour` in `test:quick` and runtime E2E outside it. The repository documentation gate has no end-to-end target of its own: RHINO's process-level proof runs in the repository that owns the executable.
+Bnest splits its browser-facing E2E boundary between [backend](../../apps/bnest-app-be-e2e/README.md) (bare server) and [frontend/PWA](../../apps/bnest-app-fe-e2e/README.md) (full Caddy rollout); each target owns its HIPPO boundary and port lease. The repository documentation gate has no end-to-end target of its own.
 
 ## Full Suite
 
