@@ -77,6 +77,8 @@ defmodule BnestAppWeb.SessionControllerTest do
     store: store
   } do
     params = %{"login" => %{"username" => @username, "password" => @password}}
+    before_login = store |> InMemoryRecordBackend.snapshot() |> inspect()
+    assert before_login =~ "$argon2id$"
     response = params |> login_conn() |> SessionController.create(params)
 
     assert response.status == 302

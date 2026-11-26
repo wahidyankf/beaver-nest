@@ -106,16 +106,19 @@ Then(
 );
 
 // The seeded admin account, read through production's record read, holds an Argon2id verifier.
-Given("an approved user account exists", async ({ page }) => {
-  const account = instanceRecord(
-    "account",
-    userIdFor(currentIdentities().admin.username),
-  );
-  expect(String(account["passwordVerifier"])).toMatch(/^\$argon2id\$v=19\$/u);
-  await page.context().clearCookies();
-  await page.goto("/login");
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-});
+Given(
+  "an approved user account exists with an Argon2id verifier",
+  async ({ page }) => {
+    const account = instanceRecord(
+      "account",
+      userIdFor(currentIdentities().admin.username),
+    );
+    expect(String(account["passwordVerifier"])).toMatch(/^\$argon2id\$v=19\$/u);
+    await page.context().clearCookies();
+    await page.goto("/login");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  },
+);
 
 When("the user logs in with valid credentials", async ({ page }) => {
   const identity = currentIdentities().admin;

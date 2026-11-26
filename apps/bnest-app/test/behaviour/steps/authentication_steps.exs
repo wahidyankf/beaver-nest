@@ -69,6 +69,10 @@ defmodule BnestApp.Behaviour.AuthenticationSteps do
 
   step("an approved user account exists", context, do: prepare(context, :approved_account))
 
+  step("an approved user account exists with an Argon2id verifier", context,
+    do: prepare(context, :approved_argon2_account)
+  )
+
   step("the user logs in with valid credentials", context, do: perform(context, :login))
 
   step("the user logs in with return path {string}", %{args: [return_to]} = context,

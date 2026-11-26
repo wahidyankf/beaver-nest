@@ -303,6 +303,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_previous_reply_id, reply.id)
   end
 
+  # The retry's original: a plain message, and the body and client message ID the retry resends.
+  def prepare_behaviour(context, :plain_message_with_known_id, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    {:ok, original} = context.family_chat_result
+
+    Map.merge(context, %{family_chat_known_body: body, family_chat_original_message_id: original.id})
+  end
+
   # Commits two candidate targets so the retry can name a genuinely different
   # one -- a retry naming the same target would prove nothing about which
   # commit wins.
@@ -1284,6 +1292,15 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :web_push_configuration_answers, _args),
     do: match?({:ok, %{}}, Keyword.fetch!(context.web_push_results, :configuration))
 
+  # No push request left the process: a refused endpoint never reaches the push sender.
+  def behaviour_outcome?(_context, :no_web_push_request_sent, _args) do
+    receive do
+      {:push_notification_sent, _endpoint, _payload} -> false
+    after
+      0 -> true
+    end
+  end
+
   def behaviour_outcome?(_context, :no_web_push_subscription_stored, _args) do
     PushNotifications.adapter(:subscription_store).new()
     |> InMemorySubscriptionStore.subscriptions()
@@ -1851,6 +1868,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # The production configuration mounts nothing, and this build's router, whose GraphiQL gate
   # is the same compile-time value, answers a GraphiQL request with not found. A decision that
   # mounted GraphiQL for production, or a router that mounted it here, fails here.
+  # The compiled router holds no GraphiQL route, and the production configuration mounts none.
+  def behaviour_outcome?(context, :graphiql_not_compiled, _args) do
+    BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
+      Enum.all?(BnestAppWeb.Router.__routes__(), &(not String.contains?(&1.path, "graphiql")))
+  end
+
   def behaviour_outcome?(context, :graphiql_not_found, _args) do
     BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
       context.graphiql_status == 404

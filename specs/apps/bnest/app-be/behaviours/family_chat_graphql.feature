@@ -82,6 +82,12 @@ Feature: Family chat GraphQL API
       | the user resends a different body with the same client message ID          |
       | the user resends the same client message ID naming a different reply target |
 
+  Scenario: Retrying the same client message ID returns the original commit
+    Given the user already sent the family chat message "Dinner is ready" with a known client message ID
+    When the user resends a different body with the same client message ID
+    Then the response returns the original committed message unchanged
+    And the family chat room still holds exactly one message for that client message ID
+
   Rule: Replying to a message
 
   Scenario: A member sends a reply and the commit carries its quote
@@ -328,6 +334,7 @@ Feature: Family chat GraphQL API
     When the user upserts a Web Push subscription with endpoint "<endpoint>"
     Then the response is a safe "VALIDATION_FAILED" error
     And the member's current Web Push subscription still reads disabled
+    And no subscription row is stored or requested over the network
 
     Examples:
       | endpoint                                   |
@@ -394,6 +401,7 @@ Feature: Family chat GraphQL API
   Scenario: A socket connection acts as the signed-in member whatever identity its parameters claim
     When the user's browser opens the family chat GraphQL socket with the authenticated session
     Then a subscription opened on the socket is authorised as the signed-in member
+    And the socket context carries the server-resolved current user and session digest
     And socket parameters claiming another identity or role are ignored
 
   Scenario: The socket rejects a connection with no valid session
@@ -409,3 +417,4 @@ Feature: Family chat GraphQL API
     Given the endpoint is configured for the production environment
     When a visitor requests the GraphiQL page
     Then the response is not found (404)
+    And no GraphiQL route is compiled or mounted

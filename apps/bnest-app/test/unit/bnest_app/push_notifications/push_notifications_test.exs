@@ -135,6 +135,8 @@ defmodule BnestApp.PushNotificationsTest do
       assert {:error, %{code: "VALIDATION_FAILED", details: nil}} =
                PushNotifications.upsert_subscription(unique_user(), "session-f", input)
 
+      refute_received {:push_notification_sent, _endpoint, _payload}
+
       assert store
              |> InMemorySubscriptionStore.over()
              |> InMemorySubscriptionStore.subscriptions() ==
@@ -160,6 +162,8 @@ defmodule BnestApp.PushNotificationsTest do
         assert {:error, %{code: "VALIDATION_FAILED", details: nil}} =
                  PushNotifications.upsert_subscription(unique_user(), "session-unsafe", input)
       end
+
+      refute_received {:push_notification_sent, _endpoint, _payload}
 
       assert store
              |> InMemorySubscriptionStore.over()

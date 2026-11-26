@@ -15,6 +15,10 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :immutable_envelopes)
   )
 
+  step("Bnest preserves an immutable envelope for each source", context,
+    do: outcome(context, :immutable_envelopes)
+  )
+
   step("the user's chat, Sifat Allah progress, and theme are read back from Bnest", context,
     do: outcome(context, :normalized_records_read)
   )
@@ -45,11 +49,15 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :source_and_record_unchanged)
   )
 
-  step("a recognized import was interrupted before its data was saved", context,
+  step("a recognized import was interrupted after source preservation and before its data was saved", context,
     do: prepare(context, :interrupted_import)
   )
 
   step("the user retries that import", context, do: perform(context, :retry_import))
+
+  step("Bnest reuses its idempotent import identity", context,
+    do: outcome(context, :idempotent_import_identity)
+  )
 
   step("Bnest does not duplicate or overwrite accepted data", context,
     do: outcome(context, :accepted_data_preserved)

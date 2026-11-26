@@ -32,6 +32,12 @@ Feature: Bnest SQLite storage
     Then Bnest explains the safe correction
     And Bnest creates no database or storage configuration
 
+  Scenario: Versioned SQLite migration creates the expected schema once
+    Given an empty isolated database
+    When the committed migration set is applied twice
+    Then the schema version and indexes match the declared checksum
+    And the second run makes no duplicate table, index, or migration record
+
   Scenario: The storage migration task moves every recognized record and reports none blocked
     Given a flat-primary installation has no custom storage location
     When managed storage migration runs without a UI visit

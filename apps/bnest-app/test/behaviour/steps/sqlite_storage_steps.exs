@@ -109,6 +109,18 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: prepare(context, :malformed_or_changed_source)
   )
 
+  step("an empty isolated database", context, do: prepare(context, :empty_isolated_database))
+
+  step("the committed migration set is applied twice", context, do: perform(context, :apply_migration_set_twice))
+
+  step("the schema version and indexes match the declared checksum", context,
+    do: outcome(context, :schema_matches_checksum)
+  )
+
+  step("the second run makes no duplicate table, index, or migration record", context,
+    do: outcome(context, :no_duplicate_schema_objects)
+  )
+
   step("Bnest verifies migration", context, do: perform(context, :verify_migration))
 
   step("SQLite does not become authoritative", context,

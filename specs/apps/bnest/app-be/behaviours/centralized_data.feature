@@ -10,6 +10,7 @@ Feature: Centralized Bnest data
     Given the browser has recognized Bnest chat, Sifat Allah, and explicit theme sources
     When the user confirms the recognized imports
     Then Bnest reports each source as accepted and verified
+    And Bnest preserves an immutable envelope for each source
     And the user's chat, Sifat Allah progress, and theme are read back from Bnest
 
   Scenario: Importing with no explicit browser theme leaves the theme at the system default
@@ -26,9 +27,10 @@ Feature: Centralized Bnest data
 
   # The interrupted-import seed is a flat-primary record kind (ADR 001, section 2).
   Scenario: Retrying an interrupted import completes it without duplicating data
-    Given a recognized import was interrupted before its data was saved
+    Given a recognized import was interrupted after source preservation and before its data was saved
     When the user retries that import
-    Then Bnest does not duplicate or overwrite accepted data
+    Then Bnest reuses its idempotent import identity
+    And Bnest does not duplicate or overwrite accepted data
 
   Scenario: A stale browser cannot overwrite a newer centralized record
     Given browser B has an older revision than browser A

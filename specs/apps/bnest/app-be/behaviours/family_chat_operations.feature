@@ -9,6 +9,22 @@ Feature: Family chat operations
     When a member lists the rooms and sends a message
     Then room "Ruang Keluarga" is listed and the message is accepted
 
+  # Exemption(e2e): pre-upgrade reader compatibility is a same-machine schema-overlap boundary; alternative-proof: bnest-app:test:integration / An old release ignores the additive family chat schema
+  @e2e-exempt
+  Scenario: An old release ignores the additive family chat schema
+    Given the additive family chat migration has applied
+    When code built before this migration opens the same database
+    Then the prior release's existing behavior is unaffected
+    And no prior-release code path touches the new family chat tables
+
+  # Exemption(e2e): pre-upgrade reader compatibility is a same-machine schema-overlap boundary; alternative-proof: bnest-app:test:integration / An old release ignores the additive reply column
+  @e2e-exempt
+  Scenario: An old release ignores the additive reply column
+    Given the additive family chat reply migration has applied
+    When code built before that migration opens the same database
+    Then it reads and writes every other family chat message column unchanged
+    And messages it commits carry no reply target
+
   Rule: Internal-only system message posting
 
   Scenario: The public GraphQL schema exposes no system-message mutation
@@ -57,6 +73,16 @@ Feature: Family chat operations
     Then the push payload of the 300 character message has a body of single spaces, 119 characters and one ellipsis
     And the push payload of the 120 character message has its body unchanged
     And every push payload's title is the sender's display name at commit
+
+  Rule: Independent slot-local PubSub
+
+  # Exemption(e2e): independent-slot process topology is an internal deployment-process boundary, not a single-origin browser/HTTP action; alternative-proof: bnest-app:test:integration / Two independent slots do not exchange family chat PubSub events
+  @e2e-exempt
+  Scenario: Two independent slots do not exchange family chat PubSub events
+    Given two application slots are started independently with no shared distribution
+    When a message commits on one slot
+    Then only sockets connected to that same slot receive the subscription event
+    And the other slot publishes no corresponding event
 
   Rule: One-time backup schedule convergence
 

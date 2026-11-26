@@ -533,6 +533,8 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A sent message names its sender by display username, not raw user ID
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying a client message ID returns the first commit
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying the same client message ID returns the original commit
     test "commits a plain message naming its live sender and replays its client message id",
          %{conn: conn} do
       user_id = test_user_id()
@@ -578,6 +580,12 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
                  "sendFamilyChatMessage" => %{"id" => ^id, "body" => "Dinner is ready"}
                }
              } = replayed
+
+      assert {:ok, %{nodes: nodes}} =
+               FamilyChat.list_messages(user_id, FamilyChat.canonical_room_slug(), [])
+
+      assert Enum.count(nodes, &(to_string(&1.id) == id)) == 1
+      refute Enum.any?(nodes, &(&1.body == "a different body"))
     end
   end
 
@@ -883,6 +891,8 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
       assert response.status == 200
       current = Jason.decode!(response.resp_body)
       assert current["data"]["currentWebPushSubscription"]["enabled"] == false
+
+      refute_received {:push_notification_sent, _endpoint, _payload}
     end
   end
 
@@ -920,6 +930,8 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
       refute BnestAppWeb.DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes))
 
       assert get(conn, "/api/graphiql").status == 404
+
+      refute Enum.any?(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
     end
   end
 

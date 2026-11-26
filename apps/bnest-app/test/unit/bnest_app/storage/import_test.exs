@@ -77,22 +77,39 @@ defmodule BnestApp.Storage.ImportTest do
       |> Map.put("session", %{"mode" => "dashboard"})
       |> Jason.encode!()
 
-    assert {:ok, %{status: :accepted}} =
+    assert {:ok, %{status: :accepted, import_id: chat_id}} =
              Import.browser(store, @owner, %{
                "storageArea" => "sessionStorage",
                "storageKey" => "bnest.chat.v1",
                "payload" => chat_payload
              })
 
-    assert {:ok, %{status: :accepted}} =
+    assert {:ok, %{status: :accepted, import_id: learning_id}} =
              Import.browser(store, @owner, %{
                "storageArea" => "localStorage",
                "storageKey" => "bnest.sifat-allah.v1",
                "payload" => learning_payload
              })
 
-    assert {:ok, %{status: :accepted, record: %{"theme" => "dark"}}} =
+    assert {:ok, %{status: :accepted, import_id: theme_id, record: %{"theme" => "dark"}}} =
              Import.browser(store, @owner, theme("dark"))
+
+    for {import_id, payload} <- [
+          {chat_id, chat_payload},
+          {learning_id, learning_payload},
+          {theme_id, "dark"}
+        ] do
+      assert {:ok, %{"payload" => ^payload}} =
+               RecordBackend.read(store, :browser_import, {@owner, import_id})
+
+      assert {:error, :exists} =
+               RecordBackend.put_new(store, :browser_import, {@owner, import_id}, %{
+                 "payload" => "replaced"
+               })
+
+      assert {:ok, %{"payload" => ^payload}} =
+               RecordBackend.read(store, :browser_import, {@owner, import_id})
+    end
 
     assert {:ok, %{"recordType" => "chat"}} = RecordBackend.read(store, :chat, @owner)
 
@@ -146,13 +163,14 @@ defmodule BnestApp.Storage.ImportTest do
   test "resumes an import whose manifest could not be closed" do
     store = FlakyBackend.start()
     FlakyBackend.fail(store, [{:replace, :manifest}])
+    {import_id, _checksum} = Manifest.identity(@owner, "localStorage", "phx:theme", "dark")
 
-    assert {:error, :read_back_failed, %{"status" => "pending"}} =
+    assert {:error, :read_back_failed, %{"status" => "pending", "importId" => ^import_id}} =
              Import.browser(store, @owner, theme("dark"))
 
     FlakyBackend.fail(store, [])
 
-    assert {:ok, %{record: %{"revision" => 1, "theme" => "dark"}}} =
+    assert {:ok, %{import_id: ^import_id, record: %{"revision" => 1, "theme" => "dark"}}} =
              Import.browser(store, @owner, theme("dark"))
   end
 

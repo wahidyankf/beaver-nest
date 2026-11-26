@@ -10,7 +10,11 @@ import {
   setSources,
 } from "../support/centralized-data";
 import { currentIdentities, userIdFor } from "../support/instance-identities";
-import { importCount, instanceRecordState } from "../support/instance-records";
+import {
+  importCount,
+  instanceRecord,
+  instanceRecordState,
+} from "../support/instance-records";
 import {
   envelopeDigest,
   interruptedImportId,
@@ -38,7 +42,7 @@ function adminId(): string {
 // it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
 // check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
 Given(
-  "a recognized import was interrupted before its data was saved",
+  "a recognized import was interrupted after source preservation and before its data was saved",
   async ({ page }) => {
     const seeded = await instanceLifecycle().seed("interrupted-import", {
       records: [
@@ -74,6 +78,17 @@ Given(
 
 When("the user retries that import", async ({ page }) => {
   await confirmImports(page);
+});
+
+// The retry resumes the identity the seed derived, so the chat record the retry wrote names that import.
+Then("Bnest reuses its idempotent import identity", () => {
+  const seededImport = interruptedImport;
+  if (seededImport === undefined) {
+    throw new Error("no interrupted import was seeded for this scenario");
+  }
+  expect(instanceRecord("chat", adminId())["sourceImportId"]).toBe(
+    seededImport.importId,
+  );
 });
 
 Then(

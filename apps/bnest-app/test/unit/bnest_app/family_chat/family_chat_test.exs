@@ -275,6 +275,8 @@ defmodule BnestApp.FamilyChatTest do
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying a client message ID returns the first commit
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber receives exactly one event per committed message
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying the same client message ID returns the original commit
     test "commits, publishes once on the room's topic, and replays without a second publish" do
       user = "test-user-family-chat-sender"
       client_message_id = Ecto.UUID.generate()
@@ -303,6 +305,10 @@ defmodule BnestApp.FamilyChatTest do
       assert replayed.id == message.id
       assert replayed.body == "Dinner is ready"
       refute_received {:family_chat_published, _topic, _message}
+
+      assert {:ok, %{nodes: nodes}} = FamilyChat.list_messages(user, slug, [])
+      assert Enum.count(nodes, &(&1.id == message.id)) == 1
+      refute Enum.any?(nodes, &(&1.body == "a different body"))
     end
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

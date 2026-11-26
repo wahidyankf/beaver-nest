@@ -17,7 +17,7 @@ Feature: Bnest authentication
     And setup and public registration are unavailable afterward
 
   Scenario: Logging in never exposes the password in storage, logs, or pages
-    Given an approved user account exists
+    Given an approved user account exists with an Argon2id verifier
     When the user logs in with valid credentials
     Then no plaintext password is stored, logged, or rendered
 

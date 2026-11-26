@@ -5,6 +5,7 @@ defmodule BnestAppWeb.AuthenticationTest do
 
   alias BnestApp.FreshDatabaseCase
   alias BnestApp.Identity
+  alias BnestApp.Identity.Ports.IdentityStore
   alias BnestApp.Preferences
   alias BnestApp.Storage.Records
   alias BnestApp.Test.BehaviourEvidence
@@ -104,9 +105,17 @@ defmodule BnestAppWeb.AuthenticationTest do
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Logging in never exposes the password in storage, logs, or pages
   test "a login keeps the password out of the stored bytes, the log, and the rendered pages", %{
-    conn: conn
+    conn: conn,
+    test_identity: identity
   } do
     {username, password} = test_credentials()
+
+    identity_store = BnestApp.Identity.adapter(:identity_store).new(BnestApp.Storage.active_store())
+
+    assert {:ok, %{"passwordVerifier" => verifier}} =
+             IdentityStore.read_account(identity_store, identity.user_id)
+
+    assert String.starts_with?(verifier, "$argon2id$")
 
     {response, log} =
       BehaviourEvidence.with_debug_log(fn ->

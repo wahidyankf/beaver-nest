@@ -314,6 +314,62 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :endpoint_configured_production)
   )
 
+  step("the socket context carries the server-resolved current user and session digest", context,
+    do: outcome(context, :socket_context_server_resolved)
+  )
+
+  step("no subscription row is stored or requested over the network", context,
+    do: context |> outcome(:no_web_push_subscription_stored) |> outcome(:no_web_push_request_sent)
+  )
+
+  step("no GraphiQL route is compiled or mounted", context,
+    do: outcome(context, :graphiql_not_compiled)
+  )
+
+  step("the additive family chat migration has applied", context, do: prepare(context, :migration_applied))
+
+  step("code built before this migration opens the same database", context,
+    do: perform(context, :old_code_opens_database)
+  )
+
+  step("the prior release's existing behavior is unaffected", context,
+    do: outcome(context, :prior_release_unaffected)
+  )
+
+  step("no prior-release code path touches the new family chat tables", context,
+    do: outcome(context, :no_prior_release_table_access)
+  )
+
+  step("the additive family chat reply migration has applied", context,
+    do: prepare(context, :reply_migration_applied)
+  )
+
+  step("code built before that migration opens the same database", context,
+    do: perform(context, :pre_reply_release_opens_database)
+  )
+
+  step("it reads and writes every other family chat message column unchanged", context,
+    do: outcome(context, :pre_reply_columns_unchanged)
+  )
+
+  step("messages it commits carry no reply target", context,
+    do: outcome(context, :pre_reply_commits_have_no_target)
+  )
+
+  step("two application slots are started independently with no shared distribution", context,
+    do: prepare(context, :two_independent_slots)
+  )
+
+  step("a message commits on one slot", context, do: perform(context, :message_commits_on_one_slot))
+
+  step("only sockets connected to that same slot receive the subscription event", context,
+    do: outcome(context, :only_same_slot_sockets_receive)
+  )
+
+  step("the other slot publishes no corresponding event", context,
+    do: outcome(context, :other_slot_no_event)
+  )
+
   step("a visitor requests the GraphiQL page", context, do: perform(context, :request_graphiql))
 
   step("the response is not found \\(404\\)", context, do: outcome(context, :graphiql_not_found))
@@ -580,6 +636,12 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
   )
 
   step("that quote carries no quote of its own", context, do: outcome(context, :quote_is_flat))
+
+  step(
+    "the user already sent the family chat message {string} with a known client message ID",
+    %{args: [body]} = context,
+    do: prepare(context, :plain_message_with_known_id, [body])
+  )
 
   step(
     "the user already sent a family chat reply to a known message with a known client message ID",

@@ -2576,6 +2576,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :committed_message,
              :committed_reply_to_previous,
              :sent_reply_with_known_id,
+             :plain_message_with_known_id,
              :replied_under_earlier_display_name,
              :reply_committed_before_subscription,
              :reply_migration_applied,

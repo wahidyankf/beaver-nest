@@ -9,6 +9,11 @@ import {
   recordSnapshot,
   setSources,
 } from "../support/centralized-data";
+import { currentInstanceEnvironment } from "../support/active-instance.mts";
+import {
+  envelopeDigest,
+  interruptedImportId,
+} from "../support/interrupted-import-check.mts";
 import { currentIdentities, userIdFor } from "../support/instance-identities";
 import { importCount, instanceRecord } from "../support/instance-records";
 import { putTheme } from "../support/theme-preference";
@@ -53,6 +58,45 @@ Given(
 When("the user confirms the recognized imports", async ({ page }) => {
   await confirmImports(page);
 });
+
+// Each source keeps the envelope its import preserved, under the identity its payload derives. A second import of the
+// same sources must leave every envelope's bytes and the envelope count as they were.
+Then(
+  "Bnest preserves an immutable envelope for each source",
+  async ({ page }) => {
+    const owner = adminId();
+    const runtimeRoot = currentInstanceEnvironment().BNEST_RUNTIME_ROOT;
+    const sources = [
+      { area: "sessionStorage", key: "bnest.chat.v1", payload: chatPayload },
+      {
+        area: "localStorage",
+        key: "bnest.sifat-allah.v1",
+        payload: learningPayload,
+      },
+      { area: "localStorage", key: "phx:theme", payload: "dark" },
+    ];
+    const ids = sources.map((source) =>
+      interruptedImportId(owner, source.area, source.key, source.payload),
+    );
+    const digestsBefore = ids.map((id) =>
+      envelopeDigest(runtimeRoot, owner, id),
+    );
+    expect(digestsBefore).not.toContain("missing");
+    const countBefore = importCount(owner);
+
+    await setSources(page, {
+      chat: chatPayload,
+      learning: learningPayload,
+      theme: "dark",
+    });
+    await confirmImports(page);
+
+    expect(ids.map((id) => envelopeDigest(runtimeRoot, owner, id))).toEqual(
+      digestsBefore,
+    );
+    expect(importCount(owner)).toBe(countBefore);
+  },
+);
 
 Then("Bnest reports each source as accepted and verified", () => {
   expect(importCount(adminId())).toBeGreaterThanOrEqual(3);

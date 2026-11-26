@@ -7,6 +7,7 @@ defmodule BnestApp.BrowserImportTest do
 
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Adapters.FileRecordBackend
+  alias BnestApp.Storage.Domain.Manifest
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
   alias BnestApp.Storage.RecoverySource
@@ -28,6 +29,14 @@ defmodule BnestApp.BrowserImportTest do
                FileRecordBackend.read(store, :browser_import, {owner_id, result.import_id})
 
       assert envelope["ownerId"] == owner_id
+
+      assert {:error, :exists} =
+               FileRecordBackend.put_new(store, :browser_import, {owner_id, result.import_id}, %{
+                 envelope | "payload" => "replaced"
+               })
+
+      assert {:ok, ^envelope} =
+               FileRecordBackend.read(store, :browser_import, {owner_id, result.import_id})
 
       assert {:ok, %{"status" => "accepted"}} =
                FileRecordBackend.read(store, :manifest, result.import_id)
@@ -54,6 +63,11 @@ defmodule BnestApp.BrowserImportTest do
     after_first_count = length(Path.wildcard(Path.join(import_directory, "*.json")))
     assert {:ok, second} = Import.browser(store, owner_id, source)
     assert first.import_id == second.import_id
+
+    {expected_id, _checksum} =
+      Manifest.identity(owner_id, source["storageArea"], source["storageKey"], source["payload"])
+
+    assert first.import_id == expected_id
 
     assert after_first_count in [before_count, before_count + 1]
     assert length(Path.wildcard(Path.join(import_directory, "*.json"))) == after_first_count

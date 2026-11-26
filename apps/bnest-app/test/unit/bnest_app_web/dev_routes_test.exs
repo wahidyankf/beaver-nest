@@ -21,4 +21,12 @@ defmodule BnestAppWeb.DevRoutesTest do
     assert DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes)) ==
              (graphiql_routes != [])
   end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A production endpoint does not serve GraphiQL
+  test "a build without dev routes compiles no GraphiQL route" do
+    refute DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes))
+
+    assert Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql")) == []
+  end
 end
