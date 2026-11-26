@@ -23,6 +23,7 @@ import {
 import { ensureRoomOpen } from "../support/family-chat-reply-room";
 import {
   judgeAgainstRolledBackSlot,
+  liveRefusals,
   navigationCount,
   previousRevisionTraffic,
   refusals,
@@ -47,6 +48,8 @@ import {
 // had just booted; that returned `Internal Server Error` often enough to make
 // the scenario worthless. The proof does not need a second member.
 
+/** The message seeded while the newer version is live: the reloaded held page must render it. */
+let seededId = "";
 /** The reply committed after the rollback -- the one the earlier revision itself answered. */
 let floorReplyId = "";
 /** The revision whose bundle the page holds, and the one routed after it. */
@@ -70,11 +73,15 @@ Given("the newer app version is live", async ({ page }) => {
     verifyLiveView: false,
   }));
   await waitForRoutedReads(page, heldRevision);
+  // Seeded before the held page reloads, so the render after that reload is the previous bundle's history at work.
+  seededId = await postMessage(page, uniqueBody("Previous bundle seed"));
+  await waitForMessage(page, seededId);
   // The held page reloads below through the previous bundle's wire, so its history and subscription are the
   // previous bundle's documents, each judged against the frozen rolled-back schema.
   await sendPreviousBundleDocuments(page);
   await judgeAgainstRolledBackSlot(page);
   await reloadRoutedRoom(page);
+  await waitForMessage(page, seededId);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
   }));
@@ -97,6 +104,8 @@ Then("the room loads", async ({ page }) => {
     "data-connection-state",
     "ready",
   );
+  // The reloaded page renders the seeded message from its history: the previous bundle's history query answered.
+  await waitForMessage(page, seededId);
   // The room is otherwise exactly the shipped one: the reply strip is part
   // of the static shell, hidden until a reply target is chosen.
   await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
@@ -114,6 +123,11 @@ Then("the room loads", async ({ page }) => {
     refusals(),
     "the rolled-back schema refuses a held page document",
   ).toEqual([]);
+  const live = liveRefusals();
+  expect(
+    live,
+    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
+  ).toEqual([]);
 });
 
 Then("the visitor can send a message normally", async ({ page }) => {
@@ -128,6 +142,11 @@ Then("the visitor can send a message normally", async ({ page }) => {
     "the older page sent no previous-bundle SendFamilyChatMessage",
   ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
+  const live = liveRefusals();
+  expect(
+    live,
+    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
+  ).toEqual([]);
   expect(await navigationCount(page)).toBe(1);
 });
 
@@ -209,6 +228,11 @@ When(
       "the rolled-back slot refuses a document the held bundle sends",
     ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
+    const live = liveRefusals();
+    expect(
+      live,
+      `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
+    ).toEqual([]);
     expect(sendAttempts(page).at(-1)?.replyToMessageId).toBe(scenario.targetId);
   },
 );
@@ -223,4 +247,9 @@ Then("existing replies still render their quotes", async ({ page }) => {
       await expect(quote).toContainText(scenario.targetBody);
     }),
   );
+  const live = liveRefusals();
+  expect(
+    live,
+    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
+  ).toEqual([]);
 });

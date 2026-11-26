@@ -1,20 +1,20 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { expect, type Page } from "@playwright/test";
-import { buildSchema, Kind, parse, print, validate } from "graphql";
-import type { DocumentNode } from "graphql";
+import { expect, type Page, type Route } from "@playwright/test";
+import {
+  judgeDocument,
+  liveProblems,
+  parseFrame,
+  type Refusal,
+  replyRefusals,
+  type Schema,
+} from "./family-chat-previous-revision-judge";
 import { waitForRoomReady } from "./family-chat-resume";
 import { repositoryRoot } from "./routed-rollout-env";
 
 // Support for the earlier-revision scenarios in family-chat-rollback-floor.steps.ts: the held browser's GraphQL wire
-// (HTTP and socket), which replays the previous bundle's documents and judges each one against the frozen schema.
-
-type Root = { kind: string; type: string; args: Record<string, string> };
-
-interface Schema {
-  objects: Record<string, Record<string, string | null>>;
-  roots: Record<string, Root>;
-}
+// (HTTP and socket), which replays the previous bundle's documents, judges each one against the frozen schema, and
+// records how the live server answers each judged or replayed one.
 
 const FIXTURE =
   "apps/bnest-app/assets/test/support/family_chat_previous_revision.json";
@@ -32,11 +32,20 @@ export const previousRevisionTraffic = {
   /** Documents sent as the previous bundle's text, counted by operation name. */
   rewritten: new Map<string, number>(),
   /** Each refused document, with its operation and the reason. */
-  floorRefusals: [] as { operation: string; reason: string }[],
+  floorRefusals: [] as Refusal[],
+  /** Each judged or replayed document the live server answered wrongly, over HTTP or the socket. */
+  liveErrors: [] as Refusal[],
 };
 
 export function refusals(): string[] {
   return previousRevisionTraffic.floorRefusals.map(
+    (r) => `${r.operation}: ${r.reason}`,
+  );
+}
+
+/** The live server's wrong answers to replayed documents, in the form the steps print. */
+export function liveRefusals(): string[] {
+  return previousRevisionTraffic.liveErrors.map(
     (r) => `${r.operation}: ${r.reason}`,
   );
 }
@@ -52,90 +61,31 @@ type Request = { query: string; variables: Record<string, unknown> };
 type Wire = { replay: boolean; judge: boolean };
 const wires = new WeakMap<Page, Wire>();
 
-const pairs = (record: Record<string, string | null>): string[] =>
-  Object.entries(record).map(([n, t]) => `${n}: ${t ?? "Scalar"}`);
-
-/**
- * The rolled-back schema as SDL. Untyped scalars are `Scalar`. List wrapping is not represented, and it does not
- * change validation of selections or argument types.
- */
-function schemaSdl(schema: Schema): string {
-  const rootType = (kind: string, name: string): string[] => {
-    const fields = Object.entries(schema.roots)
-      .filter(([, root]) => root.kind === kind)
-      .map(([field, root]) => {
-        const args = pairs(root.args);
-        return `${field}${args.length > 0 ? `(${args.join(", ")})` : ""}: ${root.type}`;
-      });
-    return fields.length > 0 ? [`type ${name} { ${fields.join(", ")} }`] : [];
-  };
-  const objects = Object.entries(schema.objects).map(
-    ([name, fields]) => `type ${name} { ${pairs(fields).join(", ")} }`,
-  );
-  return [
-    "scalar Scalar",
-    ...objects,
-    ...rootType("query", "Query"),
-    ...rootType("mutation", "Mutation"),
-    ...rootType("subscription", "Subscription"),
-  ].join("\n");
+/** The operation whose document the previous bundle's text replaces, when replay is armed and the bundle has it. */
+function replayedOperation(query: string, wire: Wire): string | undefined {
+  const operation = OPERATION.exec(query)?.[1];
+  if (!wire.replay || operation === undefined) return undefined;
+  return Object.hasOwn(PREVIOUS_REVISION.previousClient.documents, operation)
+    ? operation
+    : undefined;
 }
 
-/**
- * What the rolled-back schema refuses in one document: graphql-js validation, plus one operation with one root field,
- * each variable sent declared, and each bound variable declaring its argument's type exactly.
- */
-export function judgeDocument(
-  query: string,
-  variables: Record<string, unknown>,
-  schema: Schema,
-): string[] {
-  let document: DocumentNode;
-  try {
-    document = parse(query);
-  } catch (error) {
-    return [error instanceof Error ? error.message : String(error)];
-  }
-  const operation =
-    document.definitions.length === 1 ? document.definitions[0] : undefined;
-  if (operation?.kind !== Kind.OPERATION_DEFINITION)
-    return ["one operation only"];
-  const roots = operation.selectionSet.selections;
-  const [root] = roots;
-  if (roots.length !== 1) return [`${roots.length} root fields, not one`];
-  if (root?.kind !== Kind.FIELD) return ["the root selection is not a field"];
-  const vars = operation.variableDefinitions ?? [];
-  const declared = new Map(
-    vars.map((d) => [d.variable.name.value, print(d.type)]),
-  );
-  const args = schema.roots[root.name.value]?.args ?? {};
-  const expected = new Map(Object.entries(args));
-  const errors: string[] = [];
-  for (const arg of root.arguments ?? []) {
-    const want = expected.get(arg.name.value);
-    if (arg.value.kind !== Kind.VARIABLE) continue;
-    const have = declared.get(arg.value.name.value);
-    if (want !== undefined && have !== undefined && have !== want)
-      errors.push(
-        `${root.name.value}.${arg.name.value} is ${want}, not ${have}`,
-      );
-  }
-  for (const [name, value] of Object.entries(variables))
-    if (value !== undefined && !declared.has(name))
-      errors.push(`$${name} is sent but not declared`);
-  const validation = validate(buildSchema(schemaSdl(schema)), document);
-  return [...errors, ...validation.map((error) => error.message)];
+/** The name a document is recorded under when it is judged or replayed; undefined for a document nothing watches. */
+function watchedOperation(query: string, wire: Wire): string | undefined {
+  const replayed = replayedOperation(query, wire);
+  if (replayed !== undefined || !wire.judge) return replayed;
+  return OPERATION.exec(query)?.[1] ?? "(unnamed)";
 }
 
 /** The request as it goes out: the previous bundle's text while the replay is armed, judged while judging is armed. */
 function onTheWire(body: Partial<Request>, wire: Wire): Request {
   const request = { query: body.query ?? "", variables: body.variables ?? {} };
   const operation = OPERATION.exec(request.query)?.[1] ?? "";
-  const documents = PREVIOUS_REVISION.previousClient.documents;
+  const replayed = replayedOperation(request.query, wire);
   const frozen =
-    wire.replay && Object.hasOwn(documents, operation)
-      ? documents[operation]
-      : undefined;
+    replayed === undefined
+      ? undefined
+      : PREVIOUS_REVISION.previousClient.documents[replayed];
   const sent = frozen
     ? {
         query: frozen.document,
@@ -146,9 +96,9 @@ function onTheWire(body: Partial<Request>, wire: Wire): Request {
         ),
       }
     : request;
-  if (frozen) {
-    const count = previousRevisionTraffic.rewritten.get(operation) ?? 0;
-    previousRevisionTraffic.rewritten.set(operation, count + 1);
+  if (replayed !== undefined) {
+    const count = previousRevisionTraffic.rewritten.get(replayed) ?? 0;
+    previousRevisionTraffic.rewritten.set(replayed, count + 1);
   }
   if (wire.judge) {
     const reasons = judgeDocument(
@@ -165,19 +115,51 @@ function onTheWire(body: Partial<Request>, wire: Wire): Request {
   return sent;
 }
 
-/** A Phoenix v2 frame is [join_ref, ref, topic, event, payload]; only the control topic's "doc" push carries a document. */
-function frameOnWire(message: string | Buffer, wire: Wire): string | Buffer {
-  let frame: unknown;
-  try {
-    frame = JSON.parse(String(message));
-  } catch {
-    return message;
-  }
-  if (!Array.isArray(frame) || frame[2] !== CONTROL_TOPIC || frame[3] !== "doc")
+/**
+ * A Phoenix v2 frame is [join_ref, ref, topic, event, payload]; only the control topic's "doc" push carries a document.
+ * A judged or replayed push's ref is kept against its operation, so the reply that answers it can be checked.
+ */
+function frameOnWire(
+  message: string | Buffer,
+  wire: Wire,
+  pushed: Map<string, string>,
+): string | Buffer {
+  const frame = parseFrame(message);
+  if (frame === undefined || frame[2] !== CONTROL_TOPIC || frame[3] !== "doc")
     return message;
   const payload = (frame[4] ?? {}) as Partial<Request>;
+  const watched = watchedOperation(payload.query ?? "", wire);
+  if (watched !== undefined) pushed.set(String(frame[1]), watched);
   const sent = onTheWire(payload, wire);
   return JSON.stringify([...frame.slice(0, 4), { ...payload, ...sent }]);
+}
+
+/** Sends a judged or replayed document to the live server, and answers the page with its answer. */
+async function answerLive(route: Route, postData: string, watched: string) {
+  // The live server answers a judged or replayed document. Its answer reaches the page unchanged, and any fault in
+  // it is recorded for the Then to fail on. Nothing is thrown inside the route.
+  // The readiness probe is the harness's own request, not a product document. Its success is already required:
+  // waitForRoutedReads polls until all six probes answer, and that poll fails the test on timeout. So its answers are
+  // not recorded here. It is still judged, and its answer still reaches the page unchanged.
+  const recorded = watched !== "Probe";
+  const live = await route.fetch({ postData }).catch((error: unknown) => {
+    if (recorded)
+      previousRevisionTraffic.liveErrors.push({
+        operation: watched,
+        reason: `no answer: ${String(error)}`,
+      });
+    return null;
+  });
+  if (live === null) return route.abort();
+  const text = await live.text().catch(() => "");
+  if (recorded)
+    previousRevisionTraffic.liveErrors.push(
+      ...liveProblems(live.ok(), live.status(), text).map((reason) => ({
+        operation: watched,
+        reason,
+      })),
+    );
+  return route.fulfill({ response: live });
 }
 
 /** Routes one page's GraphQL traffic, HTTP and socket, once. */
@@ -188,14 +170,28 @@ async function wirePage(page: Page): Promise<Wire> {
   wires.set(page, wire);
   await page.route(GRAPHQL_ROUTE, (route) => {
     if (!wire.replay && !wire.judge) return route.continue();
-    const posted = route.request().postData() ?? "{}";
-    const body = JSON.parse(posted) as Partial<Request>;
-    const sent = onTheWire(body, wire);
-    return route.continue({ postData: JSON.stringify({ ...body, ...sent }) });
+    const body = JSON.parse(
+      route.request().postData() ?? "{}",
+    ) as Partial<Request>;
+    const postData = JSON.stringify({ ...body, ...onTheWire(body, wire) });
+    const watched = watchedOperation(body.query ?? "", wire);
+    if (watched === undefined) return route.continue({ postData });
+    return answerLive(route, postData, watched);
   });
   await page.routeWebSocket(SOCKET_ROUTE, (socket) => {
     const server = socket.connectToServer();
-    socket.onMessage((message) => server.send(frameOnWire(message, wire)));
+    // This connection's judged or replayed pushes, by ref, so each reply is matched to the operation it answers.
+    const pushed = new Map<string, string>();
+    socket.onMessage((message) =>
+      server.send(frameOnWire(message, wire, pushed)),
+    );
+    // Taking over the server's messages stops Playwright passing them on, so each is judged and then sent on.
+    server.onMessage((message) => {
+      previousRevisionTraffic.liveErrors.push(
+        ...replyRefusals(message, pushed),
+      );
+      socket.send(message);
+    });
   });
   return wire;
 }
@@ -207,13 +203,15 @@ async function wirePage(page: Page): Promise<Wire> {
 export async function sendPreviousBundleDocuments(page: Page): Promise<void> {
   const wire = await wirePage(page);
   previousRevisionTraffic.rewritten.clear();
+  previousRevisionTraffic.liveErrors = [];
   wire.replay = true;
 }
 
-/** Judges each document the page sends from now on against the frozen rolled-back schema, as it goes out. */
+/** Judges each document the page sends from now on against the frozen rolled-back schema, and checks its live answer. */
 export async function judgeAgainstRolledBackSlot(page: Page): Promise<void> {
   const wire = await wirePage(page);
   previousRevisionTraffic.floorRefusals = [];
+  previousRevisionTraffic.liveErrors = [];
   wire.judge = true;
 }
 
