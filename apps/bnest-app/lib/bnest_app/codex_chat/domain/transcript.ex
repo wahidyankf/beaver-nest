@@ -1,6 +1,7 @@
 defmodule BnestApp.CodexChat.Domain.Transcript do
   @moduledoc false
 
+  alias BnestApp.CodexChat.Domain.ModelAccess
   alias BnestApp.CodexChat.Domain.Settings
 
   @snapshot_version 4
@@ -148,7 +149,7 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
     restore(
       snapshot
       |> Map.put("version", @snapshot_version)
-      |> Map.put_new("model", Settings.preferred_model())
+      |> Map.put("model", upgraded_model(Map.get(snapshot, "model")))
       |> Map.put_new("reasoning_effort", Settings.preferred_reasoning_effort())
       |> Map.put_new("pending_turn", nil)
       |> Map.put("messages", Enum.map(messages, &upgrade_message/1))
@@ -288,6 +289,15 @@ defmodule BnestApp.CodexChat.Domain.Transcript do
   defp snapshot_progress_item(%{item_id: item_id, kind: kind, content: content}) do
     %{"item_id" => item_id, "kind" => Atom.to_string(kind), "content" => content}
   end
+
+  # An old snapshot names any model id of its era. Keeping its tier means per-conversation settle keeps
+  # working; anything without a known tier takes the preferred model.
+  defp upgraded_model(nil), do: Settings.preferred_model()
+
+  defp upgraded_model(model) when is_binary(model),
+    do: ModelAccess.tier_latest(model) || Settings.preferred_model()
+
+  defp upgraded_model(invalid), do: invalid
 
   defp upgrade_message(message) when is_map(message) do
     message

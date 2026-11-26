@@ -229,6 +229,57 @@ Feature: Beaver Nest chat
     And a Codex response appears incrementally
     And the conversation does not display the visitor message "Old session marker"
 
+  Rule: Multiple chat conversations
+
+    Background:
+      Given an approved admin is logged in
+
+  Scenario: A visitor starts a second chat from the conversation rail
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    Then the conversation is empty
+    And the conversation list shows "First chat topic"
+    And the conversation list shows "New chat"
+
+  Scenario: A visitor switches between two chats and each keeps its messages
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    And the visitor sends "Second chat topic"
+    And a Codex response appears incrementally
+    When the visitor opens the conversation "First chat topic"
+    Then the conversation displays the visitor message "First chat topic"
+    And the conversation does not display the visitor message "Second chat topic"
+    When the visitor opens the conversation "Second chat topic"
+    Then the conversation displays the visitor message "Second chat topic"
+    And the conversation does not display the visitor message "First chat topic"
+
+  Scenario: A visitor deletes a chat from the conversation rail
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    And the visitor sends "Second chat topic"
+    And a Codex response appears incrementally
+    When the visitor deletes the conversation "First chat topic"
+    Then the conversation list does not show "First chat topic"
+    And the conversation displays the visitor message "Second chat topic"
+
+  Scenario: A visitor keeps every chat after a reload
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor starts a new chat
+    And the visitor sends "Second chat topic"
+    And a Codex response appears incrementally
+    When the visitor reloads the page
+    Then the conversation list shows "First chat topic"
+    And the conversation list shows "Second chat topic"
+    And the conversation displays the visitor message "Second chat topic"
+
   Rule: Role-scoped Codex access
 
   Scenario: A child is limited to Luna at medium effort
