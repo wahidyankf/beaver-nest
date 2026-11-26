@@ -84,15 +84,8 @@ Then("Bnest creates the accounts exactly once", async ({ page }) => {
 Then(
   "setup and public registration are unavailable afterward",
   async ({ page }) => {
-    await page.goto("/setup");
-    await expect(page.locator("#setup-closed-title")).toHaveText(
-      "Setup is permanently closed",
-    );
-    await expect(
-      page.getByText(
-        "Public registration and password recovery are unavailable.",
-      ),
-    ).toBeVisible();
+    expect((await page.request.get("/setup")).status()).toBe(404);
+    expect((await page.request.get("/register")).status()).toBe(404);
   },
 );
 
