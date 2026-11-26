@@ -430,6 +430,9 @@ function renderRoom(member: Member): string {
     ],
     "room.html.heex",
   );
+  // Served on purpose: the frozen pre-#239 client (family_chat.js at 4ee4027) reads dataset["familyChatReplyEnabled"]
+  // === "true", and a browser still holding that bundle runs this markup after a reload into this revision. No code
+  // in the current bundle reads the attribute.
   if (!html.includes('data-family-chat-reply-enabled="true"')) {
     throw new Error(
       "room.html.heex no longer serves the room with replies enabled",
@@ -482,10 +485,7 @@ interface FrozenDocument {
 
 interface PreviousRevision {
   previousClient: { documents: Record<string, FrozenDocument> };
-  rolledBackSlot: {
-    documents: Record<string, FrozenDocument>;
-    schema: SchemaSnapshot;
-  };
+  rolledBackSlot: { schema: SchemaSnapshot };
 }
 
 const PREVIOUS_REVISION: PreviousRevision = JSON.parse(
@@ -622,6 +622,13 @@ function storageOf(map: Map<string, string>) {
 /** Which bundle a page runs: this revision's own, or the frozen previous bundle that sends the earlier documents. */
 export type Bundle = "current" | "previous";
 
+/** One GraphQL document a previous-bundle page put on the wire: its channel, its operation, and the text sent. */
+export interface SentDocument {
+  channel: "http" | "socket";
+  operation: string;
+  wire: string;
+}
+
 export interface Page {
   id: number;
   kind: "room" | "home";
@@ -638,6 +645,8 @@ export interface Page {
   visibility: "visible" | "hidden";
   inflight: number;
   bundle: Bundle;
+  /** The documents a previous-bundle page sent, in order; the step checks them against the frozen contract. */
+  sentDocuments: SentDocument[];
   closed: boolean;
   /** Where a submitted form sent this page, if anywhere. */
   navigatedTo: string | null;
@@ -998,6 +1007,7 @@ function newPage(
     visibility: "visible",
     inflight: 0,
     bundle: "current",
+    sentDocuments: [],
     closed: false,
     navigatedTo: null,
     dialogs: [],
@@ -1028,24 +1038,31 @@ function newPage(
   return page;
 }
 
-/** The document a page puts on the wire: its own, or the previous bundle's for the same operation. */
+/**
+ * The document a page puts on the wire: its own, or the previous bundle's for the same operation. A previous-bundle
+ * page records each document it sent, so an operation with no frozen document still shows up in the check.
+ */
 function sentFrames(
   page: Page,
+  channel: SentDocument["channel"],
   query: string,
   variables: Record<string, unknown>,
 ): { query: string; variables: Record<string, unknown> } {
   if (page.bundle === "current") return { query, variables };
-  const frozen =
-    PREVIOUS_REVISION.previousClient.documents[parseDocument(query).operation];
-  if (!frozen) return { query, variables };
-  return {
-    query: frozen.document,
-    variables: Object.fromEntries(
-      Object.entries(variables).filter(([name]) =>
-        frozen.variables.includes(name),
-      ),
-    ),
-  };
+  const operation = parseDocument(query).operation;
+  const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
+  const sent = frozen
+    ? {
+        query: frozen.document,
+        variables: Object.fromEntries(
+          Object.entries(variables).filter(([name]) =>
+            frozen.variables.includes(name),
+          ),
+        ),
+      }
+    : { query, variables };
+  page.sentDocuments.push({ channel, operation, wire: sent.query });
+  return sent;
 }
 
 /** The room's way to the server, as this page's network carries it. */
@@ -1067,7 +1084,7 @@ function requestFor(page: Page) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         throw new TypeError("Failed to fetch");
       }
-      const sent = sentFrames(page, query, variables);
+      const sent = sentFrames(page, "http", query, variables);
       const answer = await client.request(sent.query, sent.variables);
       await untilActive(page);
       return answer;
@@ -1145,6 +1162,7 @@ function sentSubscription(
     ...payload,
     ...sentFrames(
       page,
+      "socket",
       String(payload["query"]),
       (payload["variables"] ?? {}) as Record<string, unknown>,
     ),
@@ -1684,14 +1702,25 @@ export function hidden(element: HTMLElement): boolean {
   return element.hidden !== false;
 }
 
-/** Each request that did not carry the previous bundle's document for its operation, in the order sent. */
+/**
+ * Each document a previous-bundle page sent that the previous bundle does not send, in the order sent per page. An
+ * operation with no frozen document is a mismatch too, so a page cannot pass by sending a document the map lacks.
+ */
 export function previousBundleMismatches(): string[] {
-  return server().queries.flatMap(({ operation, document }) => {
-    const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
-    return frozen === undefined || frozen.document === document
-      ? []
-      : [`${operation} was not sent as the previous bundle sends it`];
-  });
+  return requireWorld().pages.flatMap((page) =>
+    page.sentDocuments.flatMap(({ channel, operation, wire }) => {
+      const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
+      if (frozen === undefined)
+        return [
+          `${operation} went over the ${channel} with no previous-bundle document`,
+        ];
+      return wire === frozen.document
+        ? []
+        : [
+            `${operation} went over the ${channel} as text the previous bundle does not send`,
+          ];
+    }),
+  );
 }
 
 /** The routed slot is the rolled-back one from here on: it answers from the frozen earlier schema. */
