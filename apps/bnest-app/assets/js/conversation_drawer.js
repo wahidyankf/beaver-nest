@@ -148,7 +148,8 @@ export function installDrawerDesktopClose(document) {
   if (!view || typeof view.matchMedia !== "function") return;
   const query = view.matchMedia(DRAWER_QUERY);
   const closeOnDesktop = () => {
-    if (query.matches) setConversationDrawer(document, false, { keepFocus: true });
+    if (query.matches)
+      setConversationDrawer(document, false, { keepFocus: true });
   };
   if (typeof query.addEventListener === "function") {
     query.addEventListener("change", closeOnDesktop);

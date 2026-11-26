@@ -5,7 +5,10 @@
 // the document, so they are installed once and each test rebuilds only the page markup.
 
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { installChatControls, keepOptionsState } from "../../js/chat_controls.js";
+import {
+  installChatControls,
+  keepOptionsState,
+} from "../../js/chat_controls.js";
 import {
   keepConversationDrawerState,
   setConversationDrawer,
@@ -337,9 +340,7 @@ describe("the conversation drawer", () => {
     expect(
       el("[data-role='conversation-scrim']").classList.contains("is-open"),
     ).toBe(true);
-    expect(document.activeElement).toBe(
-      el("[data-role='conversation-close']"),
-    );
+    expect(document.activeElement).toBe(el("[data-role='conversation-close']"));
   });
 
   it("the Chats toggle closes the drawer and returns focus to the toggle", () => {

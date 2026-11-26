@@ -42,7 +42,10 @@ async function saveDrawerShot(page: Page, name: string): Promise<void> {
   mkdirSync(shots, { recursive: true });
   const viewport = page.viewportSize();
   await page.screenshot({
-    path: path.join(shots, `${name}-${viewport?.width ?? 0}x${viewport?.height ?? 0}.png`),
+    path: path.join(
+      shots,
+      `${name}-${viewport?.width ?? 0}x${viewport?.height ?? 0}.png`,
+    ),
   });
 }
 
