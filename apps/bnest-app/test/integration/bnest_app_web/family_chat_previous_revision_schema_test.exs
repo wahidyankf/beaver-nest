@@ -7,6 +7,9 @@ defmodule BnestAppWeb.FamilyChatPreviousRevisionSchemaTest do
   answers from. This test checks each of them against verbatim copies of the 4ee4027
   schema sources kept beside the fixture. It reads only those files: never git history,
   never the network, and never a database.
+
+  Each copy is also pinned to the git blob SHA of its source at 4ee4027, so an edit to a
+  copy fails the test too.
   """
   use ExUnit.Case, async: true
 
@@ -17,6 +20,19 @@ defmodule BnestAppWeb.FamilyChatPreviousRevisionSchemaTest do
     "family_chat_previous_revision.4ee4027.family_chat_types.ex",
     "family_chat_previous_revision.4ee4027.web_push_types.ex"
   ]
+  # Each verbatim 4ee4027 copy, pinned to the git blob SHA of its source at 4ee4027. An edit to a
+  # copy fails this test even while the fixture still matches it.
+  @previous_revision_pins %{
+    # 4ee4027:apps/bnest-app/lib/bnest_app_web/schema.ex
+    "family_chat_previous_revision.4ee4027.schema.ex" =>
+      "80e780a2232d135094528b17e587ddf828e0636c",
+    # 4ee4027:apps/bnest-app/lib/bnest_app_web/schema/types/family_chat_types.ex
+    "family_chat_previous_revision.4ee4027.family_chat_types.ex" =>
+      "0d6a9d32824bf7beb3983fdbfd05c0129c8ff56c",
+    # 4ee4027:apps/bnest-app/lib/bnest_app_web/schema/types/web_push_types.ex
+    "family_chat_previous_revision.4ee4027.web_push_types.ex" =>
+      "6d2ad3117117e5ffc8636427e1792f67db913a8b"
+  }
   @scalars %{
     string: "String",
     id: "ID",
@@ -31,6 +47,28 @@ defmodule BnestAppWeb.FamilyChatPreviousRevisionSchemaTest do
 
     assert drift == [],
            "family_chat_previous_revision.json drifts from 4ee4027:\n" <> Enum.join(drift, "\n")
+  end
+
+  test "each 4ee4027 snapshot copy is byte-identical to its pinned git blob" do
+    assert Enum.sort(Map.keys(@previous_revision_pins)) == Enum.sort(@previous_revision_sources)
+
+    for {name, pinned} <- @previous_revision_pins do
+      actual =
+        @support_dir
+        |> Path.join(name)
+        |> File.read!()
+        |> git_blob_sha()
+
+      assert actual == pinned,
+             "#{name} differs from its pinned 4ee4027 source (git blob #{pinned}, now #{actual}); " <>
+               "restore the verbatim copy"
+    end
+  end
+
+  # The SHA git gives a file's contents, computed here so the test needs no git process.
+  defp git_blob_sha(content) do
+    :crypto.hash(:sha, "blob " <> Integer.to_string(byte_size(content)) <> <<0>> <> content)
+    |> Base.encode16(case: :lower)
   end
 
   defp previous_revision_schema! do
