@@ -42,7 +42,10 @@ defmodule BnestAppWeb.CentralizedPersistenceTest do
 
     record = await_record(:chat, identity.user_id)
     assert record["sourceImportId"] == nil
-    assert Enum.any?(record["state"]["messages"], &(&1["content"] == "Central only"))
+
+    selected = record["state"]["conversations"][record["state"]["selected_id"]]
+
+    assert Enum.any?(selected["transcript"]["messages"], &(&1["content"] == "Central only"))
 
     %{proxy: {ref, _topic, _}} = view
     refute_receive {^ref, {:push_event, "persist-chat", _snapshot}}, 50

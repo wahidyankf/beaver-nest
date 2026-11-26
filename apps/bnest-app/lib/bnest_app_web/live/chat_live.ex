@@ -2,7 +2,15 @@ defmodule BnestAppWeb.ChatLive do
   use BnestAppWeb, :live_view
 
   alias BnestApp.CodexChat
-  alias BnestApp.CodexChat.Domain.{ModelAccess, RepositoryAccess, Settings, Transcript}
+
+  alias BnestApp.CodexChat.Domain.{
+    Conversations,
+    ModelAccess,
+    RepositoryAccess,
+    Settings,
+    Transcript
+  }
+
   alias BnestAppWeb.ChatComponents
 
   @max_snapshot_bytes 500_000
@@ -10,7 +18,9 @@ defmodule BnestAppWeb.ChatLive do
   @impl Phoenix.LiveView
   def mount(_params, _session, socket) do
     model_access = CodexChat.model_access(socket.assigns.current_user)
-    {chat, central_record} = restore_chat(socket, model_access)
+    {conversations, central_record} = restore_conversations(socket, model_access)
+
+    {:ok, %{transcript: chat}} = CodexChat.selected_conversation(conversations)
 
     chat =
       if model_access.available?, do: chat, else: Transcript.fail(chat, model_access.error)
@@ -18,6 +28,7 @@ defmodule BnestAppWeb.ChatLive do
     socket =
       socket
       |> assign(:chat, chat)
+      |> assign(:conversations, conversations)
       |> assign(:models, model_access.models)
       |> assign(:model_access, model_access)
       |> assign(
@@ -35,6 +46,25 @@ defmodule BnestAppWeb.ChatLive do
       do: connect_codex(socket, chat),
       else: {:ok, socket}
   end
+
+  # The rail links patch the selected conversation into the address, so a reload or a
+  # shared address opens that conversation. Selecting the same or an unknown id is a
+  # no-op: the page keeps its session.
+  @impl Phoenix.LiveView
+  def handle_params(%{"conversation" => id}, _uri, socket) when is_binary(id) do
+    if id == socket.assigns.conversations.selected_id do
+      {:noreply, socket}
+    else
+      socket = sync_transcript(socket)
+
+      case CodexChat.select_conversation(socket.assigns.conversations, id) do
+        {:ok, conversations} -> {:noreply, reconnect_conversation(socket, conversations)}
+        {:error, _unknown} -> {:noreply, socket}
+      end
+    end
+  end
+
+  def handle_params(_params, _uri, socket), do: {:noreply, socket}
 
   # The role's rules decide what a switch may change, so a forged model or effort is refused here too.
   def handle_event("select_model", %{"model" => model_id}, socket) do
@@ -105,7 +135,12 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("send", %{"chat" => %{"prompt" => prompt}}, socket) do
     case Transcript.submit(socket.assigns.chat, prompt) do
       {:ok, chat} ->
-        socket = socket |> assign(:chat, chat) |> assign(:form, prompt_form()) |> persist_chat()
+        socket =
+          socket
+          |> assign(:chat, chat)
+          |> assign(:form, prompt_form())
+          |> maybe_name_conversation(prompt)
+          |> persist_chat()
 
         case CodexChat.send_prompt(socket.assigns.codex_session, chat, prompt) do
           {:ok, _chat} -> {:noreply, socket}
@@ -125,8 +160,78 @@ defmodule BnestAppWeb.ChatLive do
     end
   end
 
+  # A second tab: the live chat is stored back first, so switching never loses a
+  # streamed reply, then the selected conversation is connected and saved.
+  def handle_event("new_conversation", _params, socket) do
+    socket = sync_transcript(socket)
+
+    case CodexChat.create_conversation(socket.assigns.conversations) do
+      {:ok, _id, conversations} -> {:noreply, reconnect_conversation(socket, conversations)}
+      {:error, _limit} -> {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_conversation", %{"id" => id}, socket) do
+    if id != socket.assigns.conversations.selected_id do
+      socket = sync_transcript(socket)
+
+      case CodexChat.select_conversation(socket.assigns.conversations, id) do
+        {:ok, conversations} -> {:noreply, reconnect_conversation(socket, conversations)}
+        {:error, _unknown} -> {:noreply, socket}
+      end
+    else
+      {:noreply, socket}
+    end
+  end
+
+  def handle_event("select_conversation", _params, socket), do: {:noreply, socket}
+
+  # Deleting the selected conversation closes its session first, then connects the
+  # conversation that takes its place. Deleting another one keeps the session.
+  def handle_event("delete_conversation", %{"id" => id}, socket) do
+    {:noreply, drop_conversation(sync_transcript(socket), id)}
+  end
+
+  def handle_event("delete_conversation", _params, socket), do: {:noreply, socket}
+
+  def handle_event("rename_conversation", %{"conversation_id" => id, "title" => title}, socket) do
+    case CodexChat.rename_conversation(socket.assigns.conversations, id, title || "") do
+      {:ok, conversations} ->
+        {:noreply, persist_chat(assign(socket, :conversations, conversations))}
+
+      {:error, _refused} ->
+        {:noreply, socket}
+    end
+  end
+
+  def handle_event("rename_conversation", _params, socket), do: {:noreply, socket}
+
+  defp drop_conversation(socket, id) do
+    selected_before = socket.assigns.conversations.selected_id
+
+    case CodexChat.delete_conversation(socket.assigns.conversations, id) do
+      {:ok, conversations} when id == selected_before ->
+        reconnect_conversation(socket, conversations)
+
+      {:ok, conversations} ->
+        persist_chat(assign(socket, :conversations, conversations))
+
+      {:error, _unknown} ->
+        socket
+    end
+  end
+
   defp clear_available_chat(socket) do
-    CodexChat.close(socket.assigns.codex_session)
+    close_codex(socket.assigns.codex_session)
+
+    {:ok, %{id: id}} = CodexChat.selected_conversation(socket.assigns.conversations)
+    fresh = Transcript.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
+
+    {:ok, conversations} =
+      CodexChat.put_conversation_transcript(socket.assigns.conversations, id, fresh)
+
+    {:ok, renamed} =
+      CodexChat.rename_conversation(conversations, id, CodexChat.default_conversation_title(""))
 
     socket =
       socket
@@ -135,10 +240,8 @@ defmodule BnestAppWeb.ChatLive do
         repository_access_mode: :read_only,
         codex_session: nil
       )
-      |> assign(
-        :chat,
-        Transcript.new(socket.assigns.chat.model, socket.assigns.chat.reasoning_effort)
-      )
+      |> assign(:conversations, renamed)
+      |> assign(:chat, fresh)
       |> assign(:form, prompt_form())
       |> clear_chat_persistence()
 
@@ -189,6 +292,58 @@ defmodule BnestAppWeb.ChatLive do
   def render(assigns) do
     ~H"""
     <main class="chat-shell">
+      <aside class="conversation-rail" data-role="conversation-rail" aria-label="Chats">
+        <button type="button" data-role="new-conversation" phx-click="new_conversation">
+          New chat
+        </button>
+        <ul>
+          <li
+            :for={entry <- CodexChat.list_conversations(@conversations)}
+            data-role="conversation-item"
+            data-conversation-id={entry.id}
+            aria-current={entry.id == @conversations.selected_id && "true"}
+          >
+            <a
+              href={"/chat?conversation=#{entry.id}"}
+              data-phx-link="patch"
+              data-phx-link-state="push"
+              data-role="select-conversation"
+              data-conversation-id={entry.id}
+            >
+              {entry.title}
+            </a>
+            <span
+              data-role="conversation-updated"
+              title={DateTime.to_iso8601(entry.updated_at)}
+            >
+              {format_conversation_updated(entry.updated_at)}
+            </span>
+            <button
+              type="button"
+              data-role="delete-conversation"
+              phx-click="delete_conversation"
+              phx-value-id={entry.id}
+            >
+              Delete
+            </button>
+            <form
+              :if={entry.id == @conversations.selected_id}
+              phx-submit="rename_conversation"
+              class="conversation-rename"
+            >
+              <input type="hidden" name="conversation_id" value={entry.id} />
+              <input
+                type="text"
+                name="title"
+                value={entry.title}
+                data-role="rename-input"
+                aria-label="Conversation title"
+              />
+              <button type="submit" data-role="rename-submit">Rename</button>
+            </form>
+          </li>
+        </ul>
+      </aside>
       <section class="chat-panel" aria-labelledby="chat-title">
         <header class="chat-header">
           <a href="/" class="brand-identity" aria-label="Beaver Nest home">
@@ -366,7 +521,9 @@ defmodule BnestAppWeb.ChatLive do
 
           <article
             :for={message <- @chat.messages}
-            id={if message.role == :visitor, do: "message-#{message.id}"}
+            id={
+              if message.role == :visitor, do: "message-#{@conversations.selected_id}-#{message.id}"
+            }
             class={message_class(message)}
             phx-update={if message.role == :visitor, do: "ignore"}
             data-role="message"
@@ -405,7 +562,7 @@ defmodule BnestAppWeb.ChatLive do
                  arrives with it. (ADR 004, Decision 3.) --%>
             <div
               :if={message.role == :assistant and placeholder?(message)}
-              id={"assistant-message-#{message.id}"}
+              id={"assistant-message-#{@conversations.selected_id}-#{message.id}"}
               class="message-content markdown-body"
               data-role="assistant-message"
               data-streaming={to_string(message.streaming)}
@@ -414,7 +571,7 @@ defmodule BnestAppWeb.ChatLive do
             >Thinking…</div>
             <ChatComponents.markdown_body
               :if={message.role == :assistant and not placeholder?(message)}
-              id={"assistant-message-#{message.id}"}
+              id={"assistant-message-#{@conversations.selected_id}-#{message.id}"}
               phx-update={if message.streaming, do: nil, else: "ignore"}
               content={message.content}
               streaming={message.streaming}
@@ -480,45 +637,108 @@ defmodule BnestAppWeb.ChatLive do
     end
   end
 
-  defp restore_chat(socket, access) do
+  # Stores the live chat back into its conversation, so a switch never loses a
+  # reply the page has not saved yet.
+  defp sync_transcript(socket) do
+    case CodexChat.put_conversation_transcript(
+           socket.assigns.conversations,
+           socket.assigns.conversations.selected_id,
+           socket.assigns.chat
+         ) do
+      {:ok, conversations} -> assign(socket, :conversations, conversations)
+      {:error, _unknown} -> socket
+    end
+  end
+
+  # Closes the current Codex session, connects the selected conversation and saves
+  # the switch, moving the address to the selected conversation. Without an
+  # available model there is no session to connect; the tabs still switch.
+  defp reconnect_conversation(socket, conversations) do
+    close_codex(socket.assigns.codex_session)
+    conversations = settle_conversation(conversations, socket.assigns.model_access)
+    {:ok, %{id: id, transcript: chat}} = CodexChat.selected_conversation(conversations)
+
+    socket =
+      assign(socket,
+        conversations: conversations,
+        chat: chat,
+        codex_session: nil,
+        form: prompt_form()
+      )
+
+    {:ok, socket} =
+      if socket.assigns.model_access.available? do
+        connect_codex(socket, chat)
+      else
+        {:ok, socket}
+      end
+
+    socket
+    |> persist_chat()
+    |> push_patch(to: "/chat?conversation=#{id}")
+  end
+
+  defp close_codex(nil), do: :ok
+  defp close_codex(session), do: CodexChat.close(session)
+
+  # A conversation without a user-chosen title takes it from its first message.
+  defp maybe_name_conversation(socket, prompt) do
+    {:ok, %{id: id, title: title}} =
+      CodexChat.selected_conversation(socket.assigns.conversations)
+
+    if title == CodexChat.default_conversation_title("") do
+      case CodexChat.rename_conversation(
+             socket.assigns.conversations,
+             id,
+             CodexChat.default_conversation_title(prompt)
+           ) do
+        {:ok, conversations} -> assign(socket, :conversations, conversations)
+        {:error, _refused} -> socket
+      end
+    else
+      socket
+    end
+  end
+
+  defp restore_conversations(socket, access) do
     owner_id = socket.assigns.current_user["userId"]
 
-    case CodexChat.load_transcript(owner_id) do
-      {:ok, restored, record} ->
-        {settle_chat(restored, access), record}
+    case CodexChat.load_conversations(owner_id) do
+      {:ok, conversations, record} ->
+        {settle_conversation(conversations, access), record}
 
       {:error, :unrestorable} ->
-        {new_chat(access), nil}
+        {fresh_conversations(access), nil}
 
       {:error, _missing_or_invalid} ->
-        chat =
+        conversations =
           if legacy_browser_user?(socket),
-            do: restore_browser_chat(socket, access),
-            else: new_chat(access)
+            do: restore_browser_conversations(socket, access),
+            else: fresh_conversations(access)
 
-        {settle_chat(chat, access), nil}
+        {settle_conversation(conversations, access), nil}
     end
   end
 
-  defp restore_browser_chat(socket, access) do
+  defp restore_browser_conversations(socket, access) do
     if connected?(socket) do
-      decode_browser_chat(get_connect_params(socket), access)
+      decode_browser_conversations(get_connect_params(socket), access)
     else
-      new_chat(access)
+      fresh_conversations(access)
     end
   end
 
-  defp decode_browser_chat(%{"chat" => encoded}, access) when is_binary(encoded) do
+  defp decode_browser_conversations(%{"chat" => encoded}, access) when is_binary(encoded) do
     with true <- byte_size(encoded) <= @max_snapshot_bytes,
          {:ok, snapshot} <- Jason.decode(encoded),
-         {:ok, restored} <- Transcript.restore(snapshot) do
-      restored
+         {:ok, conversations} <- Conversations.restore(snapshot, DateTime.utc_now()) do
+      conversations
     else
-      _invalid_or_missing -> new_chat(access)
+      _invalid_or_missing -> fresh_conversations(access)
     end
   end
 
-  defp decode_browser_chat(_params, access), do: new_chat(access)
+  defp decode_browser_conversations(_params, access), do: fresh_conversations(access)
 
   defp recover_pending_turn(socket) do
     case CodexChat.recover_pending_turn(socket.assigns.chat) do
@@ -549,7 +769,7 @@ defmodule BnestAppWeb.ChatLive do
   defp persist_chat(
          %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket
        ) do
-    case Transcript.snapshot(socket.assigns.chat) do
+    case Conversations.snapshot(synced_conversations(socket)) do
       {:ok, snapshot} -> push_event(socket, "persist-chat", snapshot)
       :error -> socket
     end
@@ -557,18 +777,41 @@ defmodule BnestAppWeb.ChatLive do
 
   defp persist_chat(socket) do
     owner_id = socket.assigns.current_user["userId"]
+    synced = synced_conversations(socket)
 
-    case CodexChat.save_transcript(owner_id, socket.assigns.chat, socket.assigns.central_record) do
-      {:ok, record} -> assign(socket, :central_record, record)
-      {:error, failed} -> assign(socket, :chat, failed)
-      :error -> socket
+    case CodexChat.save_conversations(owner_id, synced, socket.assigns.central_record) do
+      {:ok, record} ->
+        {:ok, %{transcript: chat}} = CodexChat.selected_conversation(synced)
+        assign(socket, conversations: synced, chat: chat, central_record: record)
+
+      {:error, failed} ->
+        {:ok, %{transcript: chat}} = CodexChat.selected_conversation(failed)
+        assign(socket, conversations: failed, chat: chat)
+
+      :error ->
+        socket
+    end
+  end
+
+  defp synced_conversations(socket) do
+    case CodexChat.put_conversation_transcript(
+           socket.assigns.conversations,
+           socket.assigns.conversations.selected_id,
+           socket.assigns.chat
+         ) do
+      {:ok, conversations} -> conversations
+      {:error, _unknown} -> socket.assigns.conversations
     end
   end
 
   defp clear_chat_persistence(
          %{assigns: %{central_record: nil, current_user: %{"migrationMode" => true}}} = socket
-       ),
-       do: push_event(socket, "clear-chat-storage", %{})
+       ) do
+    case Conversations.snapshot(synced_conversations(socket)) do
+      {:ok, snapshot} -> push_event(socket, "persist-chat", snapshot)
+      :error -> push_event(socket, "clear-chat-storage", %{})
+    end
+  end
 
   defp clear_chat_persistence(socket), do: persist_chat(socket)
 
@@ -622,12 +865,41 @@ defmodule BnestAppWeb.ChatLive do
 
   defp prompt_form(prompt \\ ""), do: to_form(%{"prompt" => prompt}, as: :chat)
 
-  defp new_chat(access), do: settle_chat(Transcript.new(), access)
+  defp fresh_conversations(access) do
+    {model, reasoning_effort} =
+      ModelAccess.settle(
+        access,
+        Settings.preferred_model(),
+        Settings.preferred_reasoning_effort()
+      )
+
+    Conversations.new(
+      transcript: Transcript.enforce_model(Transcript.new(), model.id, reasoning_effort),
+      now: DateTime.utc_now()
+    )
+  end
 
   # A saved model or effort the role may no longer use resolves to the role's own choice (ADR 006).
-  defp settle_chat(chat, access) do
+  defp settle_conversation(conversations, access) do
+    {:ok, %{id: id, transcript: chat}} = CodexChat.selected_conversation(conversations)
     {model, reasoning_effort} = ModelAccess.settle(access, chat.model, chat.reasoning_effort)
-    Transcript.enforce_model(chat, model.id, reasoning_effort)
+
+    if chat.model == model.id and chat.reasoning_effort == reasoning_effort do
+      conversations
+    else
+      {:ok, settled} =
+        CodexChat.put_conversation_transcript(
+          conversations,
+          id,
+          Transcript.enforce_model(chat, model.id, reasoning_effort)
+        )
+
+      settled
+    end
+  end
+
+  defp format_conversation_updated(updated_at) do
+    Calendar.strftime(updated_at, "%Y-%m-%d %H:%M")
   end
 
   defp model_display_name(models, model_id) do

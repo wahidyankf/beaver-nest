@@ -1,8 +1,9 @@
 defmodule BnestApp.CodexChat.Domain.TranscriptRecord do
   @moduledoc """
-  The `chat` record that stores a user's transcript snapshot (see
-  `BnestApp.CodexChat.Domain.Transcript.snapshot/1`) under `"state"`. The record store
-  assigns `revision`; this module never sets it.
+  The `chat` record that stores a user's chat state under `"state"`: the conversations
+  snapshot (see `BnestApp.CodexChat.Domain.Conversations.snapshot/1`), or a single
+  transcript snapshot written before conversations existed. The record store assigns
+  `revision`; this module never sets it.
   """
 
   @doc "The stored record's `recordType`."

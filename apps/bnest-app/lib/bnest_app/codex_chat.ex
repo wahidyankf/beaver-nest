@@ -22,6 +22,7 @@ defmodule BnestApp.CodexChat do
     exports: [{Domain, []}, {Ports, []}]
 
   alias BnestApp.CodexChat.Domain.{
+    Conversations,
     GeneratedImage,
     ModelAccess,
     RepositoryAccess,
@@ -157,6 +158,100 @@ defmodule BnestApp.CodexChat do
   end
 
   @doc """
+  The conversations `owner_id` saved last, with the stored record. The store's error
+  is returned as is (`{:error, :missing}` when they saved none), and
+  `{:error, :unrestorable}` when the stored state is neither a conversations set nor
+  a single transcript written before conversations existed (which loads as one
+  conversation).
+  """
+  @spec load_conversations(String.t(), [option()]) ::
+          {:ok, Conversations.t(), map()} | {:error, atom()}
+  def load_conversations(owner_id, options \\ []) do
+    now = Keyword.get_lazy(options, :now, &DateTime.utc_now/0)
+
+    with {:ok, record} <- TranscriptStore.read(store(options), owner_id) do
+      case Conversations.restore(record["state"], now) do
+        {:ok, conversations} -> {:ok, conversations, record}
+        :error -> {:error, :unrestorable}
+      end
+    end
+  end
+
+  @doc """
+  Saves `conversations` as the `chat` record of `owner_id` over `previous`, the
+  record it last loaded or saved (`nil` for none), and returns the stored record.
+
+  The write expects the revision of `previous`, so a chat that changed in between
+  is kept. A failed write returns the conversations with their selected transcript
+  failed with the message to show; conversations that have no valid snapshot are
+  not saved and return `:error`. The record is stamped with the `now:` option, the
+  current time by default, truncated to the second.
+  """
+  @spec save_conversations(String.t(), Conversations.t(), map() | nil, [option()]) ::
+          {:ok, map()} | {:error, Conversations.t()} | :error
+  def save_conversations(owner_id, conversations, previous, options \\ []) do
+    with {:ok, snapshot} <- Conversations.snapshot(conversations) do
+      now = Keyword.get_lazy(options, :now, &DateTime.utc_now/0)
+
+      case TranscriptStore.write(
+             store(options),
+             owner_id,
+             TranscriptRecord.expected_revision(previous),
+             TranscriptRecord.record(owner_id, snapshot, previous, now)
+           ) do
+        {:ok, record} -> {:ok, record}
+        {:error, :stale} -> {:error, fail_selected(conversations, @stale, now)}
+        {:error, _reason} -> {:error, fail_selected(conversations, @unsaved, now)}
+      end
+    end
+  end
+
+  @doc "Every conversation of `conversations`, newest first."
+  @spec list_conversations(Conversations.t()) :: [Conversations.listed()]
+  def list_conversations(conversations), do: Conversations.list(conversations)
+
+  @doc "The selected conversation of `conversations`, with its transcript."
+  @spec selected_conversation(Conversations.t()) ::
+          {:ok, Conversations.selected()} | {:error, :missing_conversation}
+  def selected_conversation(conversations), do: Conversations.selected(conversations)
+
+  @doc "Opens a new empty conversation in `conversations` and selects it."
+  @spec create_conversation(Conversations.t(), keyword()) ::
+          {:ok, String.t(), Conversations.t()} | {:error, :too_many}
+  def create_conversation(conversations, options \\ []),
+    do: Conversations.create(conversations, with_now(options))
+
+  @doc "Selects the conversation `id` in `conversations`."
+  @spec select_conversation(Conversations.t(), String.t()) ::
+          {:ok, Conversations.t()} | {:error, :unknown_conversation}
+  def select_conversation(conversations, id), do: Conversations.select(conversations, id)
+
+  @doc """
+  Deletes the conversation `id` from `conversations`. Deleting the selected
+  conversation falls back to the most recently updated one.
+  """
+  @spec delete_conversation(Conversations.t(), String.t(), keyword()) ::
+          {:ok, Conversations.t()} | {:error, :unknown_conversation}
+  def delete_conversation(conversations, id, options \\ []),
+    do: Conversations.delete(conversations, id, with_now(options))
+
+  @doc "Renames the conversation `id` in `conversations`."
+  @spec rename_conversation(Conversations.t(), String.t(), String.t(), keyword()) ::
+          {:ok, Conversations.t()} | {:error, :unknown_conversation | :invalid_title}
+  def rename_conversation(conversations, id, title, options \\ []),
+    do: Conversations.rename(conversations, id, title, with_now(options))
+
+  @doc "Stores `transcript` in the conversation `id` and stamps its update time."
+  @spec put_conversation_transcript(Conversations.t(), String.t(), Transcript.t(), keyword()) ::
+          {:ok, Conversations.t()} | {:error, :unknown_conversation}
+  def put_conversation_transcript(conversations, id, transcript, options \\ []),
+    do: Conversations.put_transcript(conversations, id, transcript, with_now(options))
+
+  @doc "The title a conversation takes from its first visitor message."
+  @spec default_conversation_title(String.t()) :: String.t()
+  def default_conversation_title(prompt), do: Conversations.title_for(prompt)
+
+  @doc """
   Opens a Codex conversation for the calling process with the transcript's model and
   reasoning effort, resuming its thread.
 
@@ -277,6 +372,21 @@ defmodule BnestApp.CodexChat do
       repository_mode
     )
   end
+
+  # Callers only pass conversations whose snapshot just succeeded, so a selected
+  # conversation is always present.
+  defp fail_selected(conversations, message, now) do
+    {:ok, %{id: id, transcript: transcript}} = Conversations.selected(conversations)
+
+    {:ok, failed} =
+      Conversations.put_transcript(conversations, id, Transcript.fail(transcript, message),
+        now: now
+      )
+
+    failed
+  end
+
+  defp with_now(options), do: Keyword.put_new_lazy(options, :now, &DateTime.utc_now/0)
 
   defp agent_session(options),
     do: Keyword.get_lazy(options, :agent_session, fn -> adapter(:agent_session) end)

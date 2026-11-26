@@ -6,7 +6,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
   alias BnestApp.CodexChat
   alias BnestApp.CodexChat.Adapters.CodexPortSession
-  alias BnestApp.CodexChat.Domain.Transcript
+  alias BnestApp.CodexChat.Domain.{Conversations, Transcript}
   alias BnestApp.Test.CodexFixtureModels
   alias BnestApp.Test.CodexReplyPage
   alias BnestAppWeb.ChatComponents
@@ -94,10 +94,15 @@ defmodule BnestAppWeb.ChatLiveTest do
   test "persists a completed turn before Codex supplies a thread ID" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
 
+    {:ok, conversations} =
+      Conversations.new(id: "chat-1", now: DateTime.utc_now())
+      |> Conversations.put_transcript("chat-1", chat, now: DateTime.utc_now())
+
     socket = %Phoenix.LiveView.Socket{
       assigns: %{
         __changed__: %{},
         chat: chat,
+        conversations: conversations,
         central_record: nil,
         codex_session: :current,
         current_user: %{"userId" => "user-test-no-thread-id"}
@@ -108,7 +113,15 @@ defmodule BnestAppWeb.ChatLiveTest do
              BnestAppWeb.ChatLive.handle_info({:codex, :current, :turn_completed}, socket)
 
     assert result.assigns.chat.busy == false
-    assert result.assigns.central_record["state"]["thread_id"] == nil
+
+    state = result.assigns.central_record["state"]
+    selected = state["conversations"][state["selected_id"]]
+    assert selected["transcript"]["thread_id"] == nil
+
+    assert Enum.any?(
+             selected["transcript"]["messages"],
+             &(&1["content"] == "Hello")
+           )
   end
 
   test "replaces a failed resumed Codex session and preserves the transcript" do
@@ -126,10 +139,15 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     {:ok, chat} = Transcript.submit(restored, "Continue")
 
+    {:ok, conversations} =
+      Conversations.new(id: "chat-1", now: DateTime.utc_now())
+      |> Conversations.put_transcript("chat-1", chat, now: DateTime.utc_now())
+
     socket = %Phoenix.LiveView.Socket{
       assigns: %{
         __changed__: %{},
         chat: chat,
+        conversations: conversations,
         central_record: nil,
         codex_session: :failed_session,
         current_user: %{"userId" => "user-test-resume-fallback"},
@@ -424,7 +442,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     reply = CodexReplyPage.latest_reply(page)
     assert [id] = LazyHTML.attribute(reply, "id")
-    assert id =~ ~r/\Aassistant-message-\d+\z/u
+    assert id =~ ~r/\Aassistant-message-[0-9a-f]+-\d+\z/u
   end
 
   test "a streaming reply carries no ignore attribute and keeps its diagram as source", %{
@@ -529,7 +547,7 @@ defmodule BnestAppWeb.ChatLiveTest do
 
     assert CodexReplyPage.streaming?(reply)
     assert [assistant_id] = LazyHTML.attribute(reply, "id")
-    assert assistant_id =~ ~r/\Aassistant-message-\d+\z/u
+    assert assistant_id =~ ~r/\Aassistant-message-[0-9a-f]+-\d+\z/u
 
     # The placeholder is the wrapper's only content: its text, and no element or Markdown paragraph inside it.
     inner =
