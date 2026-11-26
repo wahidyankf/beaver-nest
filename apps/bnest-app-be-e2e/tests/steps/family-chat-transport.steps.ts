@@ -28,12 +28,13 @@ async function answerOf(response: APIResponse) {
 }
 
 // A POST of a raw body under one content type, with the CSRF token a browser fetch sends.
+// Playwright JSON-encodes a string body when the content type is application/json, so raw bodies are sent as Buffers.
 async function postRaw(page: Page, contentType: string, data: string) {
   const token = await readCsrfToken(page);
   return answerOf(
     await page.context().request.post(endpoint, {
       headers: { "x-csrf-token": token, "content-type": contentType },
-      data,
+      data: Buffer.from(data, "utf8"),
     }),
   );
 }
