@@ -749,6 +749,25 @@ gates:
       run-on:
         pull-request:
           reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
+    - id: ui-class-coverage
+      type: check
+      command:
+        executable: ./scripts/check-ui-class-coverage.mjs
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
+    - id: ui-class-coverage-tests
+      type: check
+      command:
+        executable: node
+        args:
+          [
+            { literal: --test },
+            { literal: scripts/check-ui-class-coverage.test.mjs },
+          ]
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: repo-config
       type: check
       command:

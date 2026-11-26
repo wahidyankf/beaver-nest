@@ -300,6 +300,33 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.clear_chat(context)
   end
 
+  step "the visitor starts a new chat", context do
+    context.behaviour_driver.start_new_chat(context)
+  end
+
+  step "the conversation list shows {string}", %{args: [title]} = context do
+    assert context.behaviour_driver.conversation_list_shows?(context, title)
+    context
+  end
+
+  step "the conversation list does not show {string}", %{args: [title]} = context do
+    refute context.behaviour_driver.conversation_list_shows?(context, title)
+    context
+  end
+
+  step "the visitor opens the conversation {string}", %{args: [title]} = context do
+    context.behaviour_driver.open_conversation(context, title)
+  end
+
+  step "the visitor deletes the conversation {string}", %{args: [title]} = context do
+    context.behaviour_driver.delete_conversation(context, title)
+  end
+
+  step "the visitor renames the conversation {string} to {string}",
+       %{args: [title, next]} = context do
+    context.behaviour_driver.rename_conversation(context, title, next)
+  end
+
   step "the study mode is available", context do
     assert context.behaviour_driver.study_mode_available?(context)
     context

@@ -49,6 +49,22 @@ jobs:
       - name: Install npm dependencies
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
+          version-type: strict
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+
+      # The UI class gate reads the built Tailwind bundle, so the shipped stylesheet is
+      # built first. The build runs `MIX_ENV=test mix assets.build` in apps/bnest-app,
+      # so it needs the Elixir toolchain and the Phoenix dependencies installed above.
+      - name: Build the shipped stylesheet bundle
+        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run bnest-app:assets:build
+
       # The `rhino-bootstrap-lint` entry lints the RHINO bootstrap. Pinned to the
       # version this workstation runs: the runner image ships an older ShellCheck
       # that emits SC2015 for `A && B || C`, an idiom the bootstrap uses correctly.
@@ -91,6 +107,7 @@ jobs:
               --entry mermaid --entry markdownlint --entry behaviour-coverage \
               --entry hippo-bootstrap-test --entry rhino-bootstrap-lint \
               --entry rhino-consumer-repo \
+              --entry ui-class-coverage --entry ui-class-coverage-tests \
               --base "${BASE_SHA}" --head "${HEAD_SHA}"
 
   # The commit-message lint, per commit and over the range. Both entries read the

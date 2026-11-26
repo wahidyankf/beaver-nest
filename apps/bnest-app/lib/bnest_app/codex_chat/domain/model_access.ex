@@ -65,14 +65,35 @@ defmodule BnestApp.CodexChat.Domain.ModelAccess do
 
   @doc """
   The model and reasoning effort a conversation runs with, given the model and effort it saved. A saved model the
-  role does not offer resolves to the role's default. The effort is the role's fixed effort, or for a role that
-  picks its effort the rule of `reasoning_effort/2`.
+  role does not offer keeps its tier when the role still offers that tier's latest model, else it resolves to the
+  role's default. The effort is the role's fixed effort, or for a role that picks its effort the rule of
+  `reasoning_effort/2`.
   """
   @spec settle(access(), String.t(), String.t()) :: {model(), String.t()}
   def settle(access, saved_model_id, saved_effort) do
-    model = Enum.find(access.models, &(&1.id == saved_model_id)) || access.model
+    model =
+      Enum.find(access.models, &(&1.id == saved_model_id)) ||
+        same_tier_model(access, saved_model_id) ||
+        access.model
+
     {model, effort_for(access, model, saved_effort)}
   end
+
+  @doc """
+  The latest offered model id of the tier `model_id` names (`luna`, `terra` or `sol`, case-insensitive), or `nil`
+  when it names no known tier.
+  """
+  @spec tier_latest(String.t()) :: String.t() | nil
+  def tier_latest(model_id) when is_binary(model_id) do
+    case tier_token(model_id) do
+      "luna" -> @luna
+      "terra" -> @terra
+      "sol" -> @sol
+      nil -> nil
+    end
+  end
+
+  def tier_latest(_model_id), do: nil
 
   @doc """
   The result of choosing `model_id` in the picker, as `{:ok, model, effort}` where `effort` is the one the
@@ -116,6 +137,23 @@ defmodule BnestApp.CodexChat.Domain.ModelAccess do
       true -> model.default_reasoning_effort
     end
   end
+
+  # A saved model the role no longer offers keeps its tier when the role still offers that tier's latest model.
+  defp same_tier_model(access, saved_model_id) do
+    case tier_latest(saved_model_id) do
+      nil -> nil
+      latest_id -> Enum.find(access.models, &(&1.id == latest_id))
+    end
+  end
+
+  # The tier token in a model id: `-luna`, `-terra` or `-sol`, case-insensitive, or the id ending in the tier name.
+  defp tier_token(model_id) do
+    downcased = String.downcase(model_id)
+    Enum.find(["luna", "terra", "sol"], &tier_match?(downcased, &1))
+  end
+
+  defp tier_match?(downcased, tier),
+    do: String.contains?(downcased, "-" <> tier) or String.ends_with?(downcased, tier)
 
   defp effort_for(%{effort_selectable?: true}, model, requested),
     do: reasoning_effort(model, requested)

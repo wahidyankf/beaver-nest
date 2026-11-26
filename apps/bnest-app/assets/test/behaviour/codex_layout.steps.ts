@@ -628,14 +628,28 @@ step(
   },
 );
 
+/** The shell keeps the panel inside the window: a grid window pairs the conversation rail sidebar (a fixed-minimum
+ * column no draft can widen) with the capped panel column, while a phone shell stacks the rail strip above the panel
+ * instead of gridding them side by side. */
+function expectShellWithinWindow(env: Environment, label: string): void {
+  const shell = declarationsFor(".chat-shell", env);
+  if (shell["display"] === "grid") {
+    expect(shell["grid-template-columns"], label).toBe(
+      "minmax(12rem, 16rem) minmax(0, 46rem)",
+    );
+  } else {
+    expect(
+      shell["display"],
+      "the phone shell grids the rail beside the panel",
+    ).toBe("block");
+  }
+}
+
 step("the Codex chat panel is inside the screen", () => {
-  // The shell's column may not grow to fit its content, and the panel keeps no automatic minimum width, so the
+  // No shell column may grow to fit its content, and the panel keeps no automatic minimum width, so the
   // panel stays within the window whatever the draft holds.
   const env = laidOut();
-  expect(
-    declarationsFor(".chat-shell", env)["grid-template-columns"],
-    "the shell's column is sized to its content",
-  ).toBe("minmax(0, 1fr)");
+  expectShellWithinWindow(env, "the shell's column is sized to its content");
   expect(
     declarationsFor(".chat-panel", env)["min-width"],
     "the panel keeps an automatic minimum width",
@@ -660,13 +674,12 @@ step(
 );
 
 step("the Codex page does not scroll sideways", () => {
-  // The page is as wide as its shell, and the shell's column cannot grow past the window, so nothing overflows
+  // The page is as wide as its shell, and no shell column can grow past the window, so nothing overflows
   // sideways. The Playwright adapter compares the document's scroll width with its client width.
-  const env = laidOut();
-  expect(
-    declarationsFor(".chat-shell", env)["grid-template-columns"],
+  expectShellWithinWindow(
+    laidOut(),
     "the shell's column can grow past the window",
-  ).toBe("minmax(0, 1fr)");
+  );
 });
 
 step(

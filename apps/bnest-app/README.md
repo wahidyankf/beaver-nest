@@ -415,16 +415,20 @@ window. In both rooms the visitor's pointer decides the keys (ADR 005, decision 
 Shift+Enter starts a new line; with a touch pointer Enter starts a new line and Shift+Enter sends. The screen width
 never decides, and the Send button stays on every device.
 
-Each connected LiveView owns one Node bridge. The bridge starts a Codex SDK thread for a fresh chat or resumes the
-stored thread ID. Admin model and reasoning-effort selectors are disabled during an active turn; parent and child
-sessions have no selector to manipulate. Selecting either setting between turns replaces only the bridge process while
-preserving the transcript and thread. Active turns checkpoint their prompt, thread, partial transcript, and public
+Each connected LiveView owns one Node bridge for the selected conversation. The bridge starts a Codex SDK thread for a
+fresh conversation or resumes that conversation's stored thread ID. The conversation rail beside the chat lists every
+conversation with its title and update time; **New chat** opens an empty conversation, choosing an entry patches the
+address to `?conversation=<id>` and reconnects that conversation's bridge, and deleting the selected conversation closes
+its bridge first. A conversation takes its title from its first visitor message, and renaming trims the title to eighty
+characters. Admin model and reasoning-effort selectors are disabled during an active turn; parent and child sessions
+have no selector to manipulate. Selecting either setting between turns replaces only the bridge process while preserving
+the transcript and thread. Active turns checkpoint their prompt, thread, partial transcript, and public
 reasoning/progress entries; after a deployment reconnect, Bnest asks the retained thread to continue once without
 repeating shown text. If a retained Codex thread is unavailable, Bnest keeps the transcript, reports the fallback,
-clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript and
-opens a fresh thread. Events carry their bridge identity so queued updates from a replaced bridge cannot modify the
-active chat. A bridge whose runner exits reports the exit, then refuses every later message, which the chat shows as
-**Codex is not available.**, until a reload, a setting change or **Clear chat** replaces it.
+clears only that thread ID, and starts a fresh conversation. **Clear chat** atomically saves an empty transcript for the
+selected conversation and opens a fresh thread. Events carry their bridge identity so queued updates from a replaced
+bridge cannot modify the active chat. A bridge whose runner exits reports the exit, then refuses every later message,
+which the chat shows as **Codex is not available.**, until a reload, a setting change or **Clear chat** replaces it.
 
 Every chat runner starts with read-only sandbox access, approval policy `never`, and disabled network and web search. An
 account with `admin` and without `children` may explicitly enable `workspace-write` for its current connected chat;

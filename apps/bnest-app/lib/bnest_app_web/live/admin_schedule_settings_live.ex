@@ -112,7 +112,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
         <p>Expiration: <strong>Never</strong></p>
         <form phx-submit="save_schedule">
           <input type="hidden" name="schedule[revision]" value={@backup_schedule.revision} />
-          <label class="settings-check">
+          <label>
             <input
               type="checkbox"
               name="schedule[enabled]"
@@ -217,7 +217,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLive do
     ~H"""
     <div class="integrity-label" data-integrity-state={@state}>
       <dt id={@term_id}>{@report.label}</dt>
-      <dd class="integrity-label__result" aria-live="polite" aria-labelledby={@term_id}>
+      <dd aria-live="polite" aria-labelledby={@term_id}>
         <.integrity_marker state={@state} />
         <span class="integrity-label__summary">{reader_summary(@report)}</span>
         <ul :if={@report.problems != []} class="integrity-label__problems">

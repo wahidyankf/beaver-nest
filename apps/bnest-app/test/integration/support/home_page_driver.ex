@@ -14,8 +14,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   alias BnestApp.Behaviour.IntegrationFamilyChatDriver
   alias BnestApp.Behaviour.TestIsolation.IntegrationAdapter
   alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.{Conversations, Transcript}
   alias BnestApp.CodexChat.Domain.RunnerEvent
-  alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.CodexChat.ModelCatalog
   alias BnestApp.Identity.Adapters.{Argon2CredentialHasher, RecordIdentityStore}
   alias BnestApp.Identity.Bootstrap
@@ -703,6 +703,93 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
     %{} = await_push_event(context.view, "clear-chat-storage")
     Map.delete(context, :persisted_chat)
+  end
+
+  @impl true
+  def start_new_chat(context) do
+    unless has_element?(context.view, "[data-role=new-conversation]"),
+      do: raise("the chat page offers no new-chat control")
+
+    context.view |> element("[data-role=new-conversation]") |> render_click()
+
+    unless conversation_list_shows?(context, "New chat") and conversation_empty?(context),
+      do: raise("starting a new chat did not open an empty conversation")
+
+    context
+  end
+
+  @impl true
+  def conversation_list_shows?(context, title) do
+    has_element?(context.view, "[data-role=select-conversation]", title)
+  end
+
+  # Opening a conversation follows its rail entry, as the patch link does: the
+  # conversation's own session reconnects and its messages come back.
+  @impl true
+  def open_conversation(context, title) do
+    id = conversation_id!(context, title)
+    render_patch(context.view, "/chat?conversation=#{id}")
+
+    unless conversation_selected?(context, title),
+      do: raise("opening the conversation did not select it")
+
+    context
+  end
+
+  @impl true
+  def delete_conversation(context, title) do
+    id = conversation_id!(context, title)
+
+    context.view
+    |> element("[data-role=delete-conversation][phx-value-id=\"#{id}\"]")
+    |> render_click()
+
+    if conversation_list_shows?(context, title),
+      do: raise("deleting the conversation did not remove it from the rail")
+
+    context
+  end
+
+  @impl true
+  def rename_conversation(context, title, next) do
+    id = conversation_id!(context, title)
+
+    context.view
+    |> element("[data-role=rename-toggle][phx-value-id=\"#{id}\"]")
+    |> render_click()
+
+    context.view
+    |> element("form[phx-submit=rename_conversation]")
+    |> render_submit(%{"conversation_id" => id, "title" => next})
+
+    unless conversation_list_shows?(context, next),
+      do: raise("renaming the conversation did not retitle it on the rail")
+
+    context
+  end
+
+  defp conversation_selected?(context, title) do
+    context.view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query(
+      "[data-role=conversation-item][aria-current=true] [data-role=select-conversation]"
+    )
+    |> Enum.any?(fn element -> element |> LazyHTML.text() |> String.trim() == title end)
+  end
+
+  defp conversation_id!(context, title) do
+    context.view
+    |> render()
+    |> LazyHTML.from_fragment()
+    |> LazyHTML.query("[data-role=conversation-item]")
+    |> Enum.find_value(fn item ->
+      if item
+         |> LazyHTML.query("[data-role=select-conversation]")
+         |> LazyHTML.text()
+         |> String.trim() == title,
+         do: item |> LazyHTML.attribute("data-conversation-id") |> List.first()
+    end) || raise("the chat rail offers no conversation #{inspect(title)}")
   end
 
   # The fixture Codex's reply comes in two parts, as the unit layer delivers it: the page is read
@@ -3484,7 +3571,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
          true <- Preferences.theme(user_id) == context.journey_records.theme["theme"],
          true <-
            SifatAllah.load_progress(user_id) == {:ok, context.journey_records.sifat_allah},
-         {:ok, _transcript, chat} <- CodexChat.load_transcript(user_id),
+         {:ok, _conversations, chat} <- CodexChat.load_conversations(user_id),
          true <- chat == context.journey_records.chat,
          conn = Plug.Test.put_req_cookie(Phoenix.ConnTest.build_conn(), "_bnest_identity", token),
          %{status: 200} <- get(conn, "/"),
@@ -3793,7 +3880,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
            has_element?(context.view, "[data-role=user-message]", "Remember this transcript"),
          true <- has_element?(context.view, "[data-role=user-message]", "Continue after resume"),
          true <- has_element?(context.view, "[data-role=assistant-message]", "Saved response"),
-         {:ok, transcript, record} <- CodexChat.load_transcript(user_id),
+         {:ok, conversations, record} <- CodexChat.load_conversations(user_id),
+         {:ok, %{transcript: transcript}} <- CodexChat.selected_conversation(conversations),
          {:ok, ^record} <- Records.read(:chat, user_id) do
       Enum.take(transcript.messages, saved_count) == context.transcript_before and
         transcript.thread_id != "unavailable-thread"
@@ -3808,7 +3896,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     alert = context.reopened_page |> LazyHTML.query("[role=alert]") |> LazyHTML.text()
 
     String.contains?(alert, "transcript is preserved in a fresh conversation") and
-      match?({:ok, %{thread_id: nil}, _record}, CodexChat.load_transcript(context.user_id))
+      match?(
+        {:ok, %{transcript: %{thread_id: nil}}},
+        with(
+          {:ok, conversations, _} <- CodexChat.load_conversations(context.user_id),
+          do: CodexChat.selected_conversation(conversations)
+        )
+      )
   end
 
   def behaviour_outcome?(context, :default_backup_folder, _args),
@@ -4340,7 +4434,12 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   defp await_push_event(_view, "clear-chat-storage") do
     user_id = Process.get(:bnest_behaviour_user_id)
-    {:ok, %{"state" => %{"messages" => []}}} = Records.read(:chat, user_id)
+    {:ok, record} = Records.read(:chat, user_id)
+    {:ok, conversations} = Conversations.restore(record["state"], DateTime.utc_now())
+
+    {:ok, %{transcript: %{messages: []}}} =
+      BnestApp.CodexChat.selected_conversation(conversations)
+
     %{}
   end
 

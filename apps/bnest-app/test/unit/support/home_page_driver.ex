@@ -703,12 +703,139 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     unless match?([_close | _opened], calls) and
              Enum.any?(calls, &match?({:agent_session, :open, {nil, _, _, _}}, &1)) and
              match?(
-               {:ok, %{messages: []}, _record},
-               CodexChat.load_transcript(cleared.chat_user["userId"])
+               {:ok, %{messages: []}, _conversations},
+               selected_conversation(cleared.chat_user["userId"])
              ),
            do: raise("clearing did not start a new Codex session over a saved empty chat")
 
     cleared
+  end
+
+  # A new chat is a second tab: the rail offers it beside the current conversation,
+  # and choosing it empties the page while the first conversation keeps its title.
+  @impl true
+  def start_new_chat(context) do
+    if context.page
+       |> LazyHTML.query("[data-role=new-conversation][phx-click=new_conversation]")
+       |> Enum.empty?(),
+       do: raise("the chat page offers no new-chat control")
+
+    started = chat_event(context, "new_conversation", %{})
+
+    unless conversation_list_shows?(started, "New chat") and
+             started.page
+             |> LazyHTML.query("[data-role=user-message]")
+             |> Enum.empty?(),
+           do: raise("starting a new chat did not open an empty conversation")
+
+    started
+  end
+
+  @impl true
+  def conversation_list_shows?(context, title) do
+    context.page
+    |> LazyHTML.query("[data-role=conversation-item] [data-role=select-conversation]")
+    |> Enum.any?(fn element -> element |> LazyHTML.text() |> String.trim() == title end)
+  end
+
+  # Opening a conversation follows its rail entry, as the patch link does: the
+  # conversation's own session reconnects and its messages come back.
+  @impl true
+  def open_conversation(context, title) do
+    id = conversation_id!(context, title)
+    session = context.chat_socket.assigns.codex_session
+
+    # A patch starts a fresh navigation cycle, so a redirect the previous event
+    # prepared is already gone by the time the params arrive.
+    socket = %{context.chat_socket | redirected: nil}
+
+    {:noreply, socket} =
+      ChatLive.handle_params(%{"conversation" => id}, "/chat", socket)
+
+    opened = render_chat(context, socket)
+
+    calls =
+      opened
+      |> new_calls(context)
+      |> Enum.drop_while(&(&1 != {:agent_session, :close, session}))
+
+    unless match?([_close | _opened], calls) and conversation_selected?(opened, title),
+      do: raise("opening the conversation did not reconnect its own session")
+
+    opened
+  end
+
+  # Deleting the selected conversation closes its session first, then connects the
+  # conversation that takes its place. Deleting another one keeps the session.
+  @impl true
+  def delete_conversation(context, title) do
+    id = conversation_id!(context, title)
+    session = context.chat_socket.assigns.codex_session
+    selected_before = context.chat_socket.assigns.conversations.selected_id
+
+    deleted = chat_event(context, "delete_conversation", %{"id" => id})
+
+    if id == selected_before do
+      calls =
+        deleted
+        |> new_calls(context)
+        |> Enum.drop_while(&(&1 != {:agent_session, :close, session}))
+
+      unless match?([_close | _opened], calls),
+        do: raise("deleting the selected conversation did not close its session first")
+    end
+
+    unless conversation_list_shows?(deleted, title) == false,
+      do: raise("deleting the conversation did not remove it from the rail")
+
+    deleted
+  end
+
+  # Renaming opens the edit icon first: the form exists only while renaming.
+  @impl true
+  def rename_conversation(context, title, next) do
+    id = conversation_id!(context, title)
+
+    opened = chat_event(context, "toggle_rename", %{"id" => id})
+
+    renamed =
+      chat_event(opened, "rename_conversation", %{
+        "conversation_id" => id,
+        "title" => next
+      })
+
+    unless conversation_list_shows?(renamed, next),
+      do: raise("renaming the conversation did not retitle it on the rail")
+
+    renamed
+  end
+
+  defp conversation_selected?(context, title) do
+    context.page
+    |> LazyHTML.query(
+      "[data-role=conversation-item][aria-current=true] [data-role=select-conversation]"
+    )
+    |> Enum.any?(fn element -> element |> LazyHTML.text() |> String.trim() == title end)
+  end
+
+  defp conversation_id!(context, title) do
+    context.page
+    |> LazyHTML.query("[data-role=conversation-item]")
+    |> Enum.find_value(fn item ->
+      if item
+         |> LazyHTML.query("[data-role=select-conversation]")
+         |> LazyHTML.text()
+         |> String.trim() == title,
+         do: item |> LazyHTML.attribute("data-conversation-id") |> List.first()
+    end) || raise("the chat rail offers no conversation #{inspect(title)}")
+  end
+
+  defp selected_conversation(owner_id) do
+    with {:ok, conversations, _record} <- CodexChat.load_conversations(owner_id),
+         {:ok, %{transcript: transcript} = selected} <-
+           CodexChat.selected_conversation(conversations) do
+      {:ok, transcript, Map.delete(selected, :transcript)}
+    end
   end
 
   # The fixture Codex's reply comes in two parts: the first is what a streaming page shows
@@ -1183,15 +1310,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     view
   end
 
-  # Before the remount, the chat the facade loads must be the record the backend holds, so
-  # only what the LiveView saved can come back.
+  # Before the remount, the conversations the facade loads must be the record the
+  # backend holds, so only what the LiveView saved can come back.
   defp remount_chat(context) do
     owner = context.chat_user["userId"]
     {_backend, active} = Records.active_backend(context.chat_records)
     saved = active |> InMemoryRecordBackend.snapshot() |> Map.get({:chat, owner})
 
-    case {CodexChat.load_transcript(owner), saved} do
-      {{:ok, _transcript, ^saved}, %{}} -> :ok
+    case {CodexChat.load_conversations(owner), saved} do
+      {{:ok, _conversations, ^saved}, %{}} -> :ok
       {{:error, :missing}, nil} -> :ok
       loaded -> raise "the saved chat does not load back: #{inspect(loaded)}"
     end
@@ -1354,7 +1481,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp chat_event(context, event, params) do
-    {:noreply, socket} = ChatLive.handle_event(event, params, context.chat_socket)
+    # Every event starts a fresh cycle, so a redirect the previous event prepared
+    # is already gone by the time this one arrives.
+    {:noreply, socket} =
+      ChatLive.handle_event(event, params, %{context.chat_socket | redirected: nil})
+
     render_chat(context, socket)
   end
 
@@ -4031,7 +4162,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
            end),
          true <- Preferences.theme(owner) == context.journey_records.theme["theme"],
          true <- SifatAllah.load_progress(owner) == {:ok, context.journey_records.sifat_allah},
-         {:ok, _transcript, chat} <- CodexChat.load_transcript(owner),
+         {:ok, _conversations, chat} <- CodexChat.load_conversations(owner),
          true <- chat == context.journey_records.chat,
          digest = Identity.session_digest(token),
          :ok <- Identity.logout(token),
@@ -4416,7 +4547,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
            context.page
            |> LazyHTML.query("[data-role=assistant-message]")
            |> Enum.any?(&(&1 |> LazyHTML.text() |> String.trim() == "Saved response")),
-         {:ok, transcript, ^stored} <- CodexChat.load_transcript(owner) do
+         {:ok, conversations, ^stored} <- CodexChat.load_conversations(owner),
+         {:ok, %{transcript: transcript}} <- CodexChat.selected_conversation(conversations) do
       Enum.take(transcript.messages, saved_count) == context.transcript_before and
         transcript.thread_id != "unavailable-thread"
     else

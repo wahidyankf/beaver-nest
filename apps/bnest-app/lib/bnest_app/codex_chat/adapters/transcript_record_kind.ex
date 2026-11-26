@@ -6,7 +6,7 @@ defmodule BnestApp.CodexChat.Adapters.TranscriptRecordKind do
 
   @behaviour BnestApp.Storage.Ports.RecordKind
 
-  alias BnestApp.CodexChat.Domain.{Transcript, TranscriptRecord}
+  alias BnestApp.CodexChat.Domain.{Conversations, TranscriptRecord}
   alias BnestApp.Storage.Domain.RecordSchema
 
   @impl true
@@ -21,13 +21,18 @@ defmodule BnestApp.CodexChat.Adapters.TranscriptRecordKind do
   @impl true
   def valid?(record) do
     RecordSchema.exact?(record, ["state" | RecordSchema.envelope_fields()]) and
-      match?({:ok, _chat}, Transcript.restore(record["state"]))
+      match?(
+        {:ok, _conversations},
+        Conversations.restore(record["state"], DateTime.utc_now())
+      )
   end
 
   @impl true
   def normalize(source) do
-    with {:ok, chat} <- Transcript.restore(source),
-         {:ok, state} <- Transcript.snapshot(chat) do
+    # A source written before conversations existed is a single transcript, which
+    # restores into one conversation; anything newer round-trips as it is.
+    with {:ok, conversations} <- Conversations.restore(source, DateTime.utc_now()),
+         {:ok, state} <- Conversations.snapshot(conversations) do
       {:ok, %{"state" => state}}
     else
       _invalid -> :error
