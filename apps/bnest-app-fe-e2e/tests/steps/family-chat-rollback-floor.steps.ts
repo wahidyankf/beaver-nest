@@ -1,6 +1,4 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
-import { expect, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   delivery,
@@ -10,7 +8,6 @@ import {
 } from "../support/family-chat-delivery";
 import { waitForRoomReady } from "../support/family-chat-resume";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
-import { repositoryRoot } from "../support/routed-rollout-env";
 import { messageById } from "../support/family-chat-gestures";
 import {
   expectMenuOpenFor,
@@ -24,7 +21,14 @@ import {
   waitForMessage,
 } from "../support/family-chat-reply";
 import { ensureRoomOpen } from "../support/family-chat-reply-room";
-
+import {
+  judgeAgainstRolledBackSlot,
+  navigationCount,
+  previousRevisionTraffic,
+  reloadRoutedRoom,
+  sendPreviousBundleDocuments,
+  waitForRoutedReads,
+} from "../support/family-chat-previous-revision";
 // AC-FCR-13's two release scenarios: a browser holding an older bundle while
 // the routed slot changes beneath it. Neither ever navigates after the route
 // moves. `reloadRoute` only rewrites Caddy's upstream and polls readiness
@@ -48,163 +52,10 @@ let floorReplyId = "";
 let heldRevision = "";
 let routedRevision = "";
 
-interface FrozenDocument {
-  document: string;
-  variables: string[];
-}
-
-const PREVIOUS_REVISION = JSON.parse(
-  readFileSync(
-    path.join(
-      repositoryRoot,
-      "apps/bnest-app/assets/test/support/family_chat_previous_revision.json",
-    ),
-    "utf8",
-  ),
-) as {
-  previousClient: { documents: Record<string, FrozenDocument> };
-  rolledBackSlot: { documents: Record<string, FrozenDocument> };
-};
-/** Requests the older page sent as the previous bundle's documents. */
-let previousDocumentsSent = 0;
-/** Requests the held page sent that the frozen rolled-back slot does not accept, by operation. */
-let floorRefusals: string[] = [];
-
 const { Given, Then, When } = createBdd();
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
-
-const GRAPHQL_ROUTE = "**/api/graphql";
-
-function operationOf(query: string): string {
-  return /^\s*(?:query|mutation|subscription)\s+(\w+)/u.exec(query)?.[1] ?? "";
-}
-
-function declaredOnly(
-  variables: Record<string, unknown>,
-  declared: string[],
-): Record<string, unknown> {
-  return Object.fromEntries(
-    Object.entries(variables).filter(([name]) => declared.includes(name)),
-  );
-}
-
-/**
- * The page's GraphQL requests go out as the frozen previous bundle sends them, so the routed revision answers
- * the documents an older browser really holds. A release that stops accepting one fails the scenario here.
- */
-async function sendPreviousBundleDocuments(page: Page): Promise<void> {
-  await page.route(GRAPHQL_ROUTE, async (route) => {
-    const sent = JSON.parse(route.request().postData() ?? "{}") as {
-      query?: string;
-      variables?: Record<string, unknown>;
-    };
-    const frozen =
-      PREVIOUS_REVISION.previousClient.documents[operationOf(sent.query ?? "")];
-    if (!frozen) return route.continue();
-    previousDocumentsSent += 1;
-    return route.continue({
-      postData: JSON.stringify({
-        query: frozen.document,
-        variables: declaredOnly(sent.variables ?? {}, frozen.variables),
-      }),
-    });
-  });
-}
-
-/** Records each request the page sends that the frozen rolled-back slot would not accept. */
-async function judgeAgainstRolledBackSlot(page: Page): Promise<void> {
-  await page.route(GRAPHQL_ROUTE, async (route) => {
-    const sent = JSON.parse(route.request().postData() ?? "{}") as {
-      query?: string;
-    };
-    const operation = operationOf(sent.query ?? "");
-    const accepted = PREVIOUS_REVISION.rolledBackSlot.documents[operation];
-    if (accepted && accepted.document !== sent.query)
-      floorRefusals.push(operation);
-    return route.continue();
-  });
-}
-
-function navigationCount(page: Page): Promise<number> {
-  return page.evaluate(() => performance.getEntriesByType("navigation").length);
-}
-
-/**
- * Also the gate before any reload that follows a promotion: the room loads its
- * history once and never retries, so a reload into the churn window sits at
- * "booting" for good -- the held page, still open, can ask first.
- *
- * A promotion swaps the process behind the routed port, and `/health/ready`
- * answering with the new revision does not mean that process can reach SQLite
- * yet: the repo's pool can still be tearing down, and a request that lands in
- * that window comes back `Internal Server Error` with
- * `DBConnection.Holder.checkout ... (EXIT) shutdown` in the slot's log. It is
- * the harness's slot churn, not the room -- a plain send fails there just as a
- * reply does. So wait until the routed slot will actually answer a
- * database-backed read before asking it to commit anything.
- */
-async function waitForRoutedReads(page: Page, revision: string): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async (expected) => {
-          const probe = async (): Promise<boolean> => {
-            const response = await fetch("/api/graphql", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: {
-                "content-type": "application/json",
-                "x-csrf-token":
-                  document.querySelector<HTMLMetaElement>(
-                    "meta[name='csrf-token']",
-                  )?.content ?? "",
-              },
-              body: JSON.stringify({
-                query:
-                  "query Probe($roomSlug: String!) { familyChatMessages(roomSlug: $roomSlug, limit: 1) { nodes { id } } }",
-                variables: { roomSlug: "ruang-keluarga" },
-              }),
-            });
-            if (!response.ok) return false;
-            // Answered by the revision just routed, not one still draining.
-            if (response.headers.get("x-bnest-revision") !== expected)
-              return false;
-            const payload = (await response.json()) as { errors?: unknown };
-            return payload.errors === undefined;
-          };
-          // Side by side, so the browser's other pooled connections to the
-          // origin are asked too: the next real request may not reuse this one.
-          const answers = await Promise.all(
-            Array.from({ length: 6 }, () => probe().catch(() => false)),
-          );
-          return answers.every(Boolean);
-        }, revision),
-      { timeout: 20_000 },
-    )
-    .toBe(true);
-}
-
-/**
- * Reloads into the routed room. The page itself comes from the slot just
- * routed, and a slot still settling can answer that one request with an error
- * page that has no room in it; reloading again is what a person would do.
- */
-async function reloadRoutedRoom(page: Page): Promise<void> {
-  const room = page.locator('[data-role="family-chat-room"]');
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop -- each reload is judged on its own result.
-    await page.reload();
-    // eslint-disable-next-line no-await-in-loop -- see above.
-    const loaded = await room
-      .waitFor({ state: "attached", timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (loaded) break;
-  }
-  await waitForRoomReady(page);
-}
 
 // --- The earlier revision ------------------------------------------
 //
@@ -231,7 +82,7 @@ When(
     // Already open, from before the promotion: the held page is the browser.
     expect(new URL(page.url()).pathname).toBe(route);
     expect(await navigationCount(page)).toBe(1);
-    previousDocumentsSent = 0;
+    previousRevisionTraffic.documentsSent = 0;
     await sendPreviousBundleDocuments(page);
     await waitForRoomReady(page);
     await waitForRoutedReads(page, routedRevision);
@@ -256,7 +107,7 @@ Then("the visitor can send a message normally", async ({ page }) => {
   // Answered by the newly routed revision, through the held bundle.
   expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
   expect(
-    previousDocumentsSent,
+    previousRevisionTraffic.documentsSent,
     "the older page sent no previous-bundle document",
   ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
@@ -304,7 +155,7 @@ Given(
 );
 
 When("the app is rolled back to the previous version", async ({ page }) => {
-  floorRefusals = [];
+  previousRevisionTraffic.floorRefusals = [];
   await judgeAgainstRolledBackSlot(page);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
@@ -338,7 +189,7 @@ When(
     await sendThroughComposer(page, uniqueBody("Floor reply"));
     expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
     expect(
-      floorRefusals,
+      previousRevisionTraffic.floorRefusals,
       "the rolled-back slot does not accept the held bundle's documents",
     ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
