@@ -29,9 +29,26 @@ type ChatState = {
   messages: Array<{ content: string }>;
 };
 
-// The server's stored chat state for one user, read through production's record read.
+// The server's stored chat state for one user, read through production's record read. A stored state that is not an
+// object, or has no messages array, fails with the user id and the missing part, so a read that ran before the
+// server's write says what it lacked.
 export function readChatState(userId: string): ChatState {
-  return instanceRecord("chat", userId)["state"] as ChatState;
+  const state = instanceRecord("chat", userId)["state"];
+  if (!isRecord(state)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} is not an object`,
+    );
+  }
+  if (!Array.isArray(state["messages"])) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no messages array`,
+    );
+  }
+  return state as ChatState;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 // A canonical snapshot of one stored record, or of its absence, to compare before and after a step. The server's

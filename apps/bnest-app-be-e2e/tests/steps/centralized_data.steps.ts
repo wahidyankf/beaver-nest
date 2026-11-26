@@ -250,7 +250,24 @@ Then("Bnest preserves the transcript", async ({ page }) => {
       hasText: "Continue after resume",
     }),
   ).toBeVisible();
+  // The server saves the chat after the alert, so the step waits until the two original messages have landed.
+  await expect
+    .poll(() => readChatState(childId()).messages.length, {
+      message: "the server has not persisted the original transcript",
+      timeout: 30000,
+    })
+    .toBeGreaterThanOrEqual(2);
   const chat = readChatState(childId());
-  expect(chat.thread_id).not.toBe("unavailable-thread");
-  expect(chat.messages.slice(0, 2).map((m) => m.content)).toEqual(original);
+  expect(
+    chat.thread_id,
+    "the persisted chat must not keep the unavailable thread",
+  ).not.toBe("unavailable-thread");
+  expect(
+    chat.messages[0]?.content,
+    "the first persisted message must be the original question",
+  ).toBe(original[0]);
+  expect(
+    chat.messages[1]?.content,
+    "the second persisted message must be the original answer",
+  ).toBe(original[1]);
 });
