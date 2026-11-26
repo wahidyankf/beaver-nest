@@ -108,6 +108,7 @@ jobs:
               --entry hippo-bootstrap-test --entry rhino-bootstrap-lint \
               --entry rhino-consumer-repo \
               --entry ui-class-coverage --entry ui-class-coverage-tests \
+              --entry e2e-failure-summary-tests \
               --base "${BASE_SHA}" --head "${HEAD_SHA}"
 
   # The commit-message lint, per commit and over the range. Both entries read the

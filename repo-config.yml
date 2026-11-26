@@ -768,6 +768,18 @@ gates:
       run-on:
         pull-request:
           reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
+    - id: e2e-failure-summary-tests
+      type: check
+      command:
+        executable: node
+        args:
+          [
+            { literal: --test },
+            { literal: scripts/e2e-failure-summary.test.mjs },
+          ]
+      run-on:
+        pull-request:
+          reason: "C6: a check outside the local hooks' allowed lists runs at pull-request only."
     - id: repo-config
       type: check
       command:

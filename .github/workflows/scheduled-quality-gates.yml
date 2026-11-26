@@ -69,6 +69,10 @@ jobs:
           ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
             ./rhino gate run --surface scheduled --entry test-e2e-be
 
+      - name: Print failing scenarios from the run summary
+        if: failure()
+        run: node scripts/e2e-failure-summary.mjs apps/bnest-app-be-e2e/test-results/e2e-summary.json
+
   bnest-test-e2e-fe:
     name: Bnest test e2e frontend
     runs-on: ubuntu-24.04
@@ -119,3 +123,7 @@ jobs:
           set -eu
           ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
             ./rhino gate run --surface scheduled --entry test-e2e-fe
+
+      - name: Print failing scenarios from the run summary
+        if: failure()
+        run: node scripts/e2e-failure-summary.mjs apps/bnest-app-fe-e2e/test-results/e2e-summary.json

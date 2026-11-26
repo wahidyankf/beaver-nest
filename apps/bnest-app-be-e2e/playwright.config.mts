@@ -65,6 +65,21 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 120_000,
   workers: 1,
+  // The console reporter keeps the job log readable. The JSON summary is written at run end, after Playwright has
+  // cleared its output directory, and the failure step reads it (scripts/e2e-failure-summary.mjs).
+  reporter: [
+    [process.env["CI"] ? "dot" : "list"],
+    [
+      "json",
+      {
+        outputFile: path.resolve(
+          import.meta.dirname,
+          "test-results",
+          "e2e-summary.json",
+        ),
+      },
+    ],
+  ],
   globalTeardown: path.resolve(
     import.meta.dirname,
     "tests/support/global-teardown.ts",
