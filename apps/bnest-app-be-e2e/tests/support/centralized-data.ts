@@ -29,9 +29,10 @@ type ChatState = {
   messages: Array<{ content: string }>;
 };
 
-// The server's stored chat state for one user, read through production's record read. A stored state that is not an
-// object, or has no messages array, fails with the user id and the missing part, so a read that ran before the
-// server's write says what it lacked.
+// The selected conversation's transcript, read from the server's stored chat state through production's record read.
+// The state holds every conversation under "conversations" and names the open one in "selected_id". A state with no
+// conversations, no selected entry, or no messages array fails with the user id and the missing part, so a read that
+// ran before the server's write says what it lacked; it never defaults to an empty chat, which would hide a missing save.
 export function readChatState(userId: string): ChatState {
   const state = instanceRecord("chat", userId)["state"];
   if (!isRecord(state)) {
@@ -39,12 +40,32 @@ export function readChatState(userId: string): ChatState {
       `the stored chat state of user ${userId} is not an object`,
     );
   }
-  if (!Array.isArray(state["messages"])) {
+  const conversations = state["conversations"];
+  if (!isRecord(conversations)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no conversations object`,
+    );
+  }
+  const selectedId = state["selected_id"];
+  const selected =
+    typeof selectedId === "string" ? conversations[selectedId] : undefined;
+  if (!isRecord(selected)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no selected conversation`,
+    );
+  }
+  const transcript = selected["transcript"];
+  if (!isRecord(transcript)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no transcript for its selected conversation`,
+    );
+  }
+  if (!Array.isArray(transcript["messages"])) {
     throw new TypeError(
       `the stored chat state of user ${userId} has no messages array`,
     );
   }
-  return state as ChatState;
+  return transcript as ChatState;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
