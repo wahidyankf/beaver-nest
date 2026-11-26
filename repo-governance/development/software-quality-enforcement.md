@@ -37,13 +37,12 @@ Each row reads **outcome** (canonical rule): route — when.
   with 99% through `test:quick` at pull-request. **Push gate:** none (C6). Dedicated E2E harnesses are a target
   exception, not a unit exemption for their owner. — Every affected production behaviour.
 - **Real local-boundary behaviour** ([Quality gates](quality-gates.md)): **Required gate:** applicable
-  `test:integration`, without a coverage threshold. **Scheduled detection:** the [scheduled
-  workflow](../../.github/workflows/scheduled-quality-gates.yml) runs each integration suite. No push gate. — Affected
-  local-boundary completion and twice daily.
-- **Public browser, process, and HTTP API journeys** ([E2E](end-to-end-testing.md) and [API
-  testing](api-testing.md)): **Required gate:** affected `test:e2e`. **Required evidence:** `curl` every affected
-  REST/GraphQL operation. **Scheduled detection:** complete E2E runs after integration. No quick or push gate. —
-  Affected public-boundary completion and twice daily.
+  `test:integration`, at pull-request, without a coverage threshold. No scheduled run and no push gate. — Affected
+  local-boundary completion and every pull request.
+- **Public browser, process, and HTTP API journeys** ([E2E](end-to-end-testing.md) and [API testing](api-testing.md)):
+  **Required gate:** affected `test:e2e`. **Required evidence:** `curl` every affected REST/GraphQL operation.
+  **Scheduled detection:** complete E2E runs twice daily. No quick or push gate. — Affected public-boundary completion
+  and twice daily.
 - **Exact Gherkin corpus, bindings, adapters, and valid exemptions**
   ([BDD](behaviour-driven-development.md)): **Required gate:** each `test:behaviour:coverage` via `test:quick` at
   pull-request; E2E depends on it. **Push gate:** none (C6). — Every affected behaviour owner or adapter.

@@ -63,9 +63,9 @@ during changes; do not add a repository-wide topology validator unless a demonst
 - `test:unit` is the only numeric gate. Exclude from its denominator only modules a unit test may not touch, and name
   them in the project README. Never split one project's behaviour check across projects or compose a coverage target
   across a project boundary; each project checks the adapters it owns.
-- Scheduled CI runs every applicable integration suite before the owning complete, unfiltered E2E target; integration
-  and E2E remain outside `test:quick` and Git hooks. Before completing a change, run by hand the integration suites
-  covering it; keep that in prose, never wired into `test:quick`, a dependency, or a hook.
+- Pull-request CI runs every applicable integration suite. Scheduled CI runs only the owning complete, unfiltered E2E
+  target. Integration and E2E remain outside `test:quick` and Git hooks. Before completing a change, run by hand the
+  integration suites covering it; keep that in prose, never wired into `test:quick`, a dependency, or a hook.
 - An end-to-end harness has no `test:unit` or numeric coverage target; behaviour coverage is its only static gate.
 - Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing
   result.
