@@ -13,6 +13,9 @@ import { createBdd } from "playwright-bdd";
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor deletes a chat from the conversation rail
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor renames a chat from the conversation rail
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor keeps every chat after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens and closes the conversation drawer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Opening a conversation from the drawer closes the drawer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A phone visitor reaches the newest message and the composer from the drawer
 const { Then, When } = createBdd();
 
 const DRAWER_TOGGLE = "[data-role=conversations-toggle]";
