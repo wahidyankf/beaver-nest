@@ -883,7 +883,9 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # The latest assistant message the server persisted for this scenario's conversation.
   defp completed_reply_source(context) do
     with persisted when is_binary(persisted) <- Map.get(context, :persisted_chat),
-         {:ok, %{"messages" => messages}} <- Jason.decode(persisted),
+         {:ok, %{"conversations" => conversations, "selected_id" => selected_id}} <-
+           Jason.decode(persisted),
+         %{"transcript" => %{"messages" => messages}} <- Map.get(conversations, selected_id),
          %{"content" => content, "update_count" => update_count} <-
            messages |> Enum.filter(&(&1["role"] == "assistant")) |> List.last() do
       {:ok, content, update_count}
