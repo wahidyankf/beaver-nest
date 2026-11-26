@@ -268,6 +268,14 @@ Feature: Beaver Nest chat
     Then the conversation list does not show "First chat topic"
     And the conversation displays the visitor message "Second chat topic"
 
+  Scenario: A visitor renames a chat from the conversation rail
+    Given a visitor opens "/chat"
+    When the visitor sends "First chat topic"
+    And a Codex response appears incrementally
+    When the visitor renames the conversation "First chat topic" to "Renamed chat"
+    Then the conversation list shows "Renamed chat"
+    And the conversation list does not show "First chat topic"
+
   Scenario: A visitor keeps every chat after a reload
     Given a visitor opens "/chat"
     When the visitor sends "First chat topic"

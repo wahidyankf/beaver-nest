@@ -38,6 +38,7 @@ defmodule BnestAppWeb.ChatLive do
       |> assign(:repository_write_enabled?, false)
       |> assign(:repository_access_mode, :read_only)
       |> assign(:form, prompt_form())
+      |> assign(:renaming_id, nil)
       |> assign(:central_record, central_record)
       |> assign(:codex_session, nil)
       |> assign(:checkpoint_timer, nil)
@@ -197,7 +198,8 @@ defmodule BnestAppWeb.ChatLive do
   def handle_event("rename_conversation", %{"conversation_id" => id, "title" => title}, socket) do
     case CodexChat.rename_conversation(socket.assigns.conversations, id, title || "") do
       {:ok, conversations} ->
-        {:noreply, persist_chat(assign(socket, :conversations, conversations))}
+        socket = socket |> assign(:conversations, conversations) |> assign(:renaming_id, nil)
+        {:noreply, persist_chat(socket)}
 
       {:error, _refused} ->
         {:noreply, socket}
@@ -205,6 +207,15 @@ defmodule BnestAppWeb.ChatLive do
   end
 
   def handle_event("rename_conversation", _params, socket), do: {:noreply, socket}
+
+  # The rename form opens only on its edit icon, so the rail keeps one compact
+  # row per conversation. Toggling the open icon closes it again.
+  def handle_event("toggle_rename", %{"id" => id}, socket) do
+    current = Map.get(socket.assigns, :renaming_id)
+    {:noreply, assign(socket, :renaming_id, if(current == id, do: nil, else: id))}
+  end
+
+  def handle_event("toggle_rename", _params, socket), do: {:noreply, socket}
 
   defp drop_conversation(socket, id) do
     selected_before = socket.assigns.conversations.selected_id
@@ -318,16 +329,59 @@ defmodule BnestAppWeb.ChatLive do
             >
               {format_conversation_updated(entry.updated_at)}
             </span>
-            <button
-              type="button"
-              data-role="delete-conversation"
-              phx-click="delete_conversation"
-              phx-value-id={entry.id}
-            >
-              Delete
-            </button>
+            <div class="conversation-actions">
+              <button
+                type="button"
+                data-role="rename-toggle"
+                data-conversation-id={entry.id}
+                phx-click="toggle_rename"
+                phx-value-id={entry.id}
+                aria-expanded={to_string(@renaming_id == entry.id)}
+                aria-controls={"rename-form-#{entry.id}"}
+                aria-label="Rename conversation"
+                title="Rename conversation"
+              >
+                <svg
+                  aria-hidden="true"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M11.5 2.5a1.8 1.8 0 0 1 2.5 2.5L5 14l-3.2.8.8-3.2 8.9-9.1Z" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                data-role="delete-conversation"
+                phx-click="delete_conversation"
+                phx-value-id={entry.id}
+                aria-label="Delete conversation"
+                title="Delete conversation"
+              >
+                <svg
+                  aria-hidden="true"
+                  width="16"
+                  height="16"
+                  viewBox="0 0 16 16"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M2.5 4h11M6.5 4V2.8a.3.3 0 0 1 .3-.3h2.4a.3.3 0 0 1 .3.3V4M4 4l.7 9.2a.6.6 0 0 0 .6.6h5.4a.6.6 0 0 0 .6-.6L12 4" />
+                  <path d="M6.7 7v4M9.3 7v4" />
+                </svg>
+              </button>
+            </div>
             <form
-              :if={entry.id == @conversations.selected_id}
+              :if={@renaming_id == entry.id}
+              id={"rename-form-#{entry.id}"}
               phx-submit="rename_conversation"
               class="conversation-rename"
             >
@@ -339,7 +393,17 @@ defmodule BnestAppWeb.ChatLive do
                 data-role="rename-input"
                 aria-label="Conversation title"
               />
-              <button type="submit" data-role="rename-submit">Rename</button>
+              <div class="conversation-rename-actions">
+                <button type="submit" data-role="rename-submit">Save</button>
+                <button
+                  type="button"
+                  data-role="rename-cancel"
+                  phx-click="toggle_rename"
+                  phx-value-id={entry.id}
+                >
+                  Cancel
+                </button>
+              </div>
             </form>
           </li>
         </ul>

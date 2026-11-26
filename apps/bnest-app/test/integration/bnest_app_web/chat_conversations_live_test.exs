@@ -126,11 +126,27 @@ defmodule BnestAppWeb.ChatConversationsLiveTest do
     {:ok, view, _html} = live(conn, "/chat")
     [{id, "New chat", true}] = rail_items(view)
 
+    # The rename form stays hidden until the edit icon opens it, so the rail
+    # keeps one compact row per conversation.
+    refute has_element?(view, "form[phx-submit=rename_conversation]")
+
+    view
+    |> element("[data-role=rename-toggle][phx-value-id=\"#{id}\"]")
+    |> render_click()
+
+    assert has_element?(view, "[data-role=rename-toggle][aria-expanded=true]")
+    assert has_element?(view, "form[phx-submit=rename_conversation]")
+
     view
     |> element("form[phx-submit=rename_conversation]")
     |> render_submit(%{"conversation_id" => id, "title" => "  Renamed chat  "})
 
     assert [{^id, "Renamed chat", true}] = rail_items(view)
+    refute has_element?(view, "form[phx-submit=rename_conversation]")
+
+    view
+    |> element("[data-role=rename-toggle][phx-value-id=\"#{id}\"]")
+    |> render_click()
 
     view
     |> element("form[phx-submit=rename_conversation]")
@@ -143,6 +159,12 @@ defmodule BnestAppWeb.ChatConversationsLiveTest do
     |> render_submit(%{"conversation_id" => "missing-conversation", "title" => "Nope"})
 
     assert [{^id, "Renamed chat", true}] = rail_items(view)
+
+    view
+    |> element("[data-role=rename-cancel]")
+    |> render_click()
+
+    refute has_element?(view, "form[phx-submit=rename_conversation]")
   end
 
   test "a forged selection changes nothing", %{conn: conn} do

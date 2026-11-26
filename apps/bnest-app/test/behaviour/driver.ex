@@ -62,6 +62,7 @@ defmodule BnestApp.Behaviour.Driver do
   @callback conversation_list_shows?(map(), String.t()) :: boolean()
   @callback open_conversation(map(), String.t()) :: map()
   @callback delete_conversation(map(), String.t()) :: map()
+  @callback rename_conversation(map(), String.t(), String.t()) :: map()
   @callback study_mode_available?(map()) :: boolean()
   @callback quiz_mode_available?(map()) :: boolean()
   @callback start_learning(map()) :: map()
