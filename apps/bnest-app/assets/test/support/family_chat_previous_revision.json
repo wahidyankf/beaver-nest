@@ -1,5 +1,5 @@
 {
-  "_about": "Frozen Family Chat wire contract of the two earlier revisions the browser suites replay. Nothing here is written by hand except the schema copy: each document is the exact text that apps/bnest-app/assets/js/family_chat/operations.js returns at commit 4ee4027 (origin/main just before #239 removed the family-chat release flags), imported with Node and called with replies false (previousClient). The schema is copied from apps/bnest-app/lib/bnest_app_web/schema.ex and schema/types/family_chat_types.ex and web_push_types.ex at 4ee4027, which #239 left unchanged. Change this file only by re-capturing from a named commit in the same change that needs it.",
+  "_about": "Frozen Family Chat wire contract of the two earlier revisions the browser suites replay. Nothing here is written by hand except the schema copy: each document is the exact text that apps/bnest-app/assets/js/family_chat/operations.js returns at commit 4ee4027 (origin/main just before #239 removed the family-chat release flags), imported with Node and called with replies false (previousClient). The schema is copied from apps/bnest-app/lib/bnest_app_web/schema.ex and schema/types/family_chat_types.ex and web_push_types.ex at 4ee4027, which #239 left unchanged. The verbatim copies of those sources are kept beside this file as family_chat_previous_revision.4ee4027.schema.ex, family_chat_previous_revision.4ee4027.family_chat_types.ex and family_chat_previous_revision.4ee4027.web_push_types.ex; apps/bnest-app/test/integration/bnest_app_web/family_chat_previous_revision_schema_test.exs checks this schema against them and reads no git history or network. Change this file only by re-capturing from a named commit in the same change that needs it.",
   "previousClient": {
     "_about": "The pre-reply bundle: what a browser loaded before the reply feature still sends and reads. The current server must keep accepting these documents.",
     "documents": {
@@ -63,13 +63,14 @@
           "available": null,
           "publicKey": null
         },
-        "WebPushSubscriptionStatus": {
+        "WebPushSubscription": {
           "enabled": null,
           "expirationTime": null
         }
       },
       "roots": {
         "familyChatMessages": {
+          "kind": "query",
           "type": "FamilyChatMessageConnection",
           "args": {
             "roomSlug": "String!",
@@ -79,6 +80,7 @@
           }
         },
         "sendFamilyChatMessage": {
+          "kind": "mutation",
           "type": "FamilyChatMessage",
           "args": {
             "roomSlug": "String!",
@@ -88,21 +90,25 @@
           }
         },
         "familyChatMessageCommitted": {
+          "kind": "subscription",
           "type": "FamilyChatMessage",
           "args": {
             "roomSlug": "String!"
           }
         },
         "webPushConfiguration": {
+          "kind": "query",
           "type": "WebPushConfiguration",
           "args": {}
         },
         "currentWebPushSubscription": {
-          "type": "WebPushSubscriptionStatus",
+          "kind": "query",
+          "type": "WebPushSubscription",
           "args": {}
         },
         "upsertWebPushSubscription": {
-          "type": "WebPushSubscriptionStatus",
+          "kind": "mutation",
+          "type": "WebPushSubscription",
           "args": {
             "endpoint": "String!",
             "p256dh": "String!",
@@ -110,7 +116,8 @@
           }
         },
         "disableCurrentWebPushSubscription": {
-          "type": "WebPushSubscriptionStatus",
+          "kind": "mutation",
+          "type": "WebPushSubscription",
           "args": {}
         }
       }
