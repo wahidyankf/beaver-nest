@@ -300,6 +300,16 @@ jobs:
             sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
               ./.github/scripts/test-rhino-bootstrap.sh'
 
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
+          version-type: strict
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && mix deps.get'
+
       # The pull-request surface gates read the built Tailwind bundle, so the
       # assets this checkout ships are built first (mirrors `ui-class-coverage`).
       - name: Build the shipped stylesheet bundle
