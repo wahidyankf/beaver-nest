@@ -224,7 +224,7 @@ defmodule BnestAppWeb.AdminScheduleSettingsLiveTest do
     refute page |> LazyHTML.query("form[phx-submit='save_schedule']") |> Enum.empty?()
     refute page |> LazyHTML.query("form[phx-submit='save_backup']") |> Enum.empty?()
 
-    assert page |> LazyHTML.query(".integrity-label__result") |> LazyHTML.text() |> String.trim() ==
+    assert page |> LazyHTML.query(".integrity-label dd") |> LazyHTML.text() |> String.trim() ==
              "checking"
   end
 
@@ -233,14 +233,14 @@ defmodule BnestAppWeb.AdminScheduleSettingsLiveTest do
   test "the label is a named polite region without controls" do
     {:ok, socket} = mount_schedules()
     page = render(socket)
-    label = page |> LazyHTML.query(".integrity-label__result")
+    label = page |> LazyHTML.query(".integrity-label dd")
 
     assert label |> LazyHTML.attribute("aria-live") == ["polite"]
     assert label |> LazyHTML.attribute("aria-labelledby") != []
     assert page |> LazyHTML.query("[role='alert'], [aria-live='assertive']") |> Enum.empty?()
 
     assert page
-           |> LazyHTML.query(".integrity-label__result a, .integrity-label__result button")
+           |> LazyHTML.query(".integrity-label dd a, .integrity-label dd button")
            |> Enum.empty?()
   end
 
