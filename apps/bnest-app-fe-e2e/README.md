@@ -62,6 +62,11 @@ names with `@scenario` lines, through the same steps as `test:e2e`, against the 
 Caddy), on the desktop Chromium project. It fails when no integration binding exists, and it is not part of
 `test:quick`.
 
+`test:e2e` runs in the scheduled job `bnest-test-e2e-fe`, which has a 60-minute timeout. That timeout is an estimate,
+not a measurement: the suite is estimated at 20 to 30 minutes, and setup (npm ci, mix deps, Playwright, and Caddy) at 10
+to 15 minutes. Its `test:integration` alone took 18 to 21 minutes locally with `--workers=1`, and the Caddy-routed
+`test:e2e` run cannot be measured on this host.
+
 ## Authoring Behaviours
 
 Every browser journey must originate in an English `.feature` file below

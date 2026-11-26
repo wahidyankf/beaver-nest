@@ -50,6 +50,10 @@ There is no numeric `test:coverage` target because this project owns only end-to
 measures complete feature-to-binding coverage without collecting numeric TypeScript line coverage or launching a
 browser. `test:e2e` is intentionally excluded from `test:quick` because browser tests are slow by nature.
 
+`test:e2e` runs in the scheduled job `bnest-test-e2e-be`, which has a 40-minute timeout. The timeout rests on a measured
+figure: the suite's 124 tests took 167 s of wall time on the test host, and 40 minutes leaves room for setup (npm ci,
+mix deps, Playwright, and Caddy), which is estimated at 10 to 15 minutes.
+
 ## Authoring Behaviours
 
 Every browser journey must originate in an English `.feature` file below
