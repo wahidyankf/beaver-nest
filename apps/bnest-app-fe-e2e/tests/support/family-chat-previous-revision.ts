@@ -1,15 +1,19 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, type Page } from "@playwright/test";
+import { buildSchema, Kind, parse, print, validate } from "graphql";
+import type { DocumentNode } from "graphql";
 import { waitForRoomReady } from "./family-chat-resume";
 import { repositoryRoot } from "./routed-rollout-env";
 
 // Support for the earlier-revision scenarios in family-chat-rollback-floor.steps.ts: the held browser's GraphQL wire
 // (HTTP and socket), which replays the previous bundle's documents and judges each one against the frozen schema.
 
+type Root = { kind: string; type: string; args: Record<string, string> };
+
 interface Schema {
   objects: Record<string, Record<string, string | null>>;
-  roots: Record<string, { type: string; args: Record<string, string> }>;
+  roots: Record<string, Root>;
 }
 
 const FIXTURE =
@@ -42,87 +46,85 @@ const SOCKET_ROUTE = /\/api\/graphql\/socket\/websocket/u;
 // Absinthe's control topic: its "doc" push carries a subscription document.
 const CONTROL_TOPIC = "__absinthe__:control";
 const OPERATION = /^\s*(?:query|mutation|subscription)\s+(\w+)/u;
-const DOCUMENT =
-  /^\s*(?:query|mutation|subscription)\s+\w+\s*(?:\(([^)]*)\))?\s*\{\s*(\w+)\s*(?:\(([^)]*)\))?\s*\{([\s\S]*)\}\s*\}\s*$/u;
-const FIELD = /\s*([A-Za-z_]\w*)\s*(?:\{((?:[^{}]|\{[^{}]*\})*)\})?\s*/uy;
 
 type Request = { query: string; variables: Record<string, unknown> };
 /** Armed per page: `replay` sends the previous bundle's text, `judge` records each refusal. */
 type Wire = { replay: boolean; judge: boolean };
 const wires = new WeakMap<Page, Wire>();
 
-/** Refusals for a selection set: each field exists on its type, and takes a selection exactly when it is an object. */
-function selectionErrors(
-  type: string,
-  selection: string,
-  schema: Schema,
-): string[] {
-  if (!Object.hasOwn(schema.objects, type)) return [`no type ${type}`];
-  const known = schema.objects[type] ?? {};
-  const errors: string[] = [];
-  let index = 0;
-  while (index < selection.length) {
-    FIELD.lastIndex = index;
-    const match = FIELD.exec(selection);
-    if (match === null) return [`the selection on ${type} is not plain fields`];
-    index = FIELD.lastIndex;
-    const [, name = "", inner] = match;
-    const child = Object.hasOwn(known, name) ? known[name] : undefined;
-    if (child === undefined) errors.push(`no field ${name} on ${type}`);
-    else if (typeof child !== "string") {
-      if (inner !== undefined) errors.push(`${name} takes no fields`);
-    } else if (inner === undefined || inner.trim() === "") {
-      errors.push(`${name} needs fields`);
-    } else errors.push(...selectionErrors(child, inner, schema));
-  }
-  return errors;
+const pairs = (record: Record<string, string | null>): string[] =>
+  Object.entries(record).map(([n, t]) => `${n}: ${t ?? "Scalar"}`);
+
+/**
+ * The rolled-back schema as SDL. Untyped scalars are `Scalar`. List wrapping is not represented, and it does not
+ * change validation of selections or argument types.
+ */
+function schemaSdl(schema: Schema): string {
+  const rootType = (kind: string, name: string): string[] => {
+    const fields = Object.entries(schema.roots)
+      .filter(([, root]) => root.kind === kind)
+      .map(([field, root]) => {
+        const args = pairs(root.args);
+        return `${field}${args.length > 0 ? `(${args.join(", ")})` : ""}: ${root.type}`;
+      });
+    return fields.length > 0 ? [`type ${name} { ${fields.join(", ")} }`] : [];
+  };
+  const objects = Object.entries(schema.objects).map(
+    ([name, fields]) => `type ${name} { ${pairs(fields).join(", ")} }`,
+  );
+  return [
+    "scalar Scalar",
+    ...objects,
+    ...rootType("query", "Query"),
+    ...rootType("mutation", "Mutation"),
+    ...rootType("subscription", "Subscription"),
+  ].join("\n");
 }
 
-// The judgement of validateDocument (bnest-app's graphql_server.ts), restated: that file is the assets project's
-// test double, and importing it would pull that project's test tree into this one.
 /**
- * What the rolled-back schema refuses in one document, as the server's validation judges it: the root field, each
- * argument it binds with its declared type, each variable sent (declared and bound), and each selected field exist.
+ * What the rolled-back schema refuses in one document: graphql-js validation, plus one operation with one root field,
+ * each variable sent declared, and each bound variable declaring its argument's type exactly.
  */
 export function judgeDocument(
   query: string,
   variables: Record<string, unknown>,
   schema: Schema,
 ): string[] {
-  const parsed = DOCUMENT.exec(query);
-  if (parsed === null) return ["not one operation on one root field"];
-  const [, declaredText = "", root = "", argText = "", selection = ""] = parsed;
+  let document: DocumentNode;
+  try {
+    document = parse(query);
+  } catch (error) {
+    return [error instanceof Error ? error.message : String(error)];
+  }
+  const operation =
+    document.definitions.length === 1 ? document.definitions[0] : undefined;
+  if (operation?.kind !== Kind.OPERATION_DEFINITION)
+    return ["one operation only"];
+  const roots = operation.selectionSet.selections;
+  const [root] = roots;
+  if (roots.length !== 1) return [`${roots.length} root fields, not one`];
+  if (root?.kind !== Kind.FIELD) return ["the root selection is not a field"];
+  const vars = operation.variableDefinitions ?? [];
   const declared = new Map(
-    [...declaredText.matchAll(/\$(\w+)\s*:\s*([\w!]+)/gu)].map(
-      (m): [string, string] => [m[1] ?? "", m[2] ?? ""],
-    ),
+    vars.map((d) => [d.variable.name.value, print(d.type)]),
   );
-  const field = Object.hasOwn(schema.roots, root)
-    ? schema.roots[root]
-    : undefined;
-  if (field === undefined)
-    return [`no root field ${root} in the rolled-back schema`];
-  const errors = new Set<string>();
-  const bound = new Set<string>();
-  for (const [, arg = "", value = ""] of argText.matchAll(
-    /(\w+)\s*:\s*(\$\w+|[^\s,)]+)/gu,
-  )) {
-    const type = Object.hasOwn(field.args, arg) ? field.args[arg] : undefined;
-    if (type === undefined) errors.add(`no argument ${arg} on ${root}`);
-    if (!value.startsWith("$")) continue;
-    const name = value.slice(1);
-    bound.add(name);
-    const declaredType = declared.get(name);
-    if (declaredType === undefined) errors.add(`$${name} is not declared`);
-    else if (type !== undefined && declaredType !== type)
-      errors.add(`${root}.${arg} is ${type}, not ${declaredType}`);
+  const args = schema.roots[root.name.value]?.args ?? {};
+  const expected = new Map(Object.entries(args));
+  const errors: string[] = [];
+  for (const arg of root.arguments ?? []) {
+    const want = expected.get(arg.name.value);
+    if (arg.value.kind !== Kind.VARIABLE) continue;
+    const have = declared.get(arg.value.name.value);
+    if (want !== undefined && have !== undefined && have !== want)
+      errors.push(
+        `${root.name.value}.${arg.name.value} is ${want}, not ${have}`,
+      );
   }
-  for (const [name, value] of Object.entries(variables)) {
-    if (value === undefined) continue;
-    if (!declared.has(name)) errors.add(`$${name} is not declared`);
-    else if (!bound.has(name)) errors.add(`$${name} is not passed to ${root}`);
-  }
-  return [...errors, ...selectionErrors(field.type, selection, schema)];
+  for (const [name, value] of Object.entries(variables))
+    if (value !== undefined && !declared.has(name))
+      errors.push(`$${name} is sent but not declared`);
+  const validation = validate(buildSchema(schemaSdl(schema)), document);
+  return [...errors, ...validation.map((error) => error.message)];
 }
 
 /** The request as it goes out: the previous bundle's text while the replay is armed, judged while judging is armed. */
