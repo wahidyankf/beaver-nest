@@ -123,6 +123,17 @@ Then("the room loads", async ({ page }) => {
     refusals(),
     "the rolled-back schema refuses a held page document",
   ).toEqual([]);
+  // The replayed subscription starts once the room is ready, so its reply can land after this Then starts: wait for it.
+  await expect
+    .poll(
+      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+      {
+        message:
+          "the live server never answered the replayed FamilyChatMessageCommitted subscription",
+        timeout: 15_000,
+      },
+    )
+    .toBe(true);
   const live = liveRefusals();
   expect(
     live,
@@ -142,6 +153,17 @@ Then("the visitor can send a message normally", async ({ page }) => {
     "the older page sent no previous-bundle SendFamilyChatMessage",
   ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
+  // The replayed subscription starts once the room is ready, so its reply can land after this Then starts: wait for it.
+  await expect
+    .poll(
+      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+      {
+        message:
+          "the live server never answered the replayed FamilyChatMessageCommitted subscription",
+        timeout: 15_000,
+      },
+    )
+    .toBe(true);
   const live = liveRefusals();
   expect(
     live,
@@ -228,6 +250,18 @@ When(
       "the rolled-back slot refuses a document the held bundle sends",
     ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
+    // The re-subscribed subscription can answer after this step starts: wait for it.
+    await expect
+      .poll(
+        () =>
+          previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+        {
+          message:
+            "the live server never answered the re-subscribed FamilyChatMessageCommitted subscription",
+          timeout: 15_000,
+        },
+      )
+      .toBe(true);
     const live = liveRefusals();
     expect(
       live,
@@ -247,6 +281,17 @@ Then("existing replies still render their quotes", async ({ page }) => {
       await expect(quote).toContainText(scenario.targetBody);
     }),
   );
+  // The re-subscribed subscription can answer after this step starts: wait for it.
+  await expect
+    .poll(
+      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+      {
+        message:
+          "the live server never answered the re-subscribed FamilyChatMessageCommitted subscription",
+        timeout: 15_000,
+      },
+    )
+    .toBe(true);
   const live = liveRefusals();
   expect(
     live,

@@ -7,14 +7,14 @@ import {
   parseFrame,
   type Refusal,
   replyRefusals,
+  subscriptionRefusals,
   type Schema,
 } from "./family-chat-previous-revision-judge";
 import { waitForRoomReady } from "./family-chat-resume";
 import { repositoryRoot } from "./routed-rollout-env";
 
 // Support for the earlier-revision scenarios in family-chat-rollback-floor.steps.ts: the held browser's GraphQL wire
-// (HTTP and socket), which replays the previous bundle's documents, judges each one against the frozen schema, and
-// records how the live server answers each judged or replayed one.
+// (HTTP and socket) replays the previous bundle's documents, judges each against the frozen schema, and logs answers.
 
 const FIXTURE =
   "apps/bnest-app/assets/test/support/family_chat_previous_revision.json";
@@ -33,8 +33,10 @@ export const previousRevisionTraffic = {
   rewritten: new Map<string, number>(),
   /** Each refused document, with its operation and the reason. */
   floorRefusals: [] as Refusal[],
-  /** Each judged or replayed document the live server answered wrongly, over HTTP or the socket. */
+  /** Each document, or subscription push, the live server answered wrongly, over HTTP or the socket. */
   liveErrors: [] as Refusal[],
+  /** Each replayed or judged operation the live server has answered, over HTTP or the socket. */
+  answered: new Set<string>(),
 };
 
 export function refusals(): string[] {
@@ -115,10 +117,8 @@ function onTheWire(body: Partial<Request>, wire: Wire): Request {
   return sent;
 }
 
-/**
- * A Phoenix v2 frame is [join_ref, ref, topic, event, payload]; only the control topic's "doc" push carries a document.
- * A judged or replayed push's ref is kept against its operation, so the reply that answers it can be checked.
- */
+// A Phoenix v2 frame is [join_ref, ref, topic, event, payload]; only the control topic's "doc" push carries a document.
+// A judged or replayed push's ref is kept against its operation, so the reply that answers it can be checked.
 function frameOnWire(
   message: string | Buffer,
   wire: Wire,
@@ -136,11 +136,8 @@ function frameOnWire(
 
 /** Sends a judged or replayed document to the live server, and answers the page with its answer. */
 async function answerLive(route: Route, postData: string, watched: string) {
-  // The live server answers a judged or replayed document. Its answer reaches the page unchanged, and any fault in
-  // it is recorded for the Then to fail on. Nothing is thrown inside the route.
-  // The readiness probe is the harness's own request, not a product document. Its success is already required:
-  // waitForRoutedReads polls until all six probes answer, and that poll fails the test on timeout. So its answers are
-  // not recorded here. It is still judged, and its answer still reaches the page unchanged.
+  // The live server answers judged and replayed documents unchanged; a fault is recorded for the Then, never thrown.
+  // The readiness probe is judged and answered but not recorded: waitForRoutedReads already requires its six answers.
   const recorded = watched !== "Probe";
   const live = await route.fetch({ postData }).catch((error: unknown) => {
     if (recorded)
@@ -148,6 +145,7 @@ async function answerLive(route: Route, postData: string, watched: string) {
         operation: watched,
         reason: `no answer: ${String(error)}`,
       });
+    if (recorded) previousRevisionTraffic.answered.add(watched);
     return null;
   });
   if (live === null) return route.abort();
@@ -159,6 +157,7 @@ async function answerLive(route: Route, postData: string, watched: string) {
         reason,
       })),
     );
+  if (recorded) previousRevisionTraffic.answered.add(watched);
   return route.fulfill({ response: live });
 }
 
@@ -187,8 +186,16 @@ async function wirePage(page: Page): Promise<Wire> {
     );
     // Taking over the server's messages stops Playwright passing them on, so each is judged and then sent on.
     server.onMessage((message) => {
+      const frame = parseFrame(message);
+      const replied =
+        frame?.[3] === "phx_reply" ? pushed.get(String(frame[1])) : undefined;
+      if (replied !== undefined) previousRevisionTraffic.answered.add(replied);
       previousRevisionTraffic.liveErrors.push(
         ...replyRefusals(message, pushed),
+        ...subscriptionRefusals(message).map((reason) => ({
+          operation: "subscription",
+          reason,
+        })),
       );
       socket.send(message);
     });
@@ -204,6 +211,7 @@ export async function sendPreviousBundleDocuments(page: Page): Promise<void> {
   const wire = await wirePage(page);
   previousRevisionTraffic.rewritten.clear();
   previousRevisionTraffic.liveErrors = [];
+  previousRevisionTraffic.answered.clear();
   wire.replay = true;
 }
 
@@ -212,6 +220,7 @@ export async function judgeAgainstRolledBackSlot(page: Page): Promise<void> {
   const wire = await wirePage(page);
   previousRevisionTraffic.floorRefusals = [];
   previousRevisionTraffic.liveErrors = [];
+  previousRevisionTraffic.answered.clear();
   wire.judge = true;
 }
 
@@ -220,18 +229,11 @@ export function navigationCount(page: Page): Promise<number> {
 }
 
 /**
- * Also the gate before any reload that follows a promotion: the room loads its
- * history once and never retries, so a reload into the churn window sits at
- * "booting" for good -- the held page, still open, can ask first.
- *
- * A promotion swaps the process behind the routed port, and `/health/ready`
- * answering with the new revision does not mean that process can reach SQLite
- * yet: the repo's pool can still be tearing down, and a request that lands in
- * that window comes back `Internal Server Error` with
- * `DBConnection.Holder.checkout ... (EXIT) shutdown` in the slot's log. It is
- * the harness's slot churn, not the room -- a plain send fails there just as a
- * reply does. So wait until the routed slot will actually answer a
- * database-backed read before asking it to commit anything.
+ * Also the gate before any reload after a promotion. A room reloaded into the churn window sits at "booting" for
+ * good, as it loads its history once and never retries. `/health/ready` on the new revision does not mean the process
+ * can reach SQLite yet: a request there fails with `DBConnection.Holder.checkout ... (EXIT) shutdown`. That is slot
+ * churn, not the room, so wait until a database-backed read succeeds before asking it to commit. The held page, still
+ * open, can ask first.
  */
 export async function waitForRoutedReads(
   page: Page,
@@ -265,8 +267,7 @@ export async function waitForRoutedReads(
             const payload = (await response.json()) as { errors?: unknown };
             return payload.errors === undefined;
           };
-          // Side by side, so the browser's other pooled connections to the
-          // origin are asked too: the next real request may not reuse this one.
+          // Side by side, so the browser's other pooled connections are asked too: the next request may not reuse one.
           const answers = await Promise.all(
             Array.from({ length: 6 }, () => probe().catch(() => false)),
           );
@@ -278,9 +279,8 @@ export async function waitForRoutedReads(
 }
 
 /**
- * Reloads into the routed room. The page itself comes from the slot just
- * routed, and a slot still settling can answer that one request with an error
- * page that has no room in it; reloading again is what a person would do.
+ * Reloads into the routed room. A slot still settling can answer that one request with an error page with no room in
+ * it; reloading again is what a person would do.
  */
 export async function reloadRoutedRoom(page: Page): Promise<void> {
   const room = page.locator('[data-role="family-chat-room"]');
