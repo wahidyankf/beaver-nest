@@ -1,4 +1,4 @@
-import { buildSchema, Kind, parse, print, validate } from "graphql";
+import { buildSchema, Kind, parse, validate } from "graphql";
 import type { DocumentNode } from "graphql";
 
 // The judgement behind the earlier-revision wire in family-chat-previous-revision.ts: what the rolled-back schema
@@ -22,8 +22,8 @@ const pairs = (record: Record<string, string | null>): string[] =>
   Object.entries(record).map(([n, t]) => `${n}: ${t ?? "Scalar"}`);
 
 /**
- * The rolled-back schema as SDL. Untyped scalars are `Scalar`. List wrapping is not represented, and it does not
- * change validation of selections or argument types.
+ * The rolled-back schema as SDL. Untyped scalars are `Scalar`. Object field types are given by name, so their list
+ * wrapping is not represented; it does not change the validation of selections. Argument types are passed as written.
  */
 function schemaSdl(schema: Schema): string {
   const rootType = (kind: string, name: string): string[] => {
@@ -48,8 +48,8 @@ function schemaSdl(schema: Schema): string {
 }
 
 /**
- * What the rolled-back schema refuses in one document: graphql-js validation, plus one operation with one root field,
- * each variable sent declared, and each bound variable declaring its argument's type exactly.
+ * What the rolled-back schema refuses in one document: graphql-js validation, which also judges each variable's type
+ * against the argument it binds to, plus one operation with one root field, and each variable sent declared.
  */
 export function judgeDocument(
   query: string,
@@ -70,25 +70,14 @@ export function judgeDocument(
   const [root] = roots;
   if (roots.length !== 1) return [`${roots.length} root fields, not one`];
   if (root?.kind !== Kind.FIELD) return ["the root selection is not a field"];
-  const vars = operation.variableDefinitions ?? [];
-  const declared = new Map(
-    vars.map((d) => [d.variable.name.value, print(d.type)]),
+  const declared = new Set(
+    (operation.variableDefinitions ?? []).map((d) => d.variable.name.value),
   );
-  const args = schema.roots[root.name.value]?.args ?? {};
-  const expected = new Map(Object.entries(args));
   const errors: string[] = [];
-  for (const arg of root.arguments ?? []) {
-    const want = expected.get(arg.name.value);
-    if (arg.value.kind !== Kind.VARIABLE) continue;
-    const have = declared.get(arg.value.name.value);
-    if (want !== undefined && have !== undefined && have !== want)
-      errors.push(
-        `${root.name.value}.${arg.name.value} is ${want}, not ${have}`,
-      );
-  }
   for (const [name, value] of Object.entries(variables))
     if (value !== undefined && !declared.has(name))
       errors.push(`$${name} is sent but not declared`);
+  // graphql-js judges each variable's type against the argument it binds to (VariablesInAllowedPosition).
   const validation = validate(buildSchema(schemaSdl(schema)), document);
   return [...errors, ...validation.map((error) => error.message)];
 }
@@ -152,4 +141,17 @@ export function replyRefusals(
       reason: `socket reply ${String(status)} ${JSON.stringify(response)}`,
     },
   ];
+}
+
+/**
+ * The push of a subscription's result, when the result carries an "errors" key. A message that is not a Phoenix frame,
+ * or a frame that is not a subscription push, returns nothing.
+ */
+export function subscriptionRefusals(message: string | Buffer): string[] {
+  const frame = parseFrame(message);
+  if (frame?.[3] !== "subscription:data") return [];
+  const { result } = (frame[4] ?? {}) as { result?: unknown };
+  if (typeof result === "object" && result !== null && "errors" in result)
+    return [`subscription:data errors ${JSON.stringify(result.errors)}`];
+  return [];
 }
