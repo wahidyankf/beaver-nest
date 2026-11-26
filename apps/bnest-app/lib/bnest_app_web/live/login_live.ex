@@ -45,7 +45,7 @@ defmodule BnestAppWeb.LoginLive do
     ~H"""
     <main class="identity-shell">
       <Layouts.flash_group flash={@flash} />
-      <section class="identity-card identity-setup" aria-labelledby="setup-title">
+      <section class="identity-card" aria-labelledby="setup-title">
         <p class="identity-kicker">ONE-TIME FAMILY SETUP</p>
         <h1 id="setup-title">Create the first family accounts</h1>
         <p class="identity-lede">

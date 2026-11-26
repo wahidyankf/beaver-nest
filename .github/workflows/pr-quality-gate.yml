@@ -309,12 +309,60 @@ jobs:
             ./rhino gate run --surface pull-request \
               --base "$(git rev-parse FETCH_HEAD)" --head "$(git rev-parse HEAD)"
 
+  ui-class-coverage:
+    name: UI class coverage
+    # Mirrors the affected-quick setup: the gate reads the built Tailwind
+    # bundle, so the assets this checkout ships are built first, then the gate
+    # and its own suite run against them.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@v1
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && mix deps.get'
+
+      - name: Build the shipped stylesheet bundle
+        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run bnest-app:assets:build
+
+      - name: Run the UI class coverage gate
+        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- ./scripts/check-ui-class-coverage.mjs
+
+      - name: Run the gate's own suite
+        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- node --test scripts/check-ui-class-coverage.test.mjs
+
   quality-gate:
     name: Quality gate
     # The single required status check. Individual jobs may legitimately skip a
     # suite, and a skipped required check never reports at all, so merge
     # protection points at this aggregate instead of at each job.
-    needs: [commit-messages, formatting, affected-quick, repository-contract]
+    needs:
+      [
+        commit-messages,
+        formatting,
+        affected-quick,
+        repository-contract,
+        ui-class-coverage,
+      ]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

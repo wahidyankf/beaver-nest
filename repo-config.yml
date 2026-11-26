@@ -681,6 +681,23 @@ gates:
       run-on:
         pull-request:
           reason: "The scanner regression suite runs in the isolated pull-request checkout."
+    - id: ui-class-coverage
+      type: check
+      command:
+        executable: ./scripts/check-ui-class-coverage.mjs
+      run-on: { pre-commit: {}, pre-push: {}, pull-request: {} }
+    - id: ui-class-coverage-tests
+      type: check
+      command:
+        executable: node
+        args:
+          [
+            { literal: --test },
+            { literal: scripts/check-ui-class-coverage.test.mjs },
+          ]
+      run-on:
+        pull-request:
+          reason: "The gate's own suite runs in the isolated pull-request checkout."
     - id: repo-config
       type: check
       command:

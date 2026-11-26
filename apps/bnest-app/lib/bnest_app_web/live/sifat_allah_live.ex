@@ -307,7 +307,7 @@ defmodule BnestAppWeb.SifatAllahLive do
             <strong data-testid="sifat-allah-progress">
               {Quiz.mastered_count(@progress)} dari {Quiz.total_count()} soal sudah hafal
             </strong>
-            <span class="sifat-unmastered-count" data-testid="sifat-allah-unmastered-count">
+            <span data-testid="sifat-allah-unmastered-count">
               {Quiz.unmastered_count(@progress)} soal masih perlu diulang
             </span>
             <span class="sifat-correct-count">
@@ -486,7 +486,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       <p :if={@assigns.feedback} class={"sifat-feedback is-#{@assigns.feedback.kind}"} role="status">
         {@assigns.feedback.text}
       </p>
-      <p :if={@assigns.feedback} class="sifat-auto-advance-note">
+      <p :if={@assigns.feedback}>
         Soal berikutnya muncul otomatis dalam 5 detik.
       </p>
       <div class="sifat-study-actions">
@@ -565,7 +565,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       <p :if={@assigns.feedback} class={"sifat-feedback is-#{@assigns.feedback.kind}"} role="status">
         {@assigns.feedback.text}
       </p>
-      <p :if={@assigns.feedback} class="sifat-auto-advance-note">
+      <p :if={@assigns.feedback}>
         Soal berikutnya muncul otomatis dalam 5 detik.
       </p>
       <button type="button" class="sifat-quiet-action" phx-click="previous-question">
@@ -607,7 +607,7 @@ defmodule BnestAppWeb.SifatAllahLive do
       )
 
     ~H"""
-    <section class="sifat-quiz sifat-focused-review" aria-label="Ulangi yang masih bikin bingung">
+    <section class="sifat-quiz" aria-label="Ulangi yang masih bikin bingung">
       <p class="sifat-step">SOAL ULANGI</p>
       <p class="sifat-review-count">Masih ada {@remaining_count} soal untuk dikuasai</p>
       <div id="sifat-review-question" class="sifat-quiz-question" data-role="review-question">
