@@ -68,6 +68,16 @@ defmodule BnestApp.FamilyChatTest do
     test "a fresh installation lists Ruang Keluarga ready and accepts a message" do
       assert FamilyChat.ensure_ready!() == :ok
       assert {:ok, room} = FamilyChat.migrate!()
+
+      assert %{
+               id: 1,
+               slug: "ruang-keluarga",
+               name: "Ruang Keluarga",
+               member_posting_enabled: true
+             } =
+               room
+
+      assert {:ok, ^room} = FamilyChat.migrate!()
       assert FamilyChat.list_rooms_for("test-user-family-chat-fresh") == {:ok, [room]}
 
       sender = "test-user-family-chat-fresh"

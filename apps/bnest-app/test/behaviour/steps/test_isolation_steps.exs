@@ -96,6 +96,10 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: context |> assert_empty_database() |> assert_setup_open()
   )
 
+  step("the instance database holds no browser session or user record", context,
+    do: assert_no_session_or_user_record(context)
+  )
+
   step("the next instance has a different instance ID and generation", context,
     do: assert_new_instance(context)
   )
@@ -275,6 +279,13 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
 
     assert contents.records == 0
     assert contents.chat_messages == 0
+    context
+  end
+
+  # Browser sessions and user records are both records the unit port counts in `records`, and SQLite
+  # keeps the instance's records in `bnest_records`, so an empty record count holds neither.
+  defp assert_no_session_or_user_record(context) do
+    assert adapter(context).database_contents(context).records == 0
     context
   end
 

@@ -53,6 +53,20 @@ defmodule BnestApp.FamilyChat.InMemoryRoomStoreTest do
              %{message_id: from_system.id, subscription_id: other, state: "pending"},
              %{message_id: from_system.id, subscription_id: sender, state: "pending"}
            ]
+
+    # One transaction: when the delivery rows cannot be written, the message and every
+    # delivery row of that commit are kept out of the store together.
+    deliveries_before = InMemoryDeliveryStore.deliveries(store)
+    :ok = InMemoryRoomStore.fail_next_delivery_insert(store)
+
+    assert_raise ArgumentError, ~r/the delivery rows could not be written/, fn ->
+      commit!(store, "key-refused", "refused", nil, "test-user-in-memory-sender")
+    end
+
+    assert RoomStore.find_message(store, 1, "user", "test-user-in-memory-sender", "key-refused") ==
+             nil
+
+    assert InMemoryDeliveryStore.deliveries(store) == deliveries_before
   end
 
   test "a seeded room is served as stored, and only active rooms are listed", %{store: store} do

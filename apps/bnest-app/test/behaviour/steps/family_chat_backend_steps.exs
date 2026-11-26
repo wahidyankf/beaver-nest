@@ -5,6 +5,34 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
 
   # --- family_chat_graphql.feature ---
 
+  step("the deployment tool generates the reverse-proxy configuration for a release", context,
+    do: perform(context, :generate_caddy_configurations)
+  )
+
+  step(
+    "the generated configuration omits \"stream_close_delay\" and any other nonzero stream-close delay",
+    context,
+    do: outcome(context, :caddy_omits_stream_close_delay)
+  )
+
+  step("the existing global five-minute grace period remains present", context,
+    do: outcome(context, :caddy_grace_period_present)
+  )
+
+  step(
+    "the deployment tool generates the reverse-proxy configuration that promotes the replacement slot",
+    context,
+    do: perform(context, :generate_caddy_configurations)
+  )
+
+  step("every replacement handshake is routed only to the promoted slot", context,
+    do: outcome(context, :handshake_routed_only_to_promoted)
+  )
+
+  step("no routed handshake reaches the prior slot", context,
+    do: outcome(context, :no_handshake_reaches_prior_slot)
+  )
+
   step("the family chat room holds a known ordered history of messages", context,
     do: prepare(context, :room_has_known_history)
   )
@@ -388,6 +416,34 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :room_listed_and_message_accepted, [name])
   )
 
+  step(
+    "room ID 1 exists with slug {string}, name {string}, and posting enabled",
+    %{args: [slug, name]} = context,
+    do: outcome(context, :seeded_room_ready_for_posting, [slug, name])
+  )
+
+  step("repeating the migration changes nothing about that seeded room", context,
+    do: outcome(context, :repeat_migration_changes_nothing)
+  )
+
+  step(
+    "the message and one pending delivery row per other active subscription commit in one transaction",
+    context,
+    do: outcome(context, :message_and_deliveries_committed_atomically)
+  )
+
+  step("exactly one pending delivery row exists for that subscription", context,
+    do: outcome(context, :one_pending_delivery_for_reply_subscription)
+  )
+
+  step("the delivery state becomes {string}", %{args: [state]} = context,
+    do: outcome(context, :delivery_state_is, [state])
+  )
+
+  step("every probe completes with zero failures", context,
+    do: outcome(context, :probes_complete_with_zero_failures)
+  )
+
   step("the public GraphQL schema is inspected", context,
     do: perform(context, :inspect_public_schema)
   )
@@ -469,13 +525,14 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :retention_enabled_second_run_changes_nothing)
   )
 
+  step("the one-time convergence already ran", context,
+    do: prepare(context, :convergence_already_ran)
+  )
+
   step(
     "the administrator saved a different daily backup time on the schedules page",
     context,
-    do:
-      context
-      |> prepare(:convergence_already_ran)
-      |> prepare(:operator_changed_schedule_time, ["prod-sqlite-backup-daily"])
+    do: prepare(context, :operator_changed_schedule_time, ["prod-sqlite-backup-daily"])
   )
 
   step("Bnest restarts", context, do: perform(context, :bnest_starts_again))

@@ -1115,14 +1115,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   # A scheduled backup that outlives its timeout: the run is cancelled and leaves no file,
   # then the Scheduler records it retryable, so the claim six minutes on finds it again.
   def perform_behaviour(context, :scheduled_backup_exceeds_timeout, _args) do
-    destination = backup_destination!("timed-out-direct")
-    result = Backup.run(deadline: @behaviour_now, destination_directory: destination.directory)
-
     context
-    |> Map.merge(%{
-      family_chat_result: result,
-      family_chat_backup_directory: destination.directory
-    })
+    |> perform_behaviour(:timed_out_backup_direct, [])
     |> perform_behaviour(:timed_out_backup_via_scheduler, [])
   end
 
@@ -1649,6 +1643,20 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       end)
   end
 
+  # The seeded canonical room is ID 1, with its slug, its name, and member posting enabled.
+  def behaviour_outcome?(_context, :seeded_room_ready_for_posting, [slug, name]) do
+    match?(
+      %{id: 1, slug: ^slug, name: ^name, member_posting_enabled: true},
+      FamilyChat.canonical_room()
+    )
+  end
+
+  # A repeated migration answers the seeded room as it was, and changes nothing about it.
+  def behaviour_outcome?(_context, :repeat_migration_changes_nothing, _args) do
+    before = FamilyChat.canonical_room()
+    match?({:ok, ^before}, FamilyChat.migrate!()) and FamilyChat.canonical_room() == before
+  end
+
   # The room list holds exactly the named room, and the member's message was accepted.
   def behaviour_outcome?(context, :room_listed_and_message_accepted, [name]) do
     match?({:ok, [%{name: ^name}]}, context.family_chat_room_list) and
@@ -1678,6 +1686,24 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
     pushes = for {^endpoint, %{"messageId" => ^message_id}} <- peek_push_requests(), do: :sent
     length(pushes) == 1
+  end
+
+  # The stored delivery of the owed push is in the named state.
+  def behaviour_outcome?(context, :delivery_state_is, [state]) do
+    %{family_chat_push_delivery_id: id} = context
+    match?(%{state: ^state}, stored_delivery(id))
+  end
+
+  # The reply's only delivery row is pending for the recipient's subscription.
+  def behaviour_outcome?(context, :one_pending_delivery_for_reply_subscription, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    subscription_id = context.family_chat_other_subscription_id
+
+    rows =
+      for row <- stored_deliveries(), row.message_id == message_id,
+        do: {row.subscription_id, row.state}
+
+    rows == [{subscription_id, "pending"}]
   end
 
   # The first wait is 30 seconds; the policy's later waits are 120, 480 and 1920 seconds.
@@ -2153,6 +2179,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     %{sent_ids: sent_ids} = context.family_chat_load_probes
     live_ids = live_family_chat_message_ids()
     sent_ids != [] and Enum.all?(sent_ids, &MapSet.member?(live_ids, &1))
+  end
+
+  # The probes ran, and none failed.
+  def behaviour_outcome?(context, :probes_complete_with_zero_failures, _args) do
+    %{failures: failures, samples: samples} = context.family_chat_load_probes
+    failures == 0 and samples != []
   end
 
   def behaviour_outcome?(context, :probes_zero_failures, _args) do
@@ -3385,8 +3417,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       try do
         _committed =
           FamilyChat.send_message(
-            context.family_chat_user_id,
-            context.family_chat_room_slug,
+            Map.get(context, :family_chat_user_id) || context.user_id,
+            Map.get(context, :family_chat_room_slug) || "ruang-keluarga",
             client_message_id,
             "Dinner is ready, again"
           )

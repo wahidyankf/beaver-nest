@@ -288,7 +288,9 @@ defmodule BnestApp.PushNotificationsTest do
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A reply notifies the other member once and the notification shows none of the quoted message
-    test "a reply notifies once with the reply body and none of the quoted message" do
+    test "a reply notifies once with the reply body and none of the quoted message", %{
+      store: store
+    } do
       other = unique_user()
 
       assert {:ok, %{enabled: true}} =
@@ -311,6 +313,9 @@ defmodule BnestApp.PushNotificationsTest do
           "Member",
           target.id
         )
+
+      # The reply owes exactly one pending delivery, before any attempt is made.
+      assert [%{state: "pending"}] = Enum.filter(deliveries(store), &(&1.message_id == reply.id))
 
       for _ <- 1..3, do: Dispatcher.attempt(@now)
 

@@ -19,6 +19,32 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcomes(context, [{:sqlite_under_production_data, []}, {:no_browser_confirmation, []}])
   )
 
+  step("Bnest keeps the storage pointer under the configuration home", context,
+    do: outcome(context, :pointer_under_configuration_home)
+  )
+
+  step("Bnest inventories records in deterministic path order", context,
+    do: outcome(context, :deterministic_inventory)
+  )
+
+  step("each accepted item has immutable source and target checksum evidence", context,
+    do: outcome(context, :checksum_evidence_present)
+  )
+
+  step(
+    "accepted items are not rewritten, and remaining items continue from their recorded outcomes",
+    context,
+    do: outcomes(context, [{:accepted_items_not_duplicated, []}, {:remaining_items_continue, []}])
+  )
+
+  step("future writes remain compatible with the rollback reader", context,
+    do: outcome(context, :writes_compatible_with_rollback)
+  )
+
+  step("the storage pointer resolves the production data directory atomically", context,
+    do: outcome(context, :pointer_relocated_atomically)
+  )
+
   step("an authenticated user with the admin role opened storage settings", context,
     do: prepare(context, :admin_opened_storage_settings)
   )

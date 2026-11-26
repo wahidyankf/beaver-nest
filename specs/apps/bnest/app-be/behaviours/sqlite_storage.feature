@@ -12,6 +12,7 @@ Feature: Bnest SQLite storage
     And the storage UI has not been visited
     When the operator runs `mix bnest.storage.migrate`
     Then it exits 0 and the database file is in the default data folder
+    And Bnest keeps the storage pointer under the configuration home
 
   @storage-unconfigured
   Scenario Outline: Administrator optionally selects a valid custom database folder
@@ -42,16 +43,20 @@ Feature: Bnest SQLite storage
     Given a flat-primary installation has no custom storage location
     When managed storage migration runs without a UI visit
     Then the task reports accepted records with blocked=0 and exits 0, and every record reads back unchanged through the app
+    And Bnest inventories records in deterministic path order
+    And each accepted item has immutable source and target checksum evidence
 
   Scenario: Running the storage migration task again after an interruption finishes it without duplicates
     Given migration stopped after at least one accepted item
     When the operator runs the same task again
     Then it exits 0, the counts show the remaining items accepted, and no record appears twice
+    And accepted items are not rewritten, and remaining items continue from their recorded outcomes
 
   Scenario: The task switches storage to SQLite only when every check passes and the app then reads from it
     Given schema, backfill, parity, integrity, and isolated restore checks pass
     When the managed migration commits the storage authority switch without UI confirmation
     Then future reads use SQLite
+    And future writes remain compatible with the rollback reader
 
   Scenario: Chat, learning, theme, login and logout survive a restart after the switch
     Given schema, backfill, parity, integrity, and isolated restore checks pass
@@ -70,6 +75,7 @@ Feature: Bnest SQLite storage
     Given authoritative SQLite still uses the legacy configuration directory
     When the operator runs `mix bnest.storage.relocate`
     Then it exits 0 printing "relocation verified", the database is in the production data folder, and the legacy SQLite files are still present
+    And the storage pointer resolves the production data directory atomically
 
   Scenario: Verified legacy flat-file storage is retired
     Given routed SQLite proof matches the authoritative database generation

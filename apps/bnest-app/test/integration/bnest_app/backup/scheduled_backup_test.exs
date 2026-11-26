@@ -113,11 +113,31 @@ defmodule BnestApp.ScheduledBackupTest do
     {:ok, claim} =
       Scheduler.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
 
+    probes = Task.async(fn -> family_chat_probe_rounds(10) end)
+
     assert {:error, :timeout} = ScheduledBackupTask.execute(claim, @now)
 
     assert context.backup_directory
            |> File.ls!()
            |> Enum.filter(&String.contains?(&1, ".sqlite3")) == []
+
+    assert %{completed: 10, failures: 0} = Task.await(probes)
+  end
+
+  # Authenticated family chat reads and sends through the facade, run beside the backup.
+  defp family_chat_probe_rounds(count) do
+    user = "test-user-backup-probe"
+    :ok = FamilyChat.ensure_ready!()
+    slug = FamilyChat.canonical_room_slug()
+
+    Enum.reduce(1..count, %{completed: 0, failures: 0}, fn _round, acc ->
+      sent = FamilyChat.send_message(user, slug, Ecto.UUID.generate(), "probe")
+      read = FamilyChat.list_messages(user, slug, [])
+
+      if match?({:ok, _}, sent) and match?({:ok, _}, read),
+        do: %{acc | completed: acc.completed + 1},
+        else: %{acc | failures: acc.failures + 1}
+    end)
   end
 
   test "retains one owned pair per current seven WIB dates and preserves unknown files",

@@ -140,6 +140,16 @@ defmodule BnestApp.FamilyChatMigrationTest do
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A fresh installation lists Ruang Keluarga ready for posting
     test "lists Ruang Keluarga ready and accepts a message" do
       assert {:ok, room} = FamilyChat.migrate!()
+
+      assert %{
+               id: 1,
+               slug: "ruang-keluarga",
+               name: "Ruang Keluarga",
+               member_posting_enabled: true
+             } =
+               room
+
+      assert {:ok, ^room} = FamilyChat.migrate!()
       assert FamilyChat.list_rooms_for("test-user-fresh-install") == {:ok, [room]}
 
       assert {:ok, message} =

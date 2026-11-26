@@ -8,6 +8,7 @@ Feature: Bnest test isolation
     Given no test instance is current
     When a test spawns an instance with no seeded accounts
     Then no account can log in, the chat has no messages, and the initial setup page is open
+    And the instance database holds no browser session or user record
 
   Scenario: Consecutive tests never share a database
     Given a test spawned an instance and created an account in it

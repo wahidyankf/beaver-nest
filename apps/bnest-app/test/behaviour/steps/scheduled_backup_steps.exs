@@ -273,7 +273,7 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   # Backup integrity: the restore drill task, what it restores, prints and refuses.
 
   step(
-    "an isolated destination holding a synthetic artifact of 1 room, {int} messages and {int} push subscriptions with deliveries {string} and {string}",
+    "an isolated destination holding a verified synthetic artifact of 1 room, {int} messages and {int} push subscriptions with deliveries {string} and {string}",
     %{args: args} = context,
     do: prepare(context, :drill_artifact, args)
   )

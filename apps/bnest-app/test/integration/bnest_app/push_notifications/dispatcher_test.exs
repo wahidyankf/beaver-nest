@@ -8,6 +8,7 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
 
   alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications
+  alias BnestApp.SqliteRepo
   alias BnestApp.PushNotifications.Dispatcher
   alias BnestApp.Test.InMemory.PushSender
 
@@ -33,13 +34,29 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
                )
     end
 
-    assert {:ok, _message} =
+    assert {:ok, message} =
              FamilyChat.send_message(
                sender,
                FamilyChat.canonical_room_slug(),
                Ecto.UUID.generate(),
                "hello everyone"
              )
+
+    # The message and one pending delivery row per other subscription were committed together,
+    # and the sender's own subscription owes nothing.
+    %{rows: sender_rows} =
+      SqliteRepo.query!("SELECT id FROM web_push_subscriptions WHERE endpoint = ?", [
+        endpoint("member-3")
+      ])
+
+    assert [[sender_subscription]] = sender_rows
+
+    assert [_, _, _] = rows = delivery_rows(message.id)
+    assert Enum.all?(rows, fn [_subscription_id, state] -> state == "pending" end)
+
+    refute Enum.any?(rows, fn [subscription_id, _state] ->
+             subscription_id == sender_subscription
+           end)
 
     assert :ok = PushNotifications.dispatch_all_due!(@now)
 
@@ -48,6 +65,45 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
     end
 
     refute_received {:push_notification_sent, _sender_endpoint, _payload}
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Every other member with push enabled is notified of a new message and the sender is not
+  test "a commit whose delivery rows SQLite refuses keeps its message and every delivery out" do
+    assert {:ok, %{enabled: true}} =
+             PushNotifications.upsert_subscription(
+               unique_user(),
+               "session-refused",
+               valid_input("refused")
+             )
+
+    body = "refused commit " <> Ecto.UUID.generate()
+
+    SqliteRepo.query!(
+      "CREATE TRIGGER test_refuse_delivery_rows BEFORE INSERT ON family_chat_push_deliveries BEGIN SELECT RAISE(ABORT, 'delivery rows refused'); END"
+    )
+
+    refused? =
+      try do
+        match?(
+          {:error, _reason},
+          FamilyChat.send_message(
+            unique_user(),
+            FamilyChat.canonical_room_slug(),
+            Ecto.UUID.generate(),
+            body
+          )
+        )
+      rescue
+        _refused -> true
+      after
+        SqliteRepo.query!("DROP TRIGGER IF EXISTS test_refuse_delivery_rows")
+      end
+
+    assert refused?
+
+    assert %{rows: [[0]]} =
+             SqliteRepo.query!("SELECT COUNT(*) FROM family_chat_messages WHERE body = ?", [body])
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -80,6 +136,9 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
         "Member",
         target.id
       )
+
+    assert [[subscription_id, "pending"]] = delivery_rows(reply.id)
+    assert [[^subscription_id]] = subscription_rows("reply")
 
     assert :ok = PushNotifications.dispatch_all_due!(@now)
 
@@ -169,6 +228,26 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
 
       assert Dispatcher.attempt(@now) == {:error, :no_due_delivery}
     end)
+  end
+
+  # One message's delivery rows as [subscription_id, state] pairs, read from SQLite.
+  defp delivery_rows(message_id) do
+    %{rows: rows} =
+      SqliteRepo.query!(
+        "SELECT subscription_id, state FROM family_chat_push_deliveries WHERE message_id = ?",
+        [message_id]
+      )
+
+    rows
+  end
+
+  defp subscription_rows(suffix) do
+    %{rows: rows} =
+      SqliteRepo.query!("SELECT id FROM web_push_subscriptions WHERE endpoint = ?", [
+        endpoint(suffix)
+      ])
+
+    rows
   end
 
   defp flush_pushes do

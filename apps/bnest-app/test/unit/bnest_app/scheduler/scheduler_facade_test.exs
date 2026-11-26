@@ -265,6 +265,11 @@ defmodule BnestApp.Scheduler.FacadeTest do
     # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup time the administrator chose survives a restart
     test "a saved daily backup time is still saved when the schedule is read again" do
       put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+
+      # The one-time convergence ran before the administrator's edit.
+      assert {:ok, %{daily_at_utc: "18:00"}} =
+               Scheduler.converge_backup_time!("prod-sqlite-backup-daily", "18:00")
+
       current = Scheduler.get_schedule("prod-sqlite-backup-daily")
 
       assert {:ok, saved} =

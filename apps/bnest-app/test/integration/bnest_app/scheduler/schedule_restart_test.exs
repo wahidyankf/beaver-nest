@@ -35,6 +35,10 @@ defmodule BnestApp.SchedulerRestartTest do
     database_path: database_path
   } do
     key = "prod-sqlite-backup-daily"
+
+    # The one-time convergence ran before the administrator's edit.
+    assert {:ok, %{daily_at_utc: "18:00"}} = Scheduler.converge_backup_time!(key, "18:00")
+
     current = Scheduler.get_schedule(key)
 
     assert {:ok, saved} =

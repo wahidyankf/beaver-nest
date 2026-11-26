@@ -8,6 +8,8 @@ Feature: Family chat operations
     Given a fresh installation
     When a member lists the rooms and sends a message
     Then room "Ruang Keluarga" is listed and the message is accepted
+    And room ID 1 exists with slug "ruang-keluarga", name "Ruang Keluarga", and posting enabled
+    And repeating the migration changes nothing about that seeded room
 
   # Exemption(e2e): pre-upgrade reader compatibility is a same-machine schema-overlap boundary; alternative-proof: bnest-app:test:integration / An old release ignores the additive family chat schema
   @e2e-exempt
@@ -38,14 +40,16 @@ Feature: Family chat operations
   Scenario: Every other member with push enabled is notified of a new message and the sender is not
     Given three other members hold active Web Push subscriptions in "ruang-keluarga"
     When a member sends a durable family chat message
-    Then each of the three other subscriptions is sent one push for the message and the sender's own subscription is sent none
+    Then the message and one pending delivery row per other active subscription commit in one transaction
+    And each of the three other subscriptions is sent one push for the message and the sender's own subscription is sent none
 
   # Exemption(e2e): push content reaches a member's device only through a push provider, which the browser suite does not run; alternative-proof: bnest-app:test:integration / A reply notifies the other member once and the notification shows none of the quoted message
   @e2e-exempt
   Scenario: A reply notifies the other member once and the notification shows none of the quoted message
     Given one other member holds an active Web Push subscription in "ruang-keluarga"
     When a member sends a durable family chat reply to that member's message
-    Then exactly one push is sent to that subscription
+    Then exactly one pending delivery row exists for that subscription
+    And exactly one push is sent to that subscription
     And the notification title and body carry no part of the quoted message
 
   Rule: Push delivery retry, retirement, retention, and purge
@@ -55,7 +59,8 @@ Feature: Family chat operations
   Scenario: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     Given a delivery row whose provider request will fail with a retryable result
     When the dispatcher attempts the delivery
-    Then the push service is asked again after 30 seconds, then 120, 480 and 1920 seconds, with no sixth attempt and no attempt past one hour
+    Then the delivery state becomes "retryable"
+    And the push service is asked again after 30 seconds, then 120, 480 and 1920 seconds, with no sixth attempt and no attempt past one hour
 
   # Exemption(e2e): the push provider's answers are given only by a double at the integration level, since the browser suite runs no push provider; alternative-proof: bnest-app:test:integration / A device the push service reports gone stops receiving notifications and shows as disabled
   @e2e-exempt
@@ -63,6 +68,7 @@ Feature: Family chat operations
     Given a delivery row targeting a subscription the provider reports as gone
     When the dispatcher attempts the delivery
     Then the member's current Web Push subscription reports disabled and the push service is not asked again
+    And the delivery state becomes "terminal"
 
   # Exemption(e2e): the push payload is built and sent inside the server process, and the e2e server pushes through the recording sender, so the exact origin has no view of the payload; alternative-proof: bnest-app:test:integration / A push notification body is collapsed and capped at 120 characters
   @e2e-exempt
@@ -104,7 +110,8 @@ Feature: Family chat operations
   # Exemption(e2e): a restart of Bnest is a process action that the browser suite does not perform; alternative-proof: bnest-app:test:integration / A backup time the administrator chose survives a restart
   @e2e-exempt
   Scenario: A backup time the administrator chose survives a restart
-    Given the administrator saved a different daily backup time on the schedules page
+    Given the one-time convergence already ran
+    And the administrator saved a different daily backup time on the schedules page
     When Bnest restarts
     Then the schedules page still shows that time
 
@@ -136,6 +143,24 @@ Feature: Family chat operations
   # Exemption(e2e): forcing a backup timeout is a timing boundary inside the backup service that the browser cannot set; alternative-proof: bnest-app:test:integration / A backup that runs too long is cancelled, leaves no file, and is tried again
   @e2e-exempt
   Scenario: A backup that runs too long is cancelled, leaves no file, and is tried again
-    Given the configured backup timeout is far shorter than the snapshot needs
+    Given continuous authenticated family chat read and send probes are running
+    And the configured backup timeout is far shorter than the snapshot needs
     When a scheduled backup exceeds its timeout
     Then no backup or partial file appears, the run shows a retryable "timeout" failure, and the next attempt runs
+    And every probe completes with zero failures
+
+  # Exemption(e2e): generated deployment configuration is inspected as a build artifact, not exercised through a browser/HTTP boundary; alternative-proof: bnest-app:test:integration / The generated Caddy configuration rejects a nonzero stream-close delay
+  @e2e-exempt @vitest-unit
+  Scenario: The generated Caddy configuration rejects a nonzero stream-close delay
+    When the deployment tool generates the reverse-proxy configuration for a release
+    Then the generated configuration omits "stream_close_delay" and any other nonzero stream-close delay
+    And the existing global five-minute grace period remains present
+
+  Rule: Promoted-slot-only handshake routing
+
+  # Exemption(e2e): a live Caddy reload is release-time infrastructure, and the BE E2E project runs with no Caddy; alternative-proof: bnest-app-fe-e2e:test:e2e / A connected client reconnects to the promoted slot without a page refresh
+  @e2e-exempt @vitest-unit
+  Scenario: A replacement handshake routes only to the promoted slot while the prior slot stays warm
+    When the deployment tool generates the reverse-proxy configuration that promotes the replacement slot
+    Then every replacement handshake is routed only to the promoted slot
+    And no routed handshake reaches the prior slot

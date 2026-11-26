@@ -126,6 +126,18 @@ Then(
   },
 );
 
+Then(
+  "the instance database holds no browser session or user record",
+  async ({ page }) => {
+    expect(instanceRowCounts().bnest_records).toBe(0);
+    // Sessions are signed cookies, so the only session a fresh browser can hold is its identity cookie.
+    const cookies = await page.context().cookies();
+    expect(cookies.map((cookie) => cookie.name)).not.toContain(
+      "_bnest_identity",
+    );
+  },
+);
+
 // --- Scenario: consecutive tests never share a database ---------------------
 
 Given("a test spawned an instance and created an account in it", () => {

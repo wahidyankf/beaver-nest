@@ -175,7 +175,7 @@ Feature: Bnest scheduled backups
     # Exemption(e2e): the browser and HTTP client cannot run the restore drill Mix task or read its printed evidence and temporary root; alternative-proof: bnest-app:test:integration / The drill restores a synthetic artifact and prints redacted evidence
     @e2e-exempt
     Scenario: The drill restores a synthetic artifact and prints redacted evidence
-      Given an isolated destination holding a synthetic artifact of 1 room, 3 messages and 2 push subscriptions with deliveries "pending" and "delivered"
+      Given an isolated destination holding a verified synthetic artifact of 1 room, 3 messages and 2 push subscriptions with deliveries "pending" and "delivered"
       And a restorable regular file sits outside the destination
       And a directory sits inside the destination
       And a symbolic link inside the destination points to a restorable file outside it

@@ -35,6 +35,22 @@ defmodule BnestApp.Backup.FacadeTest do
     }
   end
 
+  # Authenticated family chat reads and sends through the facade, run beside the backup.
+  defp family_chat_probe_rounds(count) do
+    user = "test-user-backup-probe"
+    :ok = FamilyChat.ensure_ready!()
+    slug = FamilyChat.canonical_room_slug()
+
+    Enum.reduce(1..count, %{completed: 0, failures: 0}, fn _round, acc ->
+      sent = FamilyChat.send_message(user, slug, Ecto.UUID.generate(), "probe")
+      read = FamilyChat.list_messages(user, slug, [])
+
+      if match?({:ok, _}, sent) and match?({:ok, _}, read),
+        do: %{acc | completed: acc.completed + 1},
+        else: %{acc | failures: acc.failures + 1}
+    end)
+  end
+
   defp store_state(context), do: Agent.get(context.artifacts.pid, & &1)
 
   defp put_override(context, directory) do
@@ -323,6 +339,7 @@ defmodule BnestApp.Backup.FacadeTest do
     test "a snapshot past its timeout is cancelled, leaves no partial file and stays retryable",
          context do
       Application.put_env(:bnest_app, :backup_timeout_ms, 1)
+      probes = Task.async(fn -> family_chat_probe_rounds(10) end)
 
       assert Backup.run(deadline: @now, destination_directory: @destination) ==
                {:error, {:retryable, :timeout, nil}}
@@ -330,6 +347,7 @@ defmodule BnestApp.Backup.FacadeTest do
       assert [_partial] = DatabaseSnapshot.snapshots(context.snapshot)
       assert DatabaseSnapshot.cancellations(context.snapshot) == 1
       assert backups_in(context) == []
+      assert %{completed: 10, failures: 0} = Task.await(probes)
     end
 
     test "a failed snapshot or a failed proof leaves no partial file and stays retryable",
