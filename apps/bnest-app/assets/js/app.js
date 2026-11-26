@@ -35,6 +35,7 @@ import { SifatSwipe } from "./sifat_swipe.js";
 import { installComposerKeys, keepFocusOnSendPress } from "./chat_keys.js";
 import { ChatComposer } from "./codex_composer_hook.js";
 import { installChatControls, keepOptionsState } from "./chat_controls.js";
+import { keepConversationDrawerState } from "./conversation_drawer.js";
 import { installVisualViewportHeight } from "./viewport_height.js";
 
 const csrfToken = document
@@ -111,8 +112,14 @@ const persistSifatAllah = (snapshot) => {
 
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
-  // A patch rebuilds server-rendered attributes; keepOptionsState carries the open Options panel across it (ADR 005).
-  dom: { onBeforeElUpdated: keepOptionsState },
+  // A patch rebuilds server-rendered attributes; the keepers carry the open Options panel and the open
+  // conversation drawer across it (ADR 005).
+  dom: {
+    onBeforeElUpdated: (from, to) => {
+      keepOptionsState(from, to);
+      keepConversationDrawerState(from, to);
+    },
+  },
   params: () => ({
     _csrf_token: csrfToken,
     chat: storedChat(),

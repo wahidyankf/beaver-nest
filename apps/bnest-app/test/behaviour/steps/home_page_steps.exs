@@ -327,6 +327,54 @@ defmodule BnestApp.Behaviour.ChatSteps do
     context.behaviour_driver.rename_conversation(context, title, next)
   end
 
+  # The drawer's open state is client-side browser state the server never renders (conversation_drawer.js): the
+  # browser rows prove opening, closing, Escape, the overlay and the desktop-width auto-close. At this layer each
+  # drawer step proves the rendered drawer contract that script depends on.
+  step "the visitor opens the conversation drawer", context do
+    context.behaviour_driver.open_conversation_drawer(context)
+  end
+
+  step "the conversation drawer is open", context do
+    assert context.behaviour_driver.conversation_drawer_open?(context)
+    context
+  end
+
+  step "the visitor closes the conversation drawer", context do
+    context.behaviour_driver.close_conversation_drawer(context)
+  end
+
+  step "the conversation drawer is closed", context do
+    assert context.behaviour_driver.conversation_drawer_closed?(context)
+    context
+  end
+
+  # No layout engine runs here; the toggle's class names the stylesheet rule that sizes it to 44 pixels.
+  step "the Chats toggle is at least 44 pixels across and tall", context do
+    assert context.behaviour_driver.chats_toggle_touch_target?(context)
+    context
+  end
+
+  # Scrolling is a browser act on the rendered conversation; here the step proves the scroll target exists for it.
+  step "the visitor scrolls the conversation to the newest message", context do
+    context.behaviour_driver.scroll_conversation_to_newest(context)
+  end
+
+  # The boxes are browser layout results; here each step proves the regions the browser measures are rendered.
+  step "the newest message is fully above the composer", context do
+    assert context.behaviour_driver.newest_message_above_composer?(context)
+    context
+  end
+
+  step "the Codex composer is at the bottom of the screen", context do
+    assert context.behaviour_driver.codex_composer_at_bottom?(context)
+    context
+  end
+
+  step "the page does not scroll", context do
+    assert context.behaviour_driver.chat_page_does_not_scroll?(context)
+    context
+  end
+
   step "the study mode is available", context do
     assert context.behaviour_driver.study_mode_available?(context)
     context

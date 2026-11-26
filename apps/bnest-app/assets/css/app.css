@@ -694,6 +694,14 @@ body:has(.family-chat-shell) {
   outline-offset: 2px;
 }
 
+/* The drawer toggle, its scrim and the drawer's head are the phone drawer's chrome: the desktop sidebar needs none
+ * of them. */
+.conversations-toggle,
+.conversation-scrim,
+.conversation-drawer-head {
+  display: none;
+}
+
 .chat-header {
   display: flex;
   flex-shrink: 0;
@@ -1144,41 +1152,106 @@ body:has(.family-chat-shell) {
     padding: 0;
   }
 
-  /* On a phone the rail stacks above the panel as a full-width strip: the
-   * list scrolls sideways so every conversation stays reachable without
-   * pushing the panel off screen. The strip sticks to the top of the screen
-   * while the page scrolls, so New chat and the conversation cards stay
-   * visible and reachable while the transcript scrolls beneath. */
-  .conversation-rail {
-    position: sticky;
-    top: 0;
-    z-index: 1;
-    max-height: none;
-    overflow: visible;
-    border: 0;
-    border-bottom: 2px solid var(--bnest-ink);
-    border-radius: 0;
-    padding: 0.6rem 0.75rem;
-    box-shadow: none;
-  }
-
-  .conversation-rail [data-role="new-conversation"] {
-    width: auto;
-  }
-
-  .conversation-rail ul {
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
-    overflow-x: auto;
-    padding-bottom: 0.25rem;
-  }
-
-  .conversation-rail [data-role="conversation-item"] {
-    flex: 0 0 auto;
-    max-width: 16rem;
-    border-color: var(--bnest-lagoon);
+  /* On a phone the rail is a left-side overlay drawer opened by the header's Chats toggle. It floats above the panel
+   * without taking layout space, so the panel keeps exactly the visible height and its bottom (the newest message and
+   * the composer) stays reachable. The list keeps its desktop grid, stacked again. */
+  .conversations-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border: 2px solid var(--bnest-ink);
+    border-radius: 999px;
+    padding: 0.4rem;
     background: var(--bnest-paper);
+    color: var(--bnest-ink);
+    cursor: pointer;
+  }
+
+  .conversations-toggle:hover {
+    background: var(--bnest-sun-light);
+  }
+
+  .conversations-toggle:focus-visible,
+  .conversation-rail [data-role="conversation-close"]:focus-visible {
+    outline: 3px solid var(--bnest-coral);
+    outline-offset: 2px;
+  }
+
+  .conversation-drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .conversation-drawer-head h2 {
+    margin: 0;
+    font-family: var(--bnest-display);
+    font-size: 1.1rem;
+    letter-spacing: -0.02em;
+  }
+
+  .conversation-rail [data-role="conversation-close"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+    border: 2px solid var(--bnest-ink);
+    border-radius: 0.6rem;
+    padding: 0.25rem;
+    background: var(--bnest-paper);
+    color: var(--bnest-ink);
+    cursor: pointer;
+  }
+
+  .conversation-rail [data-role="conversation-close"]:hover {
+    background: var(--bnest-sun-light);
+  }
+
+  .conversation-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    border: 0;
+    padding: 0;
+    background: rgb(21 63 66 / 45%);
+  }
+
+  .conversation-scrim.is-open {
+    display: block;
+  }
+
+  .conversation-rail {
+    position: fixed;
+    inset-block: 0;
+    left: 0;
+    z-index: 60;
+    width: min(20rem, 84vw);
+    max-height: none;
+    height: 100vh;
+    height: 100dvh;
+    height: var(--vvh, 100dvh);
+    overflow-y: auto;
+    border: 0;
+    border-right: 2px solid var(--bnest-ink);
+    border-radius: 0;
+    box-shadow: 0.4rem 0 0 var(--bnest-shadow);
+    transform: translateX(-105%);
+    visibility: hidden;
+    transition:
+      transform 180ms ease,
+      visibility 180ms;
+  }
+
+  .conversation-rail.is-open {
+    transform: none;
+    visibility: visible;
   }
 
   /* The panel is exactly the screen, so the page itself does not scroll and the composer stays on screen. The
@@ -1482,6 +1555,10 @@ body:has(.family-chat-shell) {
   .identity-card,
   .identity-primary {
     scroll-behavior: auto;
+    transition: none;
+  }
+
+  .conversation-rail {
     transition: none;
   }
 }
@@ -3381,6 +3458,23 @@ body:has(.family-chat-shell) {
 
   .send-button {
     min-height: 3.25rem;
+  }
+}
+
+/* A narrow phone (320 CSS pixels) keeps the drawer's toggle beside the brand and Options on the first line, so the
+ * header stays two rows and the conversation keeps most of the screen: tighter gaps and a smaller title save the
+ * line the toggle's touch target costs. Wider phones keep the roomier sizes above. */
+@media (max-width: 24rem) {
+  .chat-header {
+    gap: 0.4rem;
+  }
+
+  .brand-identity {
+    gap: 0.5rem;
+  }
+
+  .chat-header h1 {
+    font-size: 1.15rem;
   }
 }
 

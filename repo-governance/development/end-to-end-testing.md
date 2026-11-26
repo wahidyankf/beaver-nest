@@ -44,6 +44,11 @@ supported viewport class. Exercise the changed interaction and confirm layout, c
 Code inspection, inferred CSS behaviour, test results, and design assets are supporting evidence, never substitutes for
 this rendered check. Record the route, state, viewport class, and pass/fail without private values.
 
+For a scrollable conversation view, prove in a real browser at the exact served origin on a phone viewport that the
+view scrolls to its newest content with the composer visible; class-presence assertions never satisfy this proof.
+Attach before-and-after renders captured at the exact affected viewport to the delivery record of every UI fix; a
+record without both renders is incomplete.
+
 Do not expand this into an unrelated full-site audit. Use synthetic identities and marked cleanup; record only
 route/state and pass/fail, never private values.
 
