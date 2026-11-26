@@ -4,6 +4,11 @@ import { createBdd } from "playwright-bdd";
 // Step bindings for the Multiple chat conversations rule of
 // specs/apps/bnest/app-fe/behaviours/chat.feature: the rail the server renders,
 // with one entry per conversation.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor starts a second chat from the conversation rail
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor switches between two chats and each keeps its messages
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor deletes a chat from the conversation rail
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor renames a chat from the conversation rail
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor keeps every chat after a reload
 const { Then, When } = createBdd();
 
 When("the visitor starts a new chat", async ({ page }) => {

@@ -157,6 +157,109 @@ defmodule BnestApp.CodexChat.ConversationsFacadeTest do
     assert CodexChat.default_conversation_title("   ") == "New chat"
   end
 
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor starts a second chat from the conversation rail
+  test "starting a second chat opens an empty chat beside the first one" do
+    {:ok, first_chat} = Transcript.submit(Transcript.new(), "First chat topic")
+
+    {:ok, state} =
+      Conversations.new(id: "chat-1", title: "First chat topic", now: @now)
+      |> Conversations.put_transcript("chat-1", first_chat, now: @now)
+
+    assert {:ok, "chat-2", started} =
+             CodexChat.create_conversation(state, id: "chat-2", now: @now)
+
+    assert ["First chat topic", "New chat"] ==
+             started |> CodexChat.list_conversations() |> Enum.map(& &1.title) |> Enum.sort()
+
+    assert {:ok, %{id: "chat-2", transcript: %{messages: []}}} =
+             CodexChat.selected_conversation(started)
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor switches between two chats and each keeps its messages
+  test "switching between two chats selects each chat with its own messages" do
+    {:ok, first_chat} = Transcript.submit(Transcript.new(), "First chat topic")
+    {:ok, second_chat} = Transcript.submit(Transcript.new(), "Second chat topic")
+
+    {:ok, state} =
+      Conversations.new(id: "chat-1", title: "First chat topic", now: @now)
+      |> Conversations.put_transcript("chat-1", first_chat, now: @now)
+
+    {:ok, _id, state} = CodexChat.create_conversation(state, id: "chat-2", now: @now)
+    {:ok, state} = CodexChat.put_conversation_transcript(state, "chat-2", second_chat, now: @now)
+
+    assert {:ok, first} = CodexChat.select_conversation(state, "chat-1")
+    assert {:ok, %{transcript: ^first_chat}} = CodexChat.selected_conversation(first)
+
+    assert {:ok, second} = CodexChat.select_conversation(first, "chat-2")
+    assert {:ok, %{transcript: ^second_chat}} = CodexChat.selected_conversation(second)
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor deletes a chat from the conversation rail
+  test "deleting a chat from the rail keeps the other chat and its messages" do
+    {:ok, first_chat} = Transcript.submit(Transcript.new(), "First chat topic")
+    {:ok, second_chat} = Transcript.submit(Transcript.new(), "Second chat topic")
+
+    {:ok, state} =
+      Conversations.new(id: "chat-1", title: "First chat topic", now: @now)
+      |> Conversations.put_transcript("chat-1", first_chat, now: @now)
+
+    {:ok, _id, state} = CodexChat.create_conversation(state, id: "chat-2", now: @now)
+    {:ok, state} = CodexChat.put_conversation_transcript(state, "chat-2", second_chat, now: @now)
+    {:ok, state} = CodexChat.rename_conversation(state, "chat-2", "Second chat topic", now: @now)
+
+    assert {:ok, deleted} = CodexChat.delete_conversation(state, "chat-1")
+
+    assert [%{id: "chat-2", title: "Second chat topic"}] = CodexChat.list_conversations(deleted)
+
+    assert {:ok, %{id: "chat-2", transcript: ^second_chat}} =
+             CodexChat.selected_conversation(deleted)
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor renames a chat from the conversation rail
+  test "renaming a chat from the rail replaces its title in the list" do
+    {:ok, chat} = Transcript.submit(Transcript.new(), "First chat topic")
+
+    {:ok, state} =
+      Conversations.new(id: "chat-1", title: "First chat topic", now: @now)
+      |> Conversations.put_transcript("chat-1", chat, now: @now)
+
+    assert {:ok, renamed} =
+             CodexChat.rename_conversation(state, "chat-1", "Renamed chat", now: @now)
+
+    assert [%{id: "chat-1", title: "Renamed chat"}] = CodexChat.list_conversations(renamed)
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor keeps every chat after a reload
+  test "a reload restores every chat with its messages and the selected chat", %{
+    store: store
+  } do
+    {:ok, first_chat} = Transcript.submit(Transcript.new(), "First chat topic")
+    {:ok, second_chat} = Transcript.submit(Transcript.new(), "Second chat topic")
+
+    {:ok, state} =
+      Conversations.new(id: "chat-1", title: "First chat topic", now: @now)
+      |> Conversations.put_transcript("chat-1", first_chat, now: @now)
+
+    {:ok, _id, state} = CodexChat.create_conversation(state, id: "chat-2", now: @now)
+    {:ok, state} = CodexChat.put_conversation_transcript(state, "chat-2", second_chat, now: @now)
+    {:ok, state} = CodexChat.rename_conversation(state, "chat-2", "Second chat topic", now: @now)
+
+    assert {:ok, _record} =
+             CodexChat.save_conversations(@owner, state, nil, store: store, now: @now)
+
+    assert {:ok, reloaded, _record} = CodexChat.load_conversations(@owner, store: store)
+
+    assert ["First chat topic", "Second chat topic"] ==
+             reloaded |> CodexChat.list_conversations() |> Enum.map(& &1.title) |> Enum.sort()
+
+    assert {:ok, %{id: "chat-2", transcript: ^second_chat}} =
+             CodexChat.selected_conversation(reloaded)
+
+    assert {:ok, first} = CodexChat.select_conversation(reloaded, "chat-1")
+    assert {:ok, %{transcript: ^first_chat}} = CodexChat.selected_conversation(first)
+  end
+
   test "put_conversation_transcript stores the selected transcript" do
     {:ok, chat} = Transcript.submit(Transcript.new(), "Hello")
     state = Conversations.new(id: "chat-1", now: @now)
