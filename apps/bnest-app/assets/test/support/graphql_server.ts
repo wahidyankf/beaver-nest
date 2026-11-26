@@ -137,7 +137,7 @@ const OBJECT_FIELDS: Record<string, FieldSet> = {
     hasNewer: null,
   },
   WebPushConfiguration: { available: null, publicKey: null },
-  WebPushSubscriptionStatus: { enabled: null, expirationTime: null },
+  WebPushSubscription: { enabled: null, expirationTime: null },
 };
 
 export interface RootField {
@@ -164,13 +164,13 @@ export const REVISION_SCHEMA: Record<string, RootField> = {
     args: { roomSlug: "String!" },
   },
   webPushConfiguration: { type: "WebPushConfiguration", args: {} },
-  currentWebPushSubscription: { type: "WebPushSubscriptionStatus", args: {} },
+  currentWebPushSubscription: { type: "WebPushSubscription", args: {} },
   upsertWebPushSubscription: {
-    type: "WebPushSubscriptionStatus",
+    type: "WebPushSubscription",
     args: { endpoint: "String!", p256dh: "String!", auth: "String!" },
   },
   disableCurrentWebPushSubscription: {
-    type: "WebPushSubscriptionStatus",
+    type: "WebPushSubscription",
     args: {},
   },
 };

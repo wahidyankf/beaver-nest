@@ -23,6 +23,30 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
 
   @path "/api/graphql"
 
+  # The browser's hand-copied schema snapshot, compared with this live schema by
+  # the "browser schema snapshot" describe below.
+  @browser_schema_path Path.expand("../../../assets/test/support/graphql_server.ts", __DIR__)
+
+  @type_ref "kind name ofType { kind name ofType { kind name ofType { kind name ofType { kind name } } } }"
+
+  @schema_query """
+  {
+    __schema {
+      queryType { name }
+      mutationType { name }
+      subscriptionType { name }
+      types {
+        name
+        fields {
+          name
+          type { #{@type_ref} }
+          args { name type { #{@type_ref} } }
+        }
+      }
+    }
+  }
+  """
+
   @send_reply """
   mutation SendFamilyChatReply(
     $roomSlug: String!
@@ -919,6 +943,156 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
       assert Enum.all?(names, &(not String.contains?(&1, "ystem")))
     end
   end
+
+  describe "browser schema snapshot" do
+    # The browser's unit binding answers its documents from a hand-copied
+    # schema (`assets/test/support/graphql_server.ts`). This compares that copy
+    # with the live schema's introspection, for exactly the types and root
+    # fields the copy lists: field names, each field's named type, and each
+    # root field's return type and argument names and types. Drift on either
+    # side fails here, not only in the browser suite.
+    test "the browser's schema copy matches the live schema", %{conn: conn} do
+      snapshot = browser_schema_snapshot!()
+      live = live_schema!(conn)
+
+      assert schema_drift(snapshot, live) == []
+    end
+  end
+
+  defp browser_schema_snapshot! do
+    source = File.read!(@browser_schema_path)
+    object_block = block!(source, "const OBJECT_FIELDS")
+    root_block = block!(source, "export const REVISION_SCHEMA")
+
+    objects =
+      Map.new(Regex.scan(~r/(\w+): \{([^{}]*)\}/, object_block), fn [_, type, inner] ->
+        fields =
+          Map.new(Regex.scan(~r/(\w+): (?:null|"(\w+)")/, inner), fn
+            [_, name] -> {name, nil}
+            [_, name, named] -> {name, named}
+          end)
+
+        {type, fields}
+      end)
+
+    roots =
+      Map.new(
+        Regex.scan(~r/(\w+): \{\s*type: "(\w+)",\s*args: \{([^{}]*)\},?\s*\}/, root_block),
+        fn [_, name, type, args] ->
+          arg_types =
+            Map.new(Regex.scan(~r/(\w+): "([^"]+)"/, args), fn [_, arg, arg_type] ->
+              {arg, arg_type}
+            end)
+
+          {name, %{type: type, args: arg_types}}
+        end
+      )
+
+    # Every field and every root entry the copy holds must be parsed, or a
+    # format change would let the comparison pass on an empty snapshot.
+    assert length(Regex.scan(~r/\w+: (?:null|"\w+")/, object_block)) ==
+             objects |> Map.values() |> Enum.map(&map_size/1) |> Enum.sum()
+
+    assert length(Regex.scan(~r/type: "/, root_block)) == map_size(roots)
+    assert map_size(objects) > 0 and map_size(roots) > 0
+
+    %{objects: objects, roots: roots}
+  end
+
+  defp block!(source, marker) do
+    [_, rest] = String.split(source, marker, parts: 2)
+    [body, _] = String.split(rest, "\n};", parts: 2)
+    body
+  end
+
+  defp live_schema!(conn) do
+    response = post_graphql(conn, @schema_query, %{})
+    assert response.status == 200
+    body = Jason.decode!(response.resp_body)
+    refute Map.has_key?(body, "errors")
+
+    schema = get_in(body, ["data", "__schema"])
+
+    roots =
+      for root <- [schema["queryType"], schema["mutationType"], schema["subscriptionType"]],
+          root,
+          do: root["name"]
+
+    %{types: Map.new(schema["types"], &{&1["name"], &1}), roots: roots}
+  end
+
+  # Lists every drift between the copy and the live schema; an empty list is a pass.
+  defp schema_drift(snapshot, live) do
+    object_drift =
+      Enum.flat_map(snapshot.objects, fn {type, expected} ->
+        case live.types[type] do
+          nil -> ["#{type}: not in the live schema"]
+          live_type -> object_fields_drift(type, expected, live_type["fields"] || [])
+        end
+      end)
+
+    live_roots =
+      live.roots
+      |> Enum.flat_map(&(live.types[&1]["fields"] || []))
+      |> Map.new(&{&1["name"], &1})
+
+    root_drift =
+      Enum.flat_map(snapshot.roots, fn {name, expected} ->
+        case live_roots[name] do
+          nil -> ["root #{name}: not in the live schema"]
+          field -> root_field_drift(name, expected, field)
+        end
+      end)
+
+    object_drift ++ root_drift
+  end
+
+  defp object_fields_drift(type, expected, fields) do
+    actual = Map.new(fields, &{&1["name"], unwrap(&1["type"])})
+    missing = Map.keys(expected) -- Map.keys(actual)
+    extra = Map.keys(actual) -- Map.keys(expected)
+
+    mismatched =
+      for {name, want} <- expected,
+          Map.has_key?(actual, name),
+          not named_matches?(want, actual[name]),
+          do: "#{type}.#{name}: snapshot #{inspect(want)}, live #{inspect(actual[name])}"
+
+    Enum.map(missing, &"#{type}.#{&1}: in the snapshot, not the live schema") ++
+      Enum.map(extra, &"#{type}.#{&1}: in the live schema, not the snapshot") ++ mismatched
+  end
+
+  defp root_field_drift(name, expected, field) do
+    live_type = unwrap(field["type"])["name"]
+    live_args = Map.new(field["args"] || [], &{&1["name"], render(&1["type"])})
+
+    type_drift =
+      if live_type == expected.type,
+        do: [],
+        else: ["root #{name}: snapshot type #{expected.type}, live #{live_type}"]
+
+    args_drift =
+      if live_args == expected.args,
+        do: [],
+        else: [
+          "root #{name}: snapshot args #{inspect(expected.args)}, live #{inspect(live_args)}"
+        ]
+
+    type_drift ++ args_drift
+  end
+
+  # A null in the copy means a scalar or enum field; a name means that object type.
+  defp named_matches?(nil, %{"kind" => kind}), do: kind in ["SCALAR", "ENUM"]
+  defp named_matches?(want, %{"name" => name}), do: want == name
+
+  defp unwrap(%{"kind" => kind, "ofType" => inner}) when kind in ["NON_NULL", "LIST"],
+    do: unwrap(inner)
+
+  defp unwrap(named), do: named
+
+  defp render(%{"kind" => "NON_NULL", "ofType" => inner}), do: render(inner) <> "!"
+  defp render(%{"kind" => "LIST", "ofType" => inner}), do: "[" <> render(inner) <> "]"
+  defp render(%{"name" => name}), do: name
 
   defp commit_target_with_body(body) do
     sender = "test-user-family-chat-boundary-" <> Ecto.UUID.generate()
