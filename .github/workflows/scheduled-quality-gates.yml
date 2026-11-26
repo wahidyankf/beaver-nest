@@ -1,8 +1,9 @@
 name: Scheduled quality gates
 
 # The end-to-end suites are entries on the registry's `scheduled` surface (C17),
-# so no pull request waits for them. Each suite runs through its entry under one
-# HIPPO boundary. Integration runs on every pull request, not here.
+# so no pull request waits for them. Each suite has its own job, and each job runs
+# its suite through its entry under one HIPPO boundary, so the two results report
+# separately. Integration runs on every pull request, not here.
 on:
   schedule:
     - cron: "0 6,18 * * *"
@@ -17,10 +18,11 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  bnest-test-symphony:
-    name: Bnest test symphony
+  bnest-test-e2e-be:
+    name: Bnest test e2e backend
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    # Basis: nx test:e2e (124 tests) took 167 s of wall time on the test host; 40 minutes leaves room for setup.
+    timeout-minutes: 40
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -66,6 +68,51 @@ jobs:
           set -eu
           ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
             ./rhino gate run --surface scheduled --entry test-e2e-be
+
+  bnest-test-e2e-fe:
+    name: Bnest test e2e frontend
+    runs-on: ubuntu-24.04
+    # Estimate, not measured: 20 to 30 minutes for the suite plus 10 to 15 minutes of setup on this host.
+    timeout-minutes: 60
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.22.3"
+          cache: npm
+
+      - name: Set up Erlang and Elixir
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+
+      - name: Install Chromium and system dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
+
+      - name: Install pinned Caddy for routed rollout tests
+        env:
+          CADDY_VERSION: "2.11.4"
+          CADDY_LINUX_AMD64_SHA512: "8220d1f013b6f27510247b2360c9e0ca9f018feebd82515f07635318b34ff9777ccc8fd0b6e6f2486ce3a33fe389fbb7db12d05baa474f4587509fb4f5ebf1c9"
+        run: |
+          archive="${RUNNER_TEMP}/caddy.tar.gz"
+          curl --fail --location --silent --show-error \
+            "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz" \
+            --output "${archive}"
+          printf '%s  %s\n' "${CADDY_LINUX_AMD64_SHA512}" "${archive}" | sha512sum --check --strict
+          tar --extract --gzip --file "${archive}" --directory "${RUNNER_TEMP}" caddy
+          install -m 0755 "${RUNNER_TEMP}/caddy" "${RUNNER_TEMP}/caddy-bin"
+          printf '%s\n' "BNEST_E2E_CADDY_BIN=${RUNNER_TEMP}/caddy-bin" >> "${GITHUB_ENV}"
 
       - name: Run frontend end-to-end suite
         run: |
