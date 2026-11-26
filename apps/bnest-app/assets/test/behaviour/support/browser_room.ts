@@ -622,7 +622,10 @@ function storageOf(map: Map<string, string>) {
 /** Which bundle a page runs: this revision's own, or the frozen previous bundle that sends the earlier documents. */
 export type Bundle = "current" | "previous";
 
-/** One GraphQL document a previous-bundle page put on the wire: its channel, its operation, and the text sent. */
+/**
+ * One GraphQL document a previous-bundle page put on the wire: its channel, its operation, and the text the double
+ * received for it.
+ */
 export interface SentDocument {
   channel: "http" | "socket";
   operation: string;
@@ -1038,17 +1041,24 @@ function newPage(
   return page;
 }
 
+/** The text a previous-bundle page's request reached the double with: the double reports it, the page keeps it. */
+type Receipt = (document: string) => void;
+
 /**
- * The document a page puts on the wire: its own, or the previous bundle's for the same operation. A previous-bundle
- * page records each document it sent, so an operation with no frozen document still shows up in the check.
+ * The document a page puts on the wire: its own, or, for a previous-bundle page, the previous bundle's frozen document
+ * for the same operation. A previous-bundle page also gets a receipt, which the double calls with the text it receives;
+ * the check reads that text back, so it is what the double got, not what this function chose.
  */
 function sentFrames(
   page: Page,
   channel: SentDocument["channel"],
   query: string,
   variables: Record<string, unknown>,
-): { query: string; variables: Record<string, unknown> } {
-  if (page.bundle === "current") return { query, variables };
+): {
+  sent: { query: string; variables: Record<string, unknown> };
+  receipt?: Receipt;
+} {
+  if (page.bundle === "current") return { sent: { query, variables } };
   const operation = parseDocument(query).operation;
   const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
   const sent = frozen
@@ -1061,8 +1071,10 @@ function sentFrames(
         ),
       }
     : { query, variables };
-  page.sentDocuments.push({ channel, operation, wire: sent.query });
-  return sent;
+  const receipt: Receipt = (received) => {
+    page.sentDocuments.push({ channel, operation, wire: received });
+  };
+  return { sent, receipt };
 }
 
 /** The room's way to the server, as this page's network carries it. */
@@ -1084,8 +1096,8 @@ function requestFor(page: Page) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         throw new TypeError("Failed to fetch");
       }
-      const sent = sentFrames(page, "http", query, variables);
-      const answer = await client.request(sent.query, sent.variables);
+      const { sent, receipt } = sentFrames(page, "http", query, variables);
+      const answer = await client.request(sent.query, sent.variables, receipt);
       await untilActive(page);
       return answer;
     } finally {
@@ -1096,7 +1108,11 @@ function requestFor(page: Page) {
 
 interface RawChannel {
   join: () => unknown;
-  push: (event: string, payload: Record<string, unknown>) => unknown;
+  push: (
+    event: string,
+    payload: Record<string, unknown>,
+    receipt?: Receipt,
+  ) => unknown;
   on: (
     event: string,
     handler: (payload: Record<string, unknown>) => void,
@@ -1134,11 +1150,11 @@ function socketFor(page: Page) {
         const channel = raw.channel(topic, params) as unknown as RawChannel;
         return {
           join: () => channel.join(),
-          push: (event: string, payload: Record<string, unknown>) =>
-            channel.push(
-              event,
-              event === "doc" ? sentSubscription(page, payload) : payload,
-            ),
+          push: (event: string, payload: Record<string, unknown>) => {
+            if (event !== "doc") return channel.push(event, payload);
+            const sent = sentSubscription(page, payload);
+            return channel.push(event, sent.payload, sent.receipt);
+          },
           on: (
             event: string,
             handler: (payload: Record<string, unknown>) => void,
@@ -1153,20 +1169,18 @@ function socketFor(page: Page) {
   };
 }
 
-/** A subscription document as the page's bundle sends it. */
+/** A subscription document as the page's bundle sends it, and the receipt the double answers to. */
 function sentSubscription(
   page: Page,
   payload: Record<string, unknown>,
-): Record<string, unknown> {
-  return {
-    ...payload,
-    ...sentFrames(
-      page,
-      "socket",
-      String(payload["query"]),
-      (payload["variables"] ?? {}) as Record<string, unknown>,
-    ),
-  };
+): { payload: Record<string, unknown>; receipt?: Receipt } {
+  const { sent, receipt } = sentFrames(
+    page,
+    "socket",
+    String(payload["query"]),
+    (payload["variables"] ?? {}) as Record<string, unknown>,
+  );
+  return { payload: { ...payload, ...sent }, receipt };
 }
 
 /** Waits until nothing this page asked for is still on the wire. */
@@ -1703,8 +1717,9 @@ export function hidden(element: HTMLElement): boolean {
 }
 
 /**
- * Each document a previous-bundle page sent that the previous bundle does not send, in the order sent per page. An
- * operation with no frozen document is a mismatch too, so a page cannot pass by sending a document the map lacks.
+ * Each document a previous-bundle page's request reached the double with that the previous bundle does not send, per
+ * page and in order: the text the double received, compared with the frozen document for the operation. An operation
+ * with no frozen document is a mismatch too, so a page cannot pass by sending a document the map lacks.
  */
 export function previousBundleMismatches(): string[] {
   return requireWorld().pages.flatMap((page) =>

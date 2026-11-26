@@ -389,8 +389,13 @@ export class FakeSocket {
         this.joined.add(topic);
         return reply("ok", {});
       },
-      push: (event: string, payload: Record<string, unknown>) => {
+      push: (
+        event: string,
+        payload: Record<string, unknown>,
+        receive?: (document: string) => void,
+      ) => {
         if (event === "doc") {
+          receive?.(String(payload["query"]));
           const refused = this.server.refuse(
             String(payload["query"]),
             (payload["variables"] ?? {}) as Record<string, unknown>,
@@ -524,9 +529,11 @@ export interface GraphqlServer {
   ) => ServerMessage | undefined;
   newest: () => ServerMessage | undefined;
   clientFor: (member: Member) => {
+    /** `receive` is called with the document text as it reaches the server, before anything else happens to it. */
     request: (
       query: string,
       variables: Record<string, unknown>,
+      receive?: (document: string) => void,
     ) => Promise<unknown>;
     connectSocket: (path: string) => Promise<unknown>;
   };
@@ -724,7 +731,12 @@ export function createGraphqlServer(options: {
 
   function clientFor(member: Member) {
     return {
-      async request(query: string, variables: Record<string, unknown>) {
+      async request(
+        query: string,
+        variables: Record<string, unknown>,
+        receive?: (document: string) => void,
+      ) {
+        receive?.(query);
         // A real response never arrives within the turn that sent it.
         await new Promise((resolve) => setTimeout(resolve, 0));
         const { operation } = parseDocument(query);
