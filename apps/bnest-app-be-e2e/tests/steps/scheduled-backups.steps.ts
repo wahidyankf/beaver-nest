@@ -7,6 +7,8 @@ import {
   type DefaultBackupWorld,
 } from "../support/default-backup-destination";
 import {
+  expectAtomicBackupConfig,
+  expectOneSetupClaim,
   expectSavedFolderAndOneCheck,
   performScheduledBackup,
   prepareScheduledBackup,
@@ -54,4 +56,10 @@ When("the administrator saves a safe backup override", ({ page }) =>
 Then(
   "the page shows the saved confirmation, shows the folder when reopened, and one first verification runs for a double submit",
   ({ page }) => expectSavedFolderAndOneCheck(page, world),
+);
+Then("Bnest stores the private backup configuration atomically", () =>
+  expectAtomicBackupConfig(world),
+);
+Then("Bnest creates one idempotent setup claim for that destination", () =>
+  expectOneSetupClaim(world),
 );

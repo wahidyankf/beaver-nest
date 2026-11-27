@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { readPointer, runStorageMigrate } from "../support/sqlite-storage";
@@ -7,6 +9,8 @@ import {
   restartJourney,
   retireFlatIdentitySources,
   seedFlatIdentityJourney,
+  writeAfterSwitch,
+  type FutureWriteEvidence,
   type IdentityStorageScenario,
   type JourneyEvidence,
 } from "../support/sqlite-identity";
@@ -30,6 +34,9 @@ let scenario: IdentityStorageScenario;
 let ownedScenario: IdentityStorageScenario | undefined;
 let journey: JourneyEvidence;
 let activation: CommandResult;
+let futureWrite: FutureWriteEvidence;
+
+const changedTheme = "dark";
 
 // The scenario's marked runtime pair is removed whether or not it reached its
 // last step.
@@ -64,6 +71,36 @@ Then("future reads use SQLite", () => {
     "storage authority switched to sqlite_primary",
   );
   expect(readPointer(scenario)?.["phase"]).toBe("sqlite_primary");
+});
+
+// After the switch, a login writes a session and the Preferences facade writes a theme, both into
+// SQLite. The flat source keeps its bytes, and a rollback reader accepts the same records.
+Then("future writes remain compatible with the rollback reader", () => {
+  expect(journey.theme["theme"]).not.toBe(changedTheme);
+  futureWrite = writeAfterSwitch(
+    scenario,
+    sqliteIdentity,
+    journey.userId,
+    changedTheme,
+  );
+  const flatSourceTheme = path.join(
+    scenario.flatRoot,
+    "users",
+    journey.userId,
+    "preferences",
+    "theme.json",
+  );
+  expect(futureWrite.routed.theme["theme"]).toBe(changedTheme);
+  expect(futureWrite.routed.session["userId"]).toBe(journey.userId);
+  expect(futureWrite.sqlite).toEqual(futureWrite.routed);
+  expect(futureWrite.flatBeforeRollback).toEqual({
+    session: "missing",
+    theme: "missing",
+  });
+  expect(JSON.parse(readFileSync(flatSourceTheme, "utf8"))).toEqual(
+    journey.theme,
+  );
+  expect(futureWrite.rollback).toEqual(futureWrite.routed);
 });
 
 // Runs after the switch and before the restart, so the restart reads only SQLite.

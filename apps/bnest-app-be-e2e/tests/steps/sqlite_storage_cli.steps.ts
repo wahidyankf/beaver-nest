@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   cleanupStorageScenario,
   defaultDatabaseDirectory,
+  defaultPointerPath,
   digestFile,
   inspectStorageMigration,
   isolatedStorageScenario,
@@ -13,6 +14,7 @@ import {
   runStorageMigrate,
   seedMalformedBootstrap,
   writeThemeFixture,
+  type StorageMigrationEvidence,
   type StorageScenario,
 } from "../support/sqlite-storage";
 import {
@@ -40,6 +42,7 @@ let migrateResult: { status: number; stdout: string; stderr: string };
 let secondMigrateResult: { status: number; stdout: string; stderr: string };
 let fixtureFile = "";
 let fixtureDigestBefore = "";
+let migrationEvidence: StorageMigrationEvidence;
 
 // --- Scenario 1: headless default location, no browser confirmation -------
 
@@ -79,6 +82,22 @@ Then("it exits 0 and the database file is in the default data folder", () => {
     existsSync(path.join(defaultDatabaseDirectory(scenario), "bnest.sqlite3")),
   ).toBe(true);
   expect(storageUIRequests).toEqual([]);
+});
+
+// The pointer file sits in the configuration home the scenario's HOME gives, outside the database
+// directory it names. The scenario's scratch directory is removed after this last step.
+Then("Bnest keeps the storage pointer under the configuration home", () => {
+  const pointer = readDefaultPointer(scenario);
+  expect(pointer).toBeDefined();
+  const configHome = path.join(scenario.homeDirectory, ".config/bnest");
+  expect(
+    String(pointer?.["databaseDirectory"]).startsWith(`${configHome}/`),
+  ).toBe(false);
+  expect(
+    defaultPointerPath(scenario).startsWith(
+      `${String(pointer?.["databaseDirectory"])}/`,
+    ),
+  ).toBe(false);
   cleanupStorageScenario(scenario);
 });
 
@@ -99,19 +118,52 @@ When("managed storage migration runs without a UI visit", () => {
 });
 
 // The task's line names the accepted count with nothing blocked, and the record reads back unchanged
-// through the app. Each accepted item's source and target checksums are read from the same evidence.
+// through the app. The evidence is kept for the steps that follow.
 Then(
   "the task reports accepted records with blocked=0 and exits 0, and every record reads back unchanged through the app",
   () => {
     expect(migrateResult.status, migrateResult.stderr).toBe(0);
     expect(migrateResult.stdout).toContain("accepted=2 blocked=0");
-    const evidence = inspectStorageMigration(scenario);
-    expect(evidence.items).toHaveLength(2);
-    expect(evidence.items.every((item) => item[3] === "accepted")).toBe(true);
+    migrationEvidence = inspectStorageMigration(scenario);
+    expect(migrationEvidence.items).toHaveLength(2);
+    expect(
+      migrationEvidence.items.every((item) => item[3] === "accepted"),
+    ).toBe(true);
     const sourceRecord = JSON.parse(
       readFileSync(fixtureFile, "utf8"),
     ) as Record<string, unknown>;
-    expect(evidence.record).toEqual(sourceRecord);
+    expect(migrationEvidence.record).toEqual(sourceRecord);
+  },
+);
+
+// The ledger lists the two theme sources in ascending path order.
+Then("Bnest inventories records in deterministic path order", () => {
+  expect(migrateResult.status, migrateResult.stderr).toBe(0);
+  expect(migrationEvidence.items.map(([relativePath]) => relativePath)).toEqual(
+    [
+      "users/user-aaa-fixture/preferences/theme.json",
+      "users/user-fixture-001/preferences/theme.json",
+    ],
+  );
+});
+
+// Each accepted item's source checksum is the digest of its source file as it stands, and its target
+// checksum is a SHA-256 digest.
+Then(
+  "each accepted item has immutable source and target checksum evidence",
+  () => {
+    const checksum = /^[0-9a-f]{64}$/u;
+    expect(migrationEvidence.items).toHaveLength(2);
+    for (const [
+      relativePath,
+      sourceChecksum,
+      targetChecksum,
+    ] of migrationEvidence.items) {
+      expect(sourceChecksum).toBe(
+        digestFile(path.join(scenario.flatRoot, relativePath)),
+      );
+      expect(targetChecksum).toMatch(checksum);
+    }
     cleanupStorageScenario(scenario);
   },
 );
@@ -140,21 +192,36 @@ When("the operator runs the same task again", () => {
   secondMigrateResult = runStorageMigrate(scenario, []);
 });
 
-// The accepted item's ledger row and migrated record keep every column, timestamps included. The
-// remaining item is accepted once, and no record appears twice.
+// The second run reports the remaining item accepted, and no record is written twice: each theme
+// source holds one ledger row and one migrated record.
 Then(
   "it exits 0, the counts show the remaining items accepted, and no record appears twice",
   () => {
     expect(secondMigrateResult.status, secondMigrateResult.stderr).toBe(0);
+    expect(secondMigrateResult.stdout).toContain("accepted=2 blocked=0");
+    expect(
+      themeMigrationRows(scenario, "user-aaa-fixture").record,
+    ).toHaveLength(1);
+    expect(themeMigrationRows(scenario, "user-zzz-fixture").item).toHaveLength(
+      1,
+    );
+    expect(
+      themeMigrationRows(scenario, "user-zzz-fixture").record,
+    ).toHaveLength(1);
+    expect(inspectSchema(scenario).runs).toHaveLength(1);
+  },
+);
+
+// The accepted item's ledger row and migrated record keep every column, timestamps included. The
+// remaining item's recorded outcome is accepted.
+Then(
+  "accepted items are not rewritten, and remaining items continue from their recorded outcomes",
+  () => {
     expect(themeMigrationRows(scenario, "user-aaa-fixture")).toEqual(
       firstRowsBeforeRetry,
     );
-    expect(inspectSchema(scenario).runs).toHaveLength(1);
     const remaining = themeMigrationRows(scenario, "user-zzz-fixture");
-    expect(remaining.item).toHaveLength(1);
     expect(remaining.item[0]).toContain("accepted");
-    expect(remaining.record).toHaveLength(1);
-    expect(secondMigrateResult.stdout).toContain("accepted=2 blocked=0");
     cleanupStorageScenario(scenario);
   },
 );

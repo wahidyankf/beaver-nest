@@ -1,10 +1,17 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import {
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  realpathSync,
+  rmSync,
+  statSync,
+} from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { expect, type Page, type TestInfo } from "@playwright/test";
 import { login } from "./authentication";
-import { runLiveMix } from "./live-sqlite";
+import { backupConfigPath, runLiveMix } from "./live-sqlite";
 import { currentIdentities, type TestIdentity } from "./instance-identities";
 
 // Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's
@@ -12,6 +19,7 @@ import { currentIdentities, type TestIdentity } from "./instance-identities";
 // no saved folder ..." lives in default-backup-destination.ts, and the
 // contextual schedule/deny/discover scenarios moved to bnest-app-fe-e2e.
 export type ScheduledBackupWorld = {
+  backupConfigPath?: string;
   backupDirectory?: string;
   backupMarker?: Record<string, unknown>;
   identity?: TestIdentity;
@@ -52,6 +60,7 @@ async function prepareBackupOverride(
     rmSync(directory, { recursive: true, force: true }),
   );
   world.backupDirectory = directory;
+  world.backupConfigPath = backupConfigPath();
   await page.goto("/admin/settings/schedules");
   await connected(page);
 }
@@ -96,6 +105,22 @@ export function expectOneSetupClaim(world: ScheduledBackupWorld): void {
   expect(world.setupClaimCount).toBe(1);
 }
 
+// The configuration file is complete JSON naming the destination, written private (mode 0600),
+// with no partial temporary file left beside it.
+export function expectAtomicBackupConfig(world: ScheduledBackupWorld): void {
+  const configPath = required(world.backupConfigPath, "backup config path");
+  expect(readJson(configPath)).toEqual({
+    destinationDirectory: world.backupDirectory,
+    schemaVersion: 1,
+  });
+  expect(statSync(configPath).mode & 0o777).toBe(0o600);
+  expect(
+    readdirSync(path.dirname(configPath)).filter((entry) =>
+      entry.startsWith(`${path.basename(configPath)}.partial-`),
+    ),
+  ).toEqual([]);
+}
+
 // The confirmation is still on the page after the double submit. After a reload the page
 // shows the saved folder, and the double submit queued exactly one first verification.
 export async function expectSavedFolderAndOneCheck(
@@ -108,7 +133,6 @@ export async function expectSavedFolderAndOneCheck(
   await expect(page.getByLabel("Private destination override")).toHaveValue(
     required(world.backupDirectory, "backup directory"),
   );
-  expectOneSetupClaim(world);
 }
 
 function connected(page: Page): Promise<void> {
