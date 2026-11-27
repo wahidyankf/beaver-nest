@@ -52,6 +52,13 @@ When("the tab becomes visible again", async ({ page }) => {
   });
 });
 
+Then("a fresh socket connection replaces the prior one", async () => {
+  // The page opened a new websocket once the tab resumed; the dead connection was not reused.
+  await expect
+    .poll(() => socketReopenedOnResume, { timeout: 10_000 })
+    .toBe(true);
+});
+
 Then(
   "a message sent by another member now appears",
   async ({ page, browser }) => {

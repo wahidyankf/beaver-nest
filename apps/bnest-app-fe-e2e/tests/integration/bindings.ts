@@ -25,6 +25,7 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The composer keeps focus after a message is sent
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter with keyCode 229 does not send in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending brings the visitor to their own message
@@ -80,6 +81,8 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab and Shift+Tab pass through message content without a trap
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Escape returns focus from message content to the message
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keys inside message content keep their own meaning
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The diagram source opens from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A scrolled diagram can be scrolled from the keyboard
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A table or code block that fits is not a tab stop
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only the focused message's links are reachable

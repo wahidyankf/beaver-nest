@@ -81,6 +81,7 @@ Feature: Bnest scheduled backups
     Given an isolated destination with a missing artifact and an unknown file
     When the administrator opens the page and reloads it
     Then the destination directory listing and every file's bytes are unchanged
+    And the ledger rows are unchanged
 
   Scenario: The label discloses no private path
     Given reconciliation found a missing artifact

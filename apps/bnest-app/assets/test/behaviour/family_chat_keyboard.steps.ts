@@ -347,6 +347,7 @@ step("the link {string} opens its address in a new tab", (text) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The diagram source opens from the keyboard
 step("the diagram source is shown", () => {
   const page = activePage();
   const details = page.elements.list.querySelector<HTMLElement>(
@@ -364,6 +365,7 @@ step("the diagram source is shown", () => {
 });
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A scrolled diagram can be scrolled from the keyboard
 step("the {string} is scrolled to the right", (name) => {
   const press = recall<LastPress>("lastPress");
   expect(

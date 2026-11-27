@@ -313,6 +313,21 @@ step("the Codex room fills the visible area above the keyboard", () => {
   ).toBe(true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
+step(
+  "the Family Chat room follows the visible area through the --vvh height",
+  () => {
+    expect(
+      expectDeclared(".family-chat-shell")["height"] ?? "",
+      "the Family Chat shell reads --vvh, which follows the visible area",
+    ).toContain("var(--vvh");
+    expect(
+      /^installVisualViewportHeight\(\);$/mu.test(readFileSync(APP_JS, "utf8")),
+      "app.js starts the --vvh writer at the top level of the page script",
+    ).toBe(true);
+  },
+);
+
 // A box taken out of the column (absolute or fixed) fails here; the real on-screen check is the e2e binding.
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
 step("the Send button and the Codex header are on screen", () => {

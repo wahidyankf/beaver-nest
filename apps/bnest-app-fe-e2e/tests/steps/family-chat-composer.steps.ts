@@ -12,6 +12,7 @@ const { Then, When } = createBdd();
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter with keyCode 229 does not send in Family Chat
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat history has most of the screen with an empty draft
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The header and the composer leave most of a phone screen to the history
@@ -90,6 +91,18 @@ When(
     } else {
       throw new Error(`no composition browser is named ${composition}`);
     }
+  },
+);
+
+When(
+  "the visitor confirms a composition with keyCode 229 in the family composer",
+  async ({ page }) => {
+    sentBefore = await page.locator(MESSAGE).count();
+    // Safari's composition Enter: keyCode 229 with isComposing false. The keyboard API cannot set keyCode, so the event
+    // is dispatched with it; the room must not send on it.
+    await page
+      .locator(COMPOSER_INPUT)
+      .dispatchEvent("keydown", { key: "Enter", keyCode: 229 });
   },
 );
 

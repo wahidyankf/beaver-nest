@@ -37,6 +37,7 @@ import {
 } from "../support/backup-integrity-layout";
 import {
   expectDestinationUnchanged,
+  expectLedgerUnchanged,
   openAndReload,
 } from "../support/backup-integrity-writes";
 
@@ -146,6 +147,7 @@ Then(
   "the destination directory listing and every file's bytes are unchanged",
   ({ page }) => expectDestinationUnchanged(page, integrity),
 );
+Then("the ledger rows are unchanged", () => expectLedgerUnchanged(integrity));
 Then("the label reads checking until the new result arrives", ({ page }) =>
   expectCheckingThenResult(page, integrity),
 );

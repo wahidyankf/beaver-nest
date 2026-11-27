@@ -178,12 +178,14 @@ Then(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The diagram source opens from the keyboard
 Then("the diagram source is shown", async ({ page }) => {
   await expect(
     page.locator(`${LIST} details.bnest-diagram-source`).first(),
   ).toHaveJSProperty("open", true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A scrolled diagram can be scrolled from the keyboard
 Then(
   "the {string} is scrolled to the right",
   async ({ page }, name: string) => {

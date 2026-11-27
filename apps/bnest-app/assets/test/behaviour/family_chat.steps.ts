@@ -821,12 +821,73 @@ function expectFreshSocketReplacesPrior(): void {
 }
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
+step("a fresh socket connection replaces the prior one", () => {
+  expectFreshSocketReplacesPrior();
+});
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
 step("a message sent by another member now appears", async () => {
   expectFreshSocketReplacesPrior();
   const reply = post({ body: "Sent while the tab was hidden", sender: AYAH() });
   await waitFor(
     () => rowFor(reply.id) !== null,
     "the other member's message to appear",
+  );
+});
+
+// --- Rule: Service worker cache -------------------------------------------------
+
+let serviceWorker: ReturnType<typeof loadServiceWorker> | null = null;
+let cachedByWorker: string[] = [];
+
+function isStaticBuildPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/assets/") ||
+    pathname.startsWith("/images/") ||
+    pathname === "/manifest.webmanifest"
+  );
+}
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The service worker cache stores no authenticated content
+step("a visitor opens {string} and exchanges messages", async (pathname) => {
+  const worker = loadServiceWorker();
+  await worker.install();
+  await worker.activate();
+  // The room's navigation and its GraphQL traffic both pass the worker; it must keep neither in Cache Storage.
+  await worker.fetch(pathname, { mode: "navigate" });
+  await worker.fetch("/api/graphql", { method: "POST" });
+  serviceWorker = worker;
+});
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The service worker cache stores no authenticated content
+step("the service worker's Cache Storage is inspected", () => {
+  expect(serviceWorker !== null, "no service worker was loaded");
+  cachedByWorker = serviceWorker?.cachedPathnames() ?? [];
+});
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The service worker cache stores no authenticated content
+step("it contains only static build assets", () => {
+  expect(cachedByWorker.length > 0, "the worker cached nothing to judge");
+  const notStatic = cachedByWorker.filter(
+    (pathname) => !isStaticBuildPath(pathname),
+  );
+  expect(
+    notStatic.length === 0,
+    `Cache Storage holds non-static entries ${notStatic.join(", ")}`,
+  );
+});
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The service worker cache stores no authenticated content
+step("it contains no navigation response, message, or GraphQL response", () => {
+  const sensitive = cachedByWorker.filter(
+    (pathname) =>
+      pathname.startsWith("/family-chat") ||
+      pathname.startsWith("/api/") ||
+      pathname === "/",
+  );
+  expect(
+    sensitive.length === 0,
+    `Cache Storage holds a navigation, message or GraphQL response ${sensitive.join(", ")}`,
   );
 });
 
@@ -1328,6 +1389,18 @@ step(
     } else {
       throw new Error(`no composition browser is named ${composition}`);
     }
+    await settle();
+  },
+);
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter with keyCode 229 does not send in Family Chat
+step(
+  "the visitor confirms a composition with keyCode 229 in the family composer",
+  async () => {
+    remember("familyQueued", watchPendingRows());
+    remember("familySendAttemptsBefore", server().sendAttempts.length);
+    // Safari reports its composition Enter with keyCode 229 and isComposing false; the room must not send on it.
+    await pressKey("Enter", { keyCode: 229 });
     await settle();
   },
 );

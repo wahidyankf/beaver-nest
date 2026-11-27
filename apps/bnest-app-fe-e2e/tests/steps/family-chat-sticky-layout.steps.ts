@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   boxOf,
@@ -16,6 +16,46 @@ const { Then, When } = createBdd();
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The last Family Chat message is not hidden behind the composer
 
 // --- Family Chat (family_chat.feature, Rule "Family Chat header and composer stay in place while the messages scroll") ---
+
+interface VvhSync {
+  synced: boolean;
+  visible: number;
+  shell: number;
+}
+
+// The written --vvh, the visual viewport it should equal, and the Family shell's rendered height, read in one call.
+function familyVvh(page: Page): Promise<VvhSync> {
+  return page.evaluate(() => {
+    const visible = window.visualViewport?.height ?? window.innerHeight;
+    const written = document.documentElement.style
+      .getPropertyValue("--vvh")
+      .trim();
+    const shell = document.querySelector(".family-chat-shell");
+    return {
+      synced: written === `${visible}px`,
+      visible,
+      shell: shell ? shell.getBoundingClientRect().height : -1,
+    };
+  });
+}
+
+// The page writes the visual viewport's height to --vvh, and the Family shell takes the height the screen has left.
+// The declared rule is checked by the Vitest layer.
+Then(
+  "the Family Chat room follows the visible area through the --vvh height",
+  async ({ page }) => {
+    await expect.poll(() => familyVvh(page)).toMatchObject({ synced: true });
+    const state = await familyVvh(page);
+    expect(
+      state.shell,
+      "the Family Chat shell is on the page",
+    ).toBeGreaterThanOrEqual(0);
+    expect(
+      state.shell,
+      `Family Chat shell height, visible area ${state.visible} px`,
+    ).toBeLessThanOrEqual(state.visible + 1);
+  },
+);
 
 const FAMILY_HISTORY = '[data-role="family-chat-history"]';
 const FAMILY_HEADER = ".family-chat-header";

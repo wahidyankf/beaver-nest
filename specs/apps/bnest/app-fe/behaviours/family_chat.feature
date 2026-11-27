@@ -115,6 +115,7 @@ Feature: Family chat room
     And the actions control of that message is at least 44 by 44 CSS pixels
     And the actions control of that message does not overlap its bubble
     And the actions control of that message is inside the history
+    And the actions control of that message has an accessible name
 
     Examples:
       | viewport          |
@@ -570,6 +571,46 @@ Feature: Family chat room
       | table          | ArrowRight | the "table" is scrolled to the right           |
 
   @fe-vitest-unit
+  Scenario: The diagram source opens from the keyboard
+    Given Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart TD
+        A[Pick up] --> B[Dinner]
+      ```
+      """
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "Diagram source"
+    When the visitor presses "Enter"
+    Then the diagram source is shown
+    When the visitor presses "Tab"
+    Then keyboard focus is outside the history
+
+  @fe-vitest-unit
+  Scenario: A scrolled diagram can be scrolled from the keyboard
+    Given the viewport is set to "mobile 320x640"
+    And Ayah has sent this family chat message:
+      """
+      ```mermaid
+      flowchart LR
+        A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]
+      ```
+      """
+    And the "diagram" in the message is wider than its box
+    When a visitor opens "/family-chat/ruang-keluarga"
+    Then the message shows a diagram labelled "Flowchart"
+    When the visitor presses Tab from the control before the history
+    And the visitor presses "Tab"
+    Then keyboard focus is on "diagram"
+    And the "diagram" shows a visible focus ring
+    When the visitor presses "ArrowRight"
+    Then the "diagram" is scrolled to the right
+    And keyboard focus is on "diagram"
+
+  @fe-vitest-unit
   Scenario Outline: A wide table, code block or diagram can be scrolled from the keyboard
     Given the viewport is set to "<viewport>"
     And Ayah has sent a wide "<kind>" message
@@ -835,7 +876,8 @@ Feature: Family chat room
     Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
     When the tab is backgrounded with its connection silently dropped
     And the tab becomes visible again
-    Then a message sent by another member now appears
+    Then a fresh socket connection replaces the prior one
+    And a message sent by another member now appears
     And the page does not reload
 
   Rule: Release candidate proof
@@ -957,6 +999,16 @@ Feature: Family chat room
 
   @fe-vitest-unit
   @fine-pointer
+  Scenario: Enter with keyCode 229 does not send in Family Chat
+    Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
+    And the visitor's pointer is a fine pointer
+    And the visitor has typed "Still composing" without sending
+    When the visitor confirms a composition with keyCode 229 in the family composer
+    Then nothing is sent yet
+    And the composer holds the draft "Still composing"
+
+  @fe-vitest-unit
+  @fine-pointer
   Scenario: A held Enter sends one message in Family Chat
     Given a visitor opens "/family-chat/ruang-keluarga" with focus in the composer
     And the visitor's pointer is a fine pointer
@@ -1033,6 +1085,15 @@ Feature: Family chat room
     Given a visitor opens "/family-chat/ruang-keluarga" with an active push subscription
     When the visitor selects "Turn off"
     Then the room shows the control "Enable notifications"
+
+  @fe-vitest-unit
+  # Exemption(integration): inspecting the service worker's Cache Storage contents requires a real browser cache implementation; alternative-proof: bnest-app-fe-e2e:test:e2e / The service worker cache stores no authenticated content
+  @integration-exempt
+  Scenario: The service worker cache stores no authenticated content
+    Given a visitor opens "/family-chat/ruang-keluarga" and exchanges messages
+    When the service worker's Cache Storage is inspected
+    Then it contains only static build assets
+    And it contains no navigation response, message, or GraphQL response
 
   @fe-vitest-unit
   Scenario: Opening the room offline shows no signed-in messages from the device's saved copy
@@ -1241,6 +1302,7 @@ Feature: Family chat room
     Then the Family Chat composer is at the bottom of the screen
     And the newest Family Chat message ends above the composer
     And the Family Chat header is at the top of the screen
+    And the Family Chat room follows the visible area through the --vvh height
 
     Examples:
       | viewport          | shrunk  |
