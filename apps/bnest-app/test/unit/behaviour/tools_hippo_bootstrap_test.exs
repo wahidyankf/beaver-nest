@@ -160,6 +160,19 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapModel do
       cpu <= ceiling.cpu and mem <= ceiling.memory
     end)
   end
+
+  # Mirrors release_install_lock (hippo:245-258): the lock is removed only while
+  # both its file identity and its record digest are still this consumer's own.
+  def install_lock_release(%{published: true, identity: :same, digest: :same}), do: :remove
+  def install_lock_release(_replacement), do: :keep
+
+  # Mirrors acquire_install_guard (hippo:211): every release opens the one guard
+  # for the whole cache root, so the guard files left after pruning is one.
+  def install_guard_path(_release), do: ".install-guard.lock"
+
+  def install_guard_files(releases) do
+    releases |> Enum.map(&install_guard_path/1) |> Enum.uniq() |> length()
+  end
 end
 
 defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
@@ -288,6 +301,25 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
 
     assert Model.contention_outcome(:stale_reclaim) ==
              %{downloads: 1, owner: :live_replacement, owner_records: 0}
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A consumer never removes an install lock it did not publish
+  test "a consumer leaves a replacement install lock in place" do
+    # Mirrors release_install_lock (hippo:245-258); harness run_never_removes_a_foreign_install_lock.
+    own = %{published: true, identity: :same, digest: :same}
+    assert Model.install_lock_release(own) == :remove
+    assert Model.install_lock_release(%{own | identity: :other}) == :keep
+    assert Model.install_lock_release(%{own | digest: :other}) == :keep
+    assert Model.install_lock_release(%{own | identity: :other, digest: :other}) == :keep
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Install guard storage stays bounded across release versions
+  test "install guard storage stays one file across release versions" do
+    # Mirrors acquire_install_guard (hippo:208-211); harness run_bounded_install_guard_storage.
+    releases = ["v9.8.7", "v9.8.8", "v9.8.9", "v9.8.10", "v9.8.11"]
+    assert Model.install_guard_files(releases) == 1
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

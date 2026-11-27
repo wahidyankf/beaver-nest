@@ -399,6 +399,8 @@ Unsupported platform is refused before any transport
 A caller waits while another caller is installing
 A caller takes over an install whose owner is gone
 Two callers starting together download once and both run the release
+A consumer never removes an install lock it did not publish
+Install guard storage stays bounded across release versions
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
 Retention reclaims releases left idle beyond its window
@@ -992,6 +994,7 @@ run_retention_reclaims_idle_releases() {
 # place keeps the inode and breaks only the digest, and a byte-identical copy
 # keeps the digest and breaks only the inode. Dropping either conjunct survives
 # the other two.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A consumer never removes an install lock it did not publish
 run_never_removes_a_foreign_install_lock() {
 	for substitution in foreign-owner rewritten-in-place identical-copy; do
 		prepare_atomic_install_lock
@@ -1042,6 +1045,7 @@ run_never_removes_a_foreign_install_lock() {
 	done
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Install guard storage stays bounded across release versions
 run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 	for release_version in v9.8.7 v9.8.8 v9.8.9 v9.8.10; do
@@ -1509,6 +1513,18 @@ run_protocol_mismatch_is_never_retried() {
 	grep -Fq 'drain or upgrade' "$temporary_root/mismatch.err"
 }
 
+# A unit binding runs one restored scenario through this adapter by its exact
+# title, so that one case is proven without the whole corpus. Unset, every
+# scenario runs in feature-file order.
+selected_scenarios=$actual_scenarios
+if [ -n "${HIPPO_BOOTSTRAP_ONLY:-}" ]; then
+	if ! printf '%s\n' "$actual_scenarios" | grep -Fxq -- "$HIPPO_BOOTSTRAP_ONLY"; then
+		echo "HIPPO_BOOTSTRAP_ONLY names no scenario of the corpus" >&2
+		exit 1
+	fi
+	selected_scenarios=$HIPPO_BOOTSTRAP_ONLY
+fi
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
 	# silent, and a corpus that shrank would still end in a pass line. A Scenario
@@ -1538,6 +1554,8 @@ while IFS= read -r scenario; do
 		run_concurrent_cold_callers
 		run_concurrent_stale_reclaimers
 		;;
+	'A consumer never removes an install lock it did not publish') run_never_removes_a_foreign_install_lock ;;
+	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
 	'Retention never deletes a release another consumer is using') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
 	'Retention reclaims releases left idle beyond its window')
@@ -1554,15 +1572,7 @@ while IFS= read -r scenario; do
 	*) exit 1 ;;
 	esac
 done <<EOF
-$actual_scenarios
+$selected_scenarios
 EOF
-
-# Plain shell tests: each checks one behaviour of this wrapper. Their scenarios
-# were removed by the spec review as internal, so they run here directly, every
-# time, under their own names.
-echo "  plain: A consumer never removes an install lock it did not publish"
-run_never_removes_a_foreign_install_lock
-echo "  plain: Install guard storage stays bounded across release versions"
-run_bounded_install_guard_storage
 
 echo "hippo bootstrap tests passed"

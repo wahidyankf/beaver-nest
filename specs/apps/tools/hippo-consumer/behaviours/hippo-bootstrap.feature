@@ -93,6 +93,20 @@ Feature: Safe HIPPO consumer bootstrap
 
   # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
   @e2e-exempt
+  Scenario: A consumer never removes an install lock it did not publish
+    Given a consumer's install lock has been replaced by another live owner's record
+    When that consumer finishes installing and releases its lock
+    Then it leaves the replacement in place rather than admitting a third installer
+
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
+  Scenario: Install guard storage stays bounded across release versions
+    Given one consumer cache has installed several distinct pinned release versions
+    When release-directory retention prunes superseded versions
+    Then the cache retains exactly one install guard for the whole cache root
+
+  # Exemption(e2e): shell wrappers have no application boundary; alternative-proof: .github/scripts/test-hippo-bootstrap.sh
+  @e2e-exempt
   Scenario: Retention never deletes a release another consumer is using
     Given one consumer holds a live claim on the release it is running
     When another consumer with a different pinned version prunes superseded releases
