@@ -4868,6 +4868,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         schedule.schedule_key == context.schedule_key and schedule.last_run_state == "verified"
       end)
 
+  # The coordinator's run is the one verified run the fixture handler's ledger holds, and the
+  # contextual inventory shows the family schedule verified.
+  def behaviour_outcome?(context, :shared_ledger_and_inventory, _args),
+    do:
+      match?([_run], Scheduler.verified_runs("fixture")) and
+        behaviour_outcome?(context, :shared_inventory, [])
+
   # Every declared panel renders as one link to its path, under its label.
   def behaviour_outcome?(context, :panels_discoverable, _args),
     do:

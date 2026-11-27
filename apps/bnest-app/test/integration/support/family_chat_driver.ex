@@ -41,6 +41,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
   alias BnestApp.Test.Seeds.Schedules
+  alias BnestApp.Test.SlotUnitProbe
   alias BnestApp.Test.UnfinishableDatabaseSnapshot
   alias BnestApp.TestBackupDestination
   alias BnestApp.TestRuntimeRoot
@@ -650,6 +651,15 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # application's endpoint. On each slot a listener subscribes to that document's topic,
   # the room's topic and every Absinthe proxy shard a publish is relayed through.
   def prepare_behaviour(context, :two_independent_slots, _args) do
+    # Both slots run with no distribution: the unit the deployment tool generates for each slot
+    # sets RELEASE_DISTRIBUTION to none, so no slot can join the other's node.
+    distributions = SlotUnitProbe.distributions()
+
+    unless map_size(distributions) > 0 and
+             Enum.all?(distributions, fn {_slot, values} -> values == ["none"] end) do
+      raise "a generated slot unit does not set RELEASE_DISTRIBUTION to none: #{inspect(distributions)}"
+    end
+
     # A retried attempt starts its slots afresh and drops what the last one forwarded.
     drain_slot_messages(0)
     document_topic = subscribe_room_document!(context.user_id)

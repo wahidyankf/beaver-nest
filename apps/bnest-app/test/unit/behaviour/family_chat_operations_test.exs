@@ -76,4 +76,45 @@ defmodule BnestApp.Behaviour.FamilyChatOperationsTest do
     assert FamilyChatDriver.behaviour_outcome?(context, :only_same_slot_sockets_receive, [])
     assert FamilyChatDriver.behaviour_outcome?(context, :other_slot_no_event, [])
   end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A trusted producer posts an idempotent system message
+  test "a trusted producer posts an idempotent system message" do
+    context =
+      start(FamilyChatDriver, @now)
+      |> FamilyChatDriver.prepare_behaviour(:trusted_producer, [])
+      |> FamilyChatDriver.perform_behaviour(:producer_posts_system_message, ["ruang-keluarga"])
+
+    assert FamilyChatDriver.behaviour_outcome?(context, :system_message_committed, ["system"])
+
+    context = FamilyChatDriver.perform_behaviour(context, :producer_retries_same_key, [])
+
+    assert FamilyChatDriver.behaviour_outcome?(context, :system_message_unchanged, [])
+    assert FamilyChatDriver.behaviour_outcome?(context, :exactly_one_system_message, [])
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Final delivery rows are soft-deleted after seven active days
+  test "final delivery rows are soft-deleted after seven active days" do
+    context =
+      start(FamilyChatDriver, @now)
+      |> FamilyChatDriver.prepare_behaviour(:final_rows_older_than_7_days, [])
+      |> FamilyChatDriver.prepare_behaviour(:nonfinal_rows_same_age, [])
+      |> FamilyChatDriver.perform_behaviour(:retention_job_runs, [])
+
+    assert FamilyChatDriver.behaviour_outcome?(context, :completed_rows_soft_deleted, [])
+    assert FamilyChatDriver.behaviour_outcome?(context, :nonfinal_rows_remain_active, [])
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Soft-deleted delivery rows are purged after the grace period
+  test "soft-deleted delivery rows are purged after the grace period" do
+    context =
+      start(FamilyChatDriver, @now)
+      |> FamilyChatDriver.prepare_behaviour(:soft_deleted_rows_older_than_7_days, [])
+      |> FamilyChatDriver.perform_behaviour(:retention_job_runs_again, [])
+
+    assert FamilyChatDriver.behaviour_outcome?(context, :rows_purged, [])
+    assert FamilyChatDriver.behaviour_outcome?(context, :retention_run_idempotent, [])
+  end
 end

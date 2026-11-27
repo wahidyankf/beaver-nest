@@ -69,6 +69,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   @digest ~r/[0-9a-f]{64}/
   @absolute_path ~r{(?:^|[\s"'(=:])/[\w.~-]}
   @date_line ~r/\d{4}-\d{2}-\d{2}/
+  @artifact_name_shape ~r{\Abnest-prod-[^/\s]+\.sqlite3\z}
   @failure_line ~r/(reconcil|backup files|integrity)[^\n]*(could not|fail)|(could not|fail)[^\n]*(reconcil|backup files|integrity)/i
 
   # Givens that need the layer's isolated destination first (the driver establishes it).
@@ -419,9 +420,12 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   def outcome?(context, :reads_nothing, []), do: context.usage_events == []
 
+  # The missing run is reported under the name its artifact carries. The name is a fixture's, so only its
+  # shape is checked: the production prefix and suffix, no directory separator, and the run's WIB date in it.
+  # `reported?/3` already holds the result's name to the one the ledger recorded.
   def outcome?(context, :run_reported_missing, [date]) do
     run = nightly(context, date)
-    reported?(context, run, :missing) and not on_disk?(context, run)
+    reported?(context, run, :missing) and not on_disk?(context, run) and artifact_name_shape?(run)
   end
 
   def outcome?(context, :runs_reported_present, dates) do
@@ -1035,6 +1039,11 @@ defmodule BnestApp.Test.BackupIntegrity do
 
     ArtifactStore.regular?(artifact_store(), path) and
       ArtifactStore.regular?(artifact_store(), Receipt.path(path))
+  end
+
+  defp artifact_name_shape?(run) do
+    Regex.match?(@artifact_name_shape, run.basename) and
+      String.contains?(run.basename, Date.to_iso8601(run.date, :basic))
   end
 
   defp on_disk?(context, run),

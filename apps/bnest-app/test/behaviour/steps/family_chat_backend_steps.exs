@@ -456,6 +456,64 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :schema_has_no_system_message_field)
   )
 
+  step("a trusted internal producer with a stable idempotency key", context,
+    do: prepare(context, :trusted_producer)
+  )
+
+  step(
+    "the producer posts a system message to {string}",
+    %{args: [slug]} = context,
+    do: perform(context, :producer_posts_system_message, [slug])
+  )
+
+  step(
+    "the message is committed with sender kind {string} and the producer's stable sender ID",
+    %{args: [sender_kind]} = context,
+    do: outcome(context, :system_message_committed, [sender_kind])
+  )
+
+  step("the same producer retries with the same idempotency key", context,
+    do: perform(context, :producer_retries_same_key)
+  )
+
+  step("the original committed system message is returned unchanged", context,
+    do: outcome(context, :system_message_unchanged)
+  )
+
+  step("exactly one system message exists for that idempotency key", context,
+    do: outcome(context, :exactly_one_system_message)
+  )
+
+  step("delivered and terminal delivery rows completed more than seven days ago", context,
+    do: prepare(context, :final_rows_older_than_7_days)
+  )
+
+  step("pending, claimed, and retryable delivery rows of the same age", context,
+    do: prepare(context, :nonfinal_rows_same_age)
+  )
+
+  step("the retention job runs", context, do: perform(context, :retention_job_runs))
+
+  step("the completed rows more than seven days old are soft-deleted", context,
+    do: outcome(context, :completed_rows_soft_deleted)
+  )
+
+  step("the pending, claimed, and retryable rows remain active regardless of age", context,
+    do: outcome(context, :nonfinal_rows_remain_active)
+  )
+
+  step("delivery rows soft-deleted more than seven days ago", context,
+    do: prepare(context, :soft_deleted_rows_older_than_7_days)
+  )
+
+  step("the retention job runs again", context, do: perform(context, :retention_job_runs_again))
+
+  step("those rows are purged from SQLite", context, do: outcome(context, :rows_purged))
+
+  step("the run is idempotent when repeated with no newly eligible rows", context,
+    do: outcome(context, :retention_run_idempotent)
+  )
+
   step(
     "three other members hold active Web Push subscriptions in {string}",
     %{args: [slug]} = context,

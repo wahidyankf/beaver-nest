@@ -163,7 +163,7 @@ Feature: Family chat GraphQL API
 
   # Exemption(integration): every role an account can be stored with grants the family chat capability, so no integration boundary can log in as an account that lacks it; alternative-proof: bnest-app:test:unit / A user without family chat capability is forbidden from the room query
   @integration-exempt
-  # Exemption(e2e): every role an account can be stored with grants the family chat capability, so no account the exact origin can log in as lacks it; alternative-proof: bnest-app:test:integration / A user without family chat capability is forbidden from the room query
+  # Exemption(e2e): every role an account can be stored with grants the family chat capability, so no account the exact origin can log in as lacks it; alternative-proof: bnest-app:test:unit / A user without family chat capability is forbidden from the room query
   @e2e-exempt
   Scenario: A user without family chat capability is forbidden from the room query
     Given an approved user without family chat capability is logged in
@@ -173,7 +173,7 @@ Feature: Family chat GraphQL API
 
   # Exemption(integration): every role an account can be stored with grants the family chat capability, so no integration boundary can log in as an account that lacks it; alternative-proof: bnest-app:test:unit / A user without family chat capability is forbidden from sending a message
   @integration-exempt
-  # Exemption(e2e): every role an account can be stored with grants the family chat capability, so no account the exact origin can log in as lacks it; alternative-proof: bnest-app:test:integration / A user without family chat capability is forbidden from sending a message
+  # Exemption(e2e): every role an account can be stored with grants the family chat capability, so no account the exact origin can log in as lacks it; alternative-proof: bnest-app:test:unit / A user without family chat capability is forbidden from sending a message
   @e2e-exempt
   Scenario: A user without family chat capability is forbidden from sending a message
     Given an approved user without family chat capability is logged in

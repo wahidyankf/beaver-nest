@@ -25,6 +25,20 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :contextual_schedules)
   )
 
+  step("a second allowlisted family handler is persisted", context,
+    do: prepare(context, :second_family_handler)
+  )
+
+  step("its daily slot becomes due", context, do: perform(context, :run_second_handler))
+
+  step("the shared coordinator and supervisor execute it", context,
+    do: outcome(context, :shared_execution)
+  )
+
+  step("the shared ledger and contextual inventory record it", context,
+    do: outcome(context, :shared_ledger_and_inventory)
+  )
+
   step("an unauthenticated revoked or non-admin visitor", context,
     do: prepare(context, :denied_settings_visitor)
   )
@@ -201,6 +215,20 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   )
 
   step("the reconcile task runs", context, do: perform(context, :reconcile_task))
+
+  step("reconciliation runs", context, do: perform(context, :reconcile_ledger))
+
+  step(
+    "it reports the run of {string} as missing with its artifact basename",
+    %{args: [date]} = context,
+    do: outcome(context, :run_reported_missing, [date])
+  )
+
+  step(
+    "it reports the runs of {string} and {string} as present",
+    %{args: [first, second]} = context,
+    do: outcome(context, :runs_reported_present, [first, second])
+  )
 
   step("the reconcile task's printed report and the post-run log line are read", context,
     do: perform(context, :read_report_and_log)

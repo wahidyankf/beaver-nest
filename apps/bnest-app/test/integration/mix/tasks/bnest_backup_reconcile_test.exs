@@ -155,6 +155,33 @@ defmodule BnestApp.BackupReconcileTaskTest do
       assert_private_free(output, context)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A verified run without its artifact is reported missing
+    test "reports the newest run, whose artifact is absent, as missing with its artifact basename",
+         context do
+      newest_run = List.last(context.runs)
+      File.rm!(artifact_path(context, newest_run))
+      File.rm!(Receipt.path(artifact_path(context, newest_run)))
+
+      assert {:ok, results} =
+               Backup.reconcile(
+                 context.backup_directory,
+                 Scheduler.verified_runs("prod_sqlite_backup")
+               )
+
+      [oldest, middle, newest] = Enum.map(context.runs, & &1.receipt["artifactBasename"])
+
+      assert [
+               %{state: :present, artifact_basename: ^oldest},
+               %{state: :present, artifact_basename: ^middle},
+               %{state: :missing, artifact_basename: ^newest}
+             ] = results
+
+      # The name is a production artifact name: its fixed prefix and suffix, a timestamp, and no
+      # directory separator or whitespace.
+      assert newest =~ ~r/\Abnest-prod-\d{8}T\d{6}Z-[^\/\s]+\.sqlite3\z/
+    end
+
     test "exits non-zero when the destination cannot be read", context do
       File.rm_rf!(context.backup_directory)
       File.write!(context.backup_directory, "synthetic file where the destination was")

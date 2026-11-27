@@ -67,10 +67,15 @@ defmodule BnestApp.Backup.ReconciliationTest do
   defp lines(outcome), do: outcome |> Reconciliation.report() |> Reconciliation.render()
 
   describe "classify/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A verified run without its artifact is reported missing
     test "reports a verified run whose artifact is not on disk as missing" do
       [first, second, third] = runs = nightlies(3, ~D[2030-05-14])
 
-      assert Reconciliation.classify(runs, Map.delete(artifacts(runs), third.artifact_basename)) ==
+      results =
+        Reconciliation.classify(runs, Map.delete(artifacts(runs), third.artifact_basename))
+
+      assert results ==
                [
                  %{
                    date: ~D[2030-05-14],
@@ -91,6 +96,17 @@ defmodule BnestApp.Backup.ReconciliationTest do
                    state: :missing
                  }
                ]
+
+      # The missing run keeps the name its artifact carries: the fixed prefix and suffix around its
+      # WIB date, and no directory separator.
+      assert [
+               %{state: :present},
+               %{state: :present},
+               %{state: :missing, artifact_basename: missing_name}
+             ] =
+               results
+
+      assert missing_name =~ ~r/\Abnest-prod-20300516\.sqlite3\z/
     end
 
     test "reports an artifact whose digest or size differs from the ledger as changed" do

@@ -29,6 +29,16 @@ Feature: Family chat operations
 
   Rule: Internal-only system message posting
 
+  # Exemption(e2e): the internal system-message producer is a typed service call with no GraphQL or browser boundary; alternative-proof: bnest-app:test:integration / A trusted producer posts an idempotent system message
+  @e2e-exempt
+  Scenario: A trusted producer posts an idempotent system message
+    Given a trusted internal producer with a stable idempotency key
+    When the producer posts a system message to "ruang-keluarga"
+    Then the message is committed with sender kind "system" and the producer's stable sender ID
+    When the same producer retries with the same idempotency key
+    Then the original committed system message is returned unchanged
+    And exactly one system message exists for that idempotency key
+
   Scenario: The public GraphQL schema exposes no system-message mutation
     When the public GraphQL schema is inspected
     Then it declares no field that posts a system message
@@ -69,6 +79,23 @@ Feature: Family chat operations
     When the dispatcher attempts the delivery
     Then the member's current Web Push subscription reports disabled and the push service is not asked again
     And the delivery state becomes "terminal"
+
+  # Exemption(e2e): no page or GraphQL field shows a push delivery row, so the browser has no view of retention, which the server runs on its own schedule; alternative-proof: bnest-app:test:integration / Final delivery rows are soft-deleted after seven active days
+  @e2e-exempt
+  Scenario: Final delivery rows are soft-deleted after seven active days
+    Given delivered and terminal delivery rows completed more than seven days ago
+    And pending, claimed, and retryable delivery rows of the same age
+    When the retention job runs
+    Then the completed rows more than seven days old are soft-deleted
+    And the pending, claimed, and retryable rows remain active regardless of age
+
+  # Exemption(e2e): no page or GraphQL field shows a push delivery row, so the browser has no view of the purge, which the server runs on its own schedule; alternative-proof: bnest-app:test:integration / Soft-deleted delivery rows are purged after the grace period
+  @e2e-exempt
+  Scenario: Soft-deleted delivery rows are purged after the grace period
+    Given delivery rows soft-deleted more than seven days ago
+    When the retention job runs again
+    Then those rows are purged from SQLite
+    And the run is idempotent when repeated with no newly eligible rows
 
   # Exemption(e2e): the push payload is built and sent inside the server process, and the e2e server pushes through the recording sender, so the exact origin has no view of the payload; alternative-proof: bnest-app:test:integration / A push notification body is collapsed and capped at 120 characters
   @e2e-exempt

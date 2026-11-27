@@ -40,6 +40,14 @@ Feature: Bnest scheduled backups
     Then SQLite accepts one claim and backup tasks do not overlap
     And transient failure receives at most three persisted attempts
 
+  # Exemption(e2e): no browser or HTTP action persists a second allowlisted family handler or moves its daily slot to due; alternative-proof: bnest-app:test:integration / Reuse one scheduler across contexts
+  @e2e-exempt
+  Scenario: Reuse one scheduler across contexts
+    Given a second allowlisted family handler is persisted
+    When its daily slot becomes due
+    Then the shared coordinator and supervisor execute it
+    And the shared ledger and contextual inventory record it
+
   # Exemption(e2e): the browser and HTTP client cannot set a schedule's expiry policy or drive the coordinator's claim and retry loop; alternative-proof: bnest-app:test:integration / Expire schedules deterministically
   @e2e-exempt
   Scenario: Expire schedules deterministically
@@ -56,6 +64,18 @@ Feature: Bnest scheduled backups
     Then a backup file with its receipt appears and the run shows verified
     And only configured authoritative SQLite is snapshotted with VACUUM INTO
     And the candidate passes independent integrity and logical proof
+
+  Rule: Reconciliation reports a verified run whose artifact is absent or changed
+
+    # Exemption(e2e): the browser and HTTP client cannot seed a three-run ledger or remove one run's artifact and receipt from the destination, which the Given needs; alternative-proof: bnest-app:test:integration / A verified run without its artifact is reported missing
+    @e2e-exempt
+    Scenario: A verified run without its artifact is reported missing
+      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      And the destination holds the artifact and receipt of every run
+      And the artifact and receipt of "2030-05-16" are absent
+      When reconciliation runs
+      Then it reports the run of "2030-05-16" as missing with its artifact basename
+      And it reports the runs of "2030-05-14" and "2030-05-15" as present
 
   Rule: The reconcile task checks only the retained backups and changes no file
 
