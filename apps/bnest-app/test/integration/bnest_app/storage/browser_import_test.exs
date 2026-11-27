@@ -32,7 +32,8 @@ defmodule BnestApp.BrowserImportTest do
 
       assert {:error, :exists} =
                FileRecordBackend.put_new(store, :browser_import, {owner_id, result.import_id}, %{
-                 envelope | "payload" => "replaced"
+                 envelope
+                 | "payload" => "replaced"
                })
 
       assert {:ok, ^envelope} =

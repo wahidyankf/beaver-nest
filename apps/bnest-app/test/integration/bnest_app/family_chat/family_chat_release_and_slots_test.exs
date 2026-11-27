@@ -19,7 +19,9 @@ defmodule BnestApp.FamilyChatReleaseAndSlotsBindingTest do
     on_exit(&FreshDatabaseCase.drop_current/0)
 
     scenario_key = "family-chat-release-and-slots"
-    {conn, identity} = ConnCase.scenario_authenticated_conn(Phoenix.ConnTest.build_conn(), scenario_key)
+
+    {conn, identity} =
+      ConnCase.scenario_authenticated_conn(Phoenix.ConnTest.build_conn(), scenario_key)
 
     %{conn: conn, user_id: identity.user_id, test_identity: identity}
   end
