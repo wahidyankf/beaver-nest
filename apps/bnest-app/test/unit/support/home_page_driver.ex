@@ -3601,7 +3601,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :open_and_reload_label, []) do
     evidence = %{
       destination: BackupIntegrity.snapshot(context.backup_directory),
-      ledger: BackupIntegrity.ledger_rows()
+      ledger: BackupIntegrity.readable_ledger()
     }
 
     context |> open_label_page() |> open_label_page() |> Map.put(:evidence_before, evidence)

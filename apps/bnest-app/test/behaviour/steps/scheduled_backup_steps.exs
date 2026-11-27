@@ -193,7 +193,6 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   )
 
   step("the scheduled run completes", context, do: perform(context, :complete_scheduled_run))
-  step("retention runs", context, do: perform(context, :run_retention))
 
   step("it exits 0 and says all 7 retained backups are present", context,
     do: outcome(context, :exit_zero_all_present)

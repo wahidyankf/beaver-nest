@@ -735,7 +735,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   defp destination_before(_context), do: nil
 
   # The ledger's rows, or `:unreadable` for the scenarios whose ledger cannot be opened.
-  defp readable_ledger do
+  def readable_ledger do
     {:ok, ledger_rows()}
   rescue
     RuntimeError -> :unreadable
