@@ -24,8 +24,16 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: context |> spawn_seeded(["admin"]) |> assert_spawned() |> assert_seeded_accounts_present()
   )
 
+  step("a test instance was spawned and migrated", context,
+    do: context |> spawn_plain() |> assert_spawned()
+  )
+
   step("a test instance is current", context,
     do: context |> spawn_plain() |> assert_spawned() |> assert_current()
+  )
+
+  step("the build environment is production", context,
+    do: adapter(context).set_build_environment(context, :prod)
   )
 
   step("seeding will fail after the first seeded account is created", context,
@@ -88,6 +96,21 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: adapter(context).create_request(context, :non_loopback)
   )
 
+  step(
+    "the build is assembled with the testing control flag on",
+    context,
+    do: adapter(context).decide_mounts(context)
+  )
+
+  # Schema steps. The unit layer has no database, so its answers are PARTIAL: it checks the digest's
+  # discriminating properties on fixed rows, and the integration layer proves equality with the release
+  # database (see the integration adapter and the Fingerprint parity test).
+  step(
+    "its schema is compared with a database built by the release migration entry points",
+    context,
+    do: adapter(context).compare_release_schema(context)
+  )
+
   # Then
 
   step(
@@ -112,6 +135,14 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
 
   step("the readiness check reports the generation of the next instance", context,
     do: assert_readiness_reports_next(context)
+  )
+
+  step("the schema objects and the applied migration versions are identical", context,
+    do: assert_schema_identical(context)
+  )
+
+  step("the applied migration versions match the committed migration files exactly", context,
+    do: assert_versions_exact(context)
   )
 
   step("the spawn returns only after its migrations and its seed have finished", context,
@@ -147,6 +178,8 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
   )
 
   step("no test instance is created", context, do: assert_none_current(context))
+
+  step("the build exposes no testing endpoint", context, do: assert_no_mount(context))
 
   step("the spawn response lists exactly those two accounts", context,
     do: assert_lists_sent_accounts(context)
@@ -368,6 +401,22 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
   # A refused create answers exactly what a request to a missing route answers.
   defp assert_stock_response(context) do
     assert context.request.response == context.request.missing
+    context
+  end
+
+  defp assert_schema_identical(context) do
+    assert adapter(context).schema_identical?(context)
+    context
+  end
+
+  defp assert_versions_exact(context) do
+    assert adapter(context).versions_exact?(context)
+    context
+  end
+
+  defp assert_no_mount(context) do
+    assert context.mount.decision == false
+    assert Enum.all?(context.mount.checks, &(&1 == false))
     context
   end
 

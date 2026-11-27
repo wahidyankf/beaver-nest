@@ -9,6 +9,7 @@ defmodule BnestAppWeb.TestingRoutesTest do
   # environment may mount the testing routes, whatever the flag says.
   @flags [true, false, nil]
 
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A production build mounts no testing endpoint
   test "a production build mounts no testing route whatever the flag says" do
     for flag <- @flags do
       refute TestingRoutes.mounted?(:prod, flag)

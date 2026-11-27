@@ -17,21 +17,46 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
 
   alias BnestApp.Behaviour.TestIsolation.Fixtures
   alias BnestApp.Test.InMemory.TestInstancePort, as: Lifecycle
+  alias BnestApp.TestInstance.Fingerprint
   alias BnestAppWeb.TestingControl.ErrorBody
   alias BnestAppWeb.TestingControl.Guard
   alias BnestAppWeb.TestingControl.Secret
+  alias BnestAppWeb.TestingRoutes
 
   @route_prefix "/__bnest_testing/v1"
   # The stock missing-route answer: the exception the router raises for a route it does not know.
   @missing_route_answer {:raised, Phoenix.Router.NoRouteError}
+  @flag_values [true, false, nil, "true", 1, :yes]
+  @builds [:prod, :dev]
   @loopback {127, 0, 0, 1}
   @outside_peer {203, 0, 113, 9}
+  # Two rows, so that reversing the rows is a real reordering. The changed row differs from the first in its SQL.
+  @schema_rows [
+    ["table", "bnest_records", "bnest_records", "CREATE TABLE bnest_records (...)"],
+    [
+      "index",
+      "bnest_records_owner",
+      "bnest_records",
+      "CREATE INDEX bnest_records_owner ON bnest_records (...)"
+    ]
+  ]
+  @changed_rows [
+    ["table", "bnest_records", "bnest_records", "CREATE TABLE bnest_records (id)"],
+    [
+      "index",
+      "bnest_records_owner",
+      "bnest_records",
+      "CREATE INDEX bnest_records_owner ON bnest_records (...)"
+    ]
+  ]
+  @schema_versions [20_260_829_000_000, 20_260_830_000_000]
+  @extra_version 20_260_831_000_000
 
   @doc "Installs the model and this adapter in the scenario context. The unit layer starts with no instance."
   def prepare(context) do
     context
     |> Map.put(:isolation_adapter, __MODULE__)
-    |> Map.put(:isolation, %{port: Lifecycle.new(), instance_id: nil, fail_after: nil})
+    |> Map.put(:isolation, %{port: Lifecycle.new(), instance_id: nil, fail_after: nil, env: :test})
   end
 
   @doc "Nothing to release: the model is discarded with the scenario context."
@@ -47,6 +72,16 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
     do: put_isolation(context, :instance_id, Fixtures.new_instance_id())
 
   def inject_failure(context, step), do: put_isolation(context, :fail_after, step)
+
+  def set_build_environment(context, env), do: put_isolation(context, :env, env)
+
+  @doc "The mount decision for the build, with the flag on, and every flag value for the production and development builds."
+  def decide_mounts(context) do
+    Map.put(context, :mount, %{
+      decision: TestingRoutes.mounted?(context.isolation.env, true),
+      checks: for(build <- @builds, flag <- @flag_values, do: TestingRoutes.mounted?(build, flag))
+    })
+  end
 
   @doc "The previous test ends: its instance is dropped and the next test chooses its own id."
   def end_test(context) do
@@ -164,6 +199,52 @@ defmodule BnestApp.Behaviour.TestIsolation.UnitAdapter do
       nil -> nil
       %{generation: generation} -> generation
     end
+  end
+
+  @doc """
+  PARTIAL binding, and the only schema answer the unit layer can give. It cannot read SQLite or the migration
+  files, so it cannot observe the release schema. It checks the comparison function itself on fixed rows: the
+  digest is the same for any order of the rows and the versions, and it changes for an added object, a changed
+  object, a missing version and an extra version. Equality of a real instance with the release build is proven
+  only by the integration adapter.
+  """
+  def compare_release_schema(context) do
+    base = Fingerprint.digest(@schema_rows, @schema_versions)
+
+    Map.put(context, :comparison, %{
+      rows_reordered_equal?:
+        base == Fingerprint.digest(Enum.reverse(@schema_rows), @schema_versions),
+      versions_reordered_equal?:
+        base == Fingerprint.digest(@schema_rows, Enum.reverse(@schema_versions)),
+      object_added_detected?:
+        base != Fingerprint.digest([hd(@schema_rows) | @schema_rows], @schema_versions),
+      object_changed_detected?: base != Fingerprint.digest(@changed_rows, @schema_versions),
+      version_missing_detected?: base != Fingerprint.digest(@schema_rows, tl(@schema_versions)),
+      version_extra_detected?:
+        base != Fingerprint.digest(@schema_rows, @schema_versions ++ [@extra_version])
+    })
+  end
+
+  @doc "PARTIAL: the digest is equal under reordering and changes under every object change (not equality with release)."
+  def schema_identical?(context) do
+    %{
+      rows_reordered_equal?: rows?,
+      object_added_detected?: added?,
+      object_changed_detected?: changed?
+    } = context.comparison
+
+    rows? and added? and changed?
+  end
+
+  @doc "PARTIAL: the digest is equal under reordering and changes for a missing or an extra version (not an exact match to the files)."
+  def versions_exact?(context) do
+    %{
+      versions_reordered_equal?: versions?,
+      version_missing_detected?: missing?,
+      version_extra_detected?: extra?
+    } = context.comparison
+
+    versions? and missing? and extra?
   end
 
   @doc "Whether the spawn finished its migration and its seed: the state the spawn returned with."

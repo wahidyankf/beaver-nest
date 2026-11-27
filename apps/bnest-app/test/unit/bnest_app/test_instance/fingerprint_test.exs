@@ -35,6 +35,8 @@ defmodule BnestApp.TestInstance.FingerprintTest do
     refute Fingerprint.digest(changed, @versions) == @digest
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The migrated test schema equals the release schema
   test "changes when an extra object exists" do
     extra = [
       "index",
@@ -46,6 +48,8 @@ defmodule BnestApp.TestInstance.FingerprintTest do
     refute Fingerprint.digest([extra | @objects], @versions) == @digest
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The migrated test schema equals the release schema
   test "changes when a migration version is missing or extra" do
     refute Fingerprint.digest(@objects, tl(@versions)) == @digest
     refute Fingerprint.digest(@objects, @versions ++ [20_260_922_000_000]) == @digest

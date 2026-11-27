@@ -17,6 +17,14 @@ Feature: Bnest test isolation
     And the account created by the previous test cannot be found in the next instance
     And the readiness check reports the generation of the next instance
 
+  # Exemption(e2e): the comparison builds a second database with the release migration entry points, which run only inside the Elixir test build; the browser and HTTP boundary has no view of the SQLite catalog, and the e2e layer reads a catalog only through a second Mix process over a CLI-built database, never over a spawned test instance; alternative-proof: bnest-app:test:integration / The migrated test schema equals the release schema
+  @e2e-exempt
+  Scenario: The migrated test schema equals the release schema
+    Given a test instance was spawned and migrated
+    When its schema is compared with a database built by the release migration entry points
+    Then the schema objects and the applied migration versions are identical
+    And the applied migration versions match the committed migration files exactly
+
   Rule: Each test uses its instance only after its spawn has migrated and seeded it
 
   Scenario: The spawn returns after its migrations and seed, and the instance stays current until deletion
@@ -75,6 +83,17 @@ Feature: Bnest test isolation
     When a client on a non-loopback address creates a test instance with the run secret
     Then the response is the stock "Not Found" response that a missing route gets
     And no test instance is created
+
+  Rule: Production builds mount no testing endpoint
+
+  # Exemption(integration): the integration suite runs only the test build, so a production build is outside its boundary; alternative-proof: bnest-app:test:unit / A production build mounts no testing endpoint
+  @integration-exempt
+  # Exemption(e2e): the browser suite runs against the test build, so a production build is outside its boundary; alternative-proof: bnest-app:test:unit / A production build mounts no testing endpoint
+  @e2e-exempt
+  Scenario: A production build mounts no testing endpoint
+    Given the build environment is production
+    When the build is assembled with the testing control flag on
+    Then the build exposes no testing endpoint
 
   Rule: Seeded accounts are test identities only
 

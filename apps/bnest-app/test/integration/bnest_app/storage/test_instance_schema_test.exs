@@ -12,6 +12,7 @@ defmodule BnestApp.Storage.TestInstanceSchemaTest do
   alias BnestApp.SqliteRepo
   alias BnestApp.Test.MigrationFiles
   alias BnestApp.Test.ReleaseSchema
+  alias BnestApp.Test.SchemaGolden
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Fingerprint
 
@@ -48,6 +49,19 @@ defmodule BnestApp.Storage.TestInstanceSchemaTest do
 
     assert spawned_observation(run).versions == expected
     assert with_release_build(run, &observe/0).versions == expected
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The migrated test schema equals the release schema
+  # The committed golden dump (BnestApp.Test.SchemaGolden) pins the release schema as a file. Writing it again needs
+  # BNEST_WRITE_SCHEMA_GOLDEN=1, which writes it from the release entry points before the comparison, as the own-message
+  # markup fixture test does.
+  test "the committed schema golden is the schema the release entry points build", %{run: run} do
+    release = with_release_build(run, &observe/0)
+
+    if System.get_env("BNEST_WRITE_SCHEMA_GOLDEN") == "1", do: SchemaGolden.write!(release.schema)
+
+    assert release.schema == SchemaGolden.committed()
   end
 
   test "both databases hold the release seeds and no other schedule", %{run: run} do

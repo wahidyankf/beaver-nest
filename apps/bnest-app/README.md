@@ -284,7 +284,10 @@ its rules are in [ADR 001](../../docs/explanation/decisions/001-fresh-database-p
   (`test/integration/support/test_isolation_integration_adapter.ex`), which drives the real switch, the seed facades,
   the SQLite repo and the endpoint. Equality of a spawned instance with the release schema is proven by
   `test/integration/bnest_app/storage/test_instance_schema_test.exs`, which reads the release side from
-  `test/integration/support/release_schema.ex`, and by `test/unit/bnest_app/test_instance/fingerprint_test.exs`. That a
+  `test/integration/support/release_schema.ex`, and by `test/unit/bnest_app/test_instance/fingerprint_test.exs`. The
+  committed golden dump, `test/fixtures/test_instance_schema_golden.json`, pins the schema itself, so a migration change
+  that both databases share still fails. Rewrite it only with `BNEST_WRITE_SCHEMA_GOLDEN=1`, through the test named in
+  `test_instance_schema_test.exs` (see `BnestApp.Test.SchemaGolden`). That a
   production build mounts no testing route is proven by `test/unit/bnest_app_web/testing_routes_test.exs`. Shared
   fixtures are in `test/behaviour/test_isolation_fixtures.ex`.
 - Seed and testing-control source never writes SQL or files directly.

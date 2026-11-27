@@ -20,12 +20,16 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Test.MigrationFiles
   alias BnestApp.Test.ReleaseSchema
+  alias BnestApp.Test.SchemaGolden
   alias BnestApp.Test.TestingControlWire, as: Wire
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Paths
   alias BnestAppWeb.TestingControl.Secret
+  alias BnestAppWeb.TestingRoutes
 
   @endpoint BnestAppWeb.Endpoint
+  @mount_flags [true, false, nil, "true", 1, :yes]
+  @builds [:prod, :dev]
   @outside_peer {203, 0, 113, 9}
 
   @doc """
@@ -37,7 +41,7 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
 
     context
     |> Map.put(:isolation_adapter, __MODULE__)
-    |> Map.put(:isolation, %{instance_id: nil, fail_after: nil})
+    |> Map.put(:isolation, %{instance_id: nil, fail_after: nil, env: :test})
   end
 
   @doc """
@@ -259,6 +263,52 @@ defmodule BnestApp.Behaviour.TestIsolation.IntegrationAdapter do
 
   def readiness_generation(_context) do
     json_response(get(build_conn(), "/health/ready"), 200)["storageGeneration"]
+  end
+
+  @doc """
+  The schema of the current instance, observed and then dropped, then the release database built and
+  measured, so only one database is ever current. The comparison names both fingerprints and the migration
+  files the versions must equal.
+  """
+  def compare_release_schema(context) do
+    run = TestInstance.application_run!()
+    instance = ReleaseSchema.observe()
+    :ok = TestInstance.drop!(TestInstance.state())
+
+    Map.put(context, :comparison, %{
+      instance: instance,
+      release: ReleaseSchema.with_release_build(run, &ReleaseSchema.observe/0),
+      files: MigrationFiles.versions()
+    })
+  end
+
+  @doc "The instance's schema equals the release build's, and both equal the committed schema golden."
+  def schema_identical?(%{comparison: comparison}) do
+    golden = SchemaGolden.committed()
+
+    comparison.instance.fingerprint == comparison.release.fingerprint and
+      comparison.instance.schema == golden and comparison.release.schema == golden
+  end
+
+  @doc "Both databases hold exactly the committed migration files' versions, in order."
+  def versions_exact?(%{comparison: comparison}) do
+    comparison.instance.versions == comparison.files and
+      comparison.release.versions == comparison.files
+  end
+
+  @doc "Records the build environment that the mount decision is taken for."
+  def set_build_environment(context, env), do: put_isolation(context, :env, env)
+
+  @doc """
+  The mount decision for the build, with the flag on, and every flag value for the production and development
+  builds. This layer runs only the test build, so it asks the same compile-time gate that the router asks,
+  `BnestAppWeb.TestingRoutes.mounted?/2`, for each build environment.
+  """
+  def decide_mounts(context) do
+    Map.put(context, :mount, %{
+      decision: TestingRoutes.mounted?(context.isolation.env, true),
+      checks: for(build <- @builds, flag <- @mount_flags, do: TestingRoutes.mounted?(build, flag))
+    })
   end
 
   @doc "Whether the spawn finished its migrations and its seed: the state it returned with."

@@ -15,14 +15,16 @@ defmodule BnestApp.Test.ReleaseSchema do
   alias BnestApp.Release.Migrations.FamilyChat, as: ReleaseFamilyChat
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.SqliteRepo
+  alias BnestApp.Test.SchemaGolden
   alias BnestApp.TestInstance
   alias BnestApp.TestInstance.Fingerprint
   alias BnestApp.TestInstance.Switch
 
-  @doc "The schema fingerprint, applied versions, release schedule keys and rooms of the current database."
+  @doc "The schema fingerprint, normalized schema, applied versions, release schedule keys and rooms of the current database."
   def observe do
     %{
       fingerprint: Fingerprint.current(),
+      schema: SchemaGolden.current(),
       versions: applied_versions(),
       schedule_keys: schedule_keys(),
       rooms: rooms()
