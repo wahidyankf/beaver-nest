@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   boxOf,
@@ -17,6 +17,24 @@ import {
 
 const { Then, When } = createBdd();
 
+// The control's box lies inside the viewport the scenario names, so a reader sees all of it without scrolling.
+async function expectOnScreen(
+  page: Page,
+  selector: string,
+  label: string,
+): Promise<void> {
+  await expect(page.locator(selector)).toBeVisible();
+  const viewport = viewportOf(page);
+  const box = await boxOf(page.locator(selector), label);
+  expect(
+    box.x >= 0 &&
+      box.y >= 0 &&
+      box.x + box.width <= viewport.width &&
+      box.y + box.height <= viewport.height,
+    `${label} spans ${box.x}..${box.x + box.width} across and ${box.y}..${box.y + box.height} down, the viewport is ${viewport.width}x${viewport.height}`,
+  ).toBe(true);
+}
+
 When("the visitor opens the Codex options panel", async ({ page }) => {
   await openOptionsIfCollapsed(page);
 });
@@ -24,21 +42,25 @@ When("the visitor opens the Codex options panel", async ({ page }) => {
 Then(
   "the model selector is on screen in the options panel",
   async ({ page }) => {
-    await expect(page.locator("#model-selector")).toBeVisible();
+    await expectOnScreen(page, "#model-selector", "the model selector");
   },
 );
 
 Then(
   "the reasoning effort selector is on screen in the options panel",
   async ({ page }) => {
-    await expect(page.locator("#effort-selector")).toBeVisible();
+    await expectOnScreen(
+      page,
+      "#effort-selector",
+      "the reasoning effort selector",
+    );
   },
 );
 
 Then(
   "the Clear chat control is on screen in the options panel",
   async ({ page }) => {
-    await expect(page.locator(CLEAR)).toBeVisible();
+    await expectOnScreen(page, CLEAR, "the Clear chat control");
   },
 );
 

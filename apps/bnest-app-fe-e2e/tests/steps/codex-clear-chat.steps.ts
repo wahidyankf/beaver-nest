@@ -1,4 +1,4 @@
-import { expect } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 
 import {
@@ -25,6 +25,15 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// The messages the visitor saw when Clear chat was chosen. "nothing is cleared yet" compares the count with it.
+let messagesBeforeClear: number | undefined;
+
+async function chooseClearChat(page: Page): Promise<void> {
+  await openOptionsIfCollapsed(page);
+  messagesBeforeClear = await visitorMessageCount(page);
+  await page.locator(CLEAR).click();
+}
+
 // --- Clear chat (chat.feature, Rules "Clear chat asks before it deletes" and its layout rows) ----
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clear chat asks for confirmation before it deletes the conversation
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Cancel, Escape and tabbing away keep the conversation
@@ -46,13 +55,11 @@ Given(
 );
 
 When("the visitor chooses Clear chat", async ({ page }) => {
-  await openOptionsIfCollapsed(page);
-  await page.locator(CLEAR).click();
+  await chooseClearChat(page);
 });
 
 Given("the visitor has chosen Clear chat", async ({ page }) => {
-  await openOptionsIfCollapsed(page);
-  await page.locator(CLEAR).click();
+  await chooseClearChat(page);
 });
 
 Then("the confirmation asks {string}", async ({ page }, question: string) => {
@@ -81,11 +88,19 @@ Then(
   },
 );
 
-// The conversation still holds its messages. The confirmation is not checked here: a scenario that cancelled it has closed it.
+// The conversation still holds the messages it held when Clear chat was chosen. The confirmation is not checked here: a scenario that cancelled it has closed it.
 Then("nothing is cleared yet", async ({ page }) => {
   // Settle first, so the count is read after the page has finished its pending updates.
   await settle(page);
-  await expect.poll(() => visitorMessageCount(page)).toBeGreaterThan(0);
+  if (messagesBeforeClear === undefined) {
+    throw new Error(
+      "Clear chat was not chosen, so there is no count to compare",
+    );
+  }
+  expect(messagesBeforeClear, "the messages before Clear chat").toBeGreaterThan(
+    0,
+  );
+  expect(await visitorMessageCount(page)).toBe(messagesBeforeClear);
 });
 
 When("the visitor chooses Cancel", async ({ page }) => {

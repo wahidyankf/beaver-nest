@@ -17,6 +17,7 @@ import {
 import { waitForRoomSubscribed } from "../support/family-chat-socket";
 import { instanceIdentities } from "../support/instance-identities";
 import {
+  boldWeightsOf,
   serveRemoteImages,
   setTargetMessage,
   TWO_LINES,
@@ -122,8 +123,24 @@ When(
 
 Then("the message shows {string} in bold", async ({ page }, text: string) => {
   await committedTarget(page);
-  const strong = await targetBody(page).locator("strong").allTextContents();
-  expect(strong, "the bold text of the message").toContain(text);
+  const strong = targetBody(page).locator("strong");
+  expect(
+    await strong.allTextContents(),
+    "the bold text of the message",
+  ).toContain(text);
+  // The rendered weight of each strong element with this text must be heavier than normal (400), and must be the
+  // weight the stylesheet sets for it.
+  const weights = await boldWeightsOf(strong, text);
+  expect(weights.length, `the strong text "${text}"`).toBeGreaterThan(0);
+  for (const { computed, expected } of weights) {
+    expect(
+      Number(computed),
+      `the rendered weight of "${text}"`,
+    ).toBeGreaterThan(400);
+    expect(computed, `the weight the stylesheet sets for "${text}"`).toBe(
+      expected,
+    );
+  }
 });
 
 Then(
