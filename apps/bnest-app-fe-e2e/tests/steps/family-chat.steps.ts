@@ -33,7 +33,6 @@ import {
 
 const { Given, Then, When } = createBdd();
 
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
 
 let identity: InstanceIdentities;
@@ -93,9 +92,6 @@ Given(
   "a visitor opens {string} with the socket connected to the current slot",
   openConnectedRoom,
 );
-Given("a visitor opens {string} with the room connected", openConnectedRoom);
-
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
 async function promoteReplacementSlot({
   page,
   browser,
@@ -130,8 +126,6 @@ async function promoteReplacementSlot({
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
 When("Caddy promotes a replacement slot", promoteReplacementSlot);
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
-When("the app is updated while the room is open", promoteReplacementSlot);
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
 Then("the prior-slot socket closes", async ({ page }) => {
@@ -161,31 +155,6 @@ Then(
     ).toHaveCount(1, { timeout: 10_000 });
   },
 );
-
-Then("the room reconnects", async ({ page }) => {
-  // The socket connected to the prior slot emitted `close`, and a new one
-  // was opened after it -- the room's own reconnect, not a page load.
-  await expect.poll(() => sockets.closed.length).toBeGreaterThanOrEqual(1);
-  await expect.poll(() => sockets.opened.length).toBeGreaterThanOrEqual(2);
-  expect(sockets.opened[1] ?? 0).toBeGreaterThanOrEqual(sockets.closed[0] ?? 0);
-  await expect(page.locator('[data-role="family-chat-room"]')).toHaveAttribute(
-    "data-connection-state",
-    "ready",
-    { timeout: 10_000 },
-  );
-});
-
-Then("the room catches up within ten seconds", async ({ page }) => {
-  // A message this client never sent itself, posted by another member
-  // concurrently with the promotion, must arrive exactly once -- not zero
-  // (lost across the cutover) and not more than once (duplicated by the
-  // reconnect module's merge-by-server-ID step).
-  await expect(
-    page.locator('[data-role="family-chat-message"]', {
-      hasText: catchUpProbeBody,
-    }),
-  ).toHaveCount(1, { timeout: 10_000 });
-});
 
 Then(
   "any queued send drains only after catch-up completes",

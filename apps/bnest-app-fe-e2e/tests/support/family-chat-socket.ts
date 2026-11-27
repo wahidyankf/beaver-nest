@@ -70,6 +70,32 @@ export function watchSockets(page: Page): SocketLog {
   return log;
 }
 
+export interface JoinLog {
+  /** The topic of every `phx_join` frame the page's room sockets send from now on. */
+  topics: string[];
+}
+
+/** The topic of a Phoenix `phx_join` frame (`[join_ref, ref, topic, event, payload]`), or undefined for any other frame. */
+function joinTopic(payload: string | Buffer): string | undefined {
+  const frame = JSON.parse(String(payload)) as unknown;
+  if (!Array.isArray(frame)) return undefined;
+  const [, , topic, event] = frame as unknown[];
+  return event === "phx_join" && typeof topic === "string" ? topic : undefined;
+}
+
+/** Every `phx_join` frame the page's room sockets send from now on, by topic. */
+export function watchJoins(page: Page): JoinLog {
+  const log: JoinLog = { topics: [] };
+  page.on("websocket", (socket) => {
+    if (!SOCKET_URL.test(socket.url())) return;
+    socket.on("framesent", ({ payload }) => {
+      const topic = joinTopic(payload);
+      if (topic !== undefined) log.topics.push(topic);
+    });
+  });
+  return log;
+}
+
 export interface SubscriptionLog {
   /** How many times the server has acknowledged the room's subscription. */
   acknowledged: number;

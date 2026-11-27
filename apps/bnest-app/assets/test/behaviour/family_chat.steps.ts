@@ -734,10 +734,7 @@ step(
   "a visitor opens {string} with the socket connected to the current slot",
   openConnectedRoom,
 );
-step("a visitor opens {string} with the room connected", openConnectedRoom);
 
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
 async function promoteReplacementSlot(): Promise<void> {
   const page = activePage();
   // A send that is waiting on its retry timer when the cutover happens.
@@ -769,8 +766,6 @@ async function promoteReplacementSlot(): Promise<void> {
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
 step("Caddy promotes a replacement slot", promoteReplacementSlot);
-// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
-step("the app is updated while the room is open", promoteReplacementSlot);
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
 step("the prior-slot socket closes", () => {
@@ -805,35 +800,6 @@ step(
     expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
   },
 );
-
-step("the room reconnects", () => {
-  for (const socket of recall<Page["sockets"]>("priorSockets")) {
-    expect(
-      socket.record.disconnects >= 1 && !socket.record.open,
-      "the prior slot's socket was never closed by the room",
-    );
-  }
-});
-
-step("the room catches up within ten seconds", async () => {
-  const page = activePage();
-  const prior = recall<Page["sockets"]>("priorSockets");
-  const fresh = page.sockets.filter((socket) => !prior.includes(socket));
-  expect(
-    fresh.some(
-      (socket) =>
-        socket.record.open && socket.record.joins.includes(CONTROL_TOPIC),
-    ),
-    "no socket on the promoted slot joined the control channel",
-  );
-  const gap = recall<{ id: string }>("gapMessage");
-  await waitFor(
-    () => rowFor(gap.id) !== null,
-    "the gap message to be caught up",
-  );
-  const elapsed = performance.now() - recall<number>("promotedAt");
-  expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
-});
 
 step("any queued send drains only after catch-up completes", async () => {
   const id = clientMessageId();
@@ -917,6 +883,27 @@ step("a message sent by another member now appears", async () => {
     "the other member's message to appear",
   );
 });
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reconnect never attempts to join the per-message subscription channel
+step(
+  "no phx_join frame is sent for any topic other than the control channel",
+  () => {
+    const page = activePage();
+    const prior = recall<Page["sockets"]>("priorSockets");
+    const resumed = page.sockets.filter((socket) => !prior.includes(socket));
+    expect(resumed.length > 0, "the tab opened no socket after it resumed");
+    const topics = resumed.flatMap((socket) => socket.record.joins);
+    expect(
+      topics.includes(CONTROL_TOPIC),
+      "the resumed socket never joined the control channel",
+    );
+    const others = topics.filter((topic) => topic !== CONTROL_TOPIC);
+    expect(
+      others.length === 0,
+      `phx_join sent for ${others.join(", ")} after the tab resumed`,
+    );
+  },
+);
 
 // --- Rule: Service worker cache -------------------------------------------------
 

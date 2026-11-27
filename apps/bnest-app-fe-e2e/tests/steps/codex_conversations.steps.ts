@@ -6,8 +6,8 @@ import { createBdd } from "playwright-bdd";
 // Step bindings for the Multiple chat conversations rule of
 // specs/apps/bnest/app-fe/behaviours/chat.feature: the rail the server renders,
 // with one entry per conversation. On a phone the rail is a drawer behind the
-// Chats toggle, so every rail step opens the drawer first when the toggle is
-// visible; on desktop the toggle is hidden and the steps use the sidebar.
+// Chats toggle, so every rail step opens the drawer first; on desktop the
+// toggle is hidden and the steps use the sidebar.
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor starts a second chat from the conversation rail
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor switches between two chats and each keeps its messages
 // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor deletes a chat from the conversation rail
@@ -24,18 +24,17 @@ const DRAWER_CLOSE = "[data-role=conversation-close]";
 
 /**
  * Opens the conversation drawer on a phone, where the rail hides behind the Chats toggle. A drawer that is already
- * open stays open, and a desktop page without a visible toggle is left alone.
+ * open stays open. A phone must show the toggle, so a missing toggle fails here instead of skipping the open. A
+ * desktop page has the sidebar instead, so there is nothing to open.
  */
 async function openDrawerIfCollapsed(page: Page): Promise<void> {
+  if (!(await isPhoneViewport(page))) return;
   const toggle = page.locator(DRAWER_TOGGLE);
-  if (
-    (await toggle.count()) > 0 &&
-    (await toggle.isVisible()) &&
-    (await toggle.getAttribute("aria-expanded")) === "false"
-  ) {
+  await expect(toggle).toBeVisible();
+  if ((await toggle.getAttribute("aria-expanded")) === "false") {
     await toggle.click();
-    await expect(page.locator(DRAWER)).toHaveClass(/is-open/u);
   }
+  await expect(page.locator(DRAWER)).toHaveClass(/is-open/u);
 }
 
 // The stylesheet shows the Chats toggle, and hides the desktop chrome, only where this query matches (app.css). The

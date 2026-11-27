@@ -850,17 +850,6 @@ Feature: Family chat room
   Rule: Reconnect across Caddy promotion
 
   @fe-vitest-unit
-  # Exemption(integration): holding a socket across a live Caddy config reload crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / An open room keeps working after a release switch without a page refresh
-  @integration-exempt
-  Scenario: An open room keeps working after a release switch without a page refresh
-    Given a visitor opens "/family-chat/ruang-keluarga" with the room connected
-    When the app is updated while the room is open
-    Then the room reconnects
-    And the room catches up within ten seconds
-    And any queued send drains only after catch-up completes
-    And the page does not reload
-
-  @fe-vitest-unit
   # Exemption(integration): holding a socket across a live Caddy config reload crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A connected client reconnects to the promoted slot without a page refresh
   @integration-exempt
   Scenario: A connected client reconnects to the promoted slot without a page refresh
@@ -900,6 +889,14 @@ Feature: Family chat room
     Then a fresh socket connection replaces the prior one
     And a message sent by another member now appears
     And the page does not reload
+
+  @fe-vitest-unit
+  @subscription-handshake
+  Scenario: A reconnect never attempts to join the per-message subscription channel
+    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
+    When the tab is backgrounded with its connection silently dropped
+    And the tab becomes visible again
+    Then no phx_join frame is sent for any topic other than the control channel
 
   Rule: Release candidate proof
 

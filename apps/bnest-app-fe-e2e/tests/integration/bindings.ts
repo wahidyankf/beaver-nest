@@ -91,6 +91,7 @@
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reconnect never attempts to join the per-message subscription channel
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply carries its quote through each arrival path
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply to a reply shows only one level of quote
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is already on screen
