@@ -33,6 +33,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CaddyConfigurationProbe
   alias BnestApp.Test.FamilyChatBodyHtml
   alias BnestApp.Test.IndependentSlot
   alias BnestApp.Test.InMemory.CapacityProbe, as: InMemoryCapacityProbe
@@ -669,7 +670,7 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
 
   # The deployment tool's generator writes the Caddy configuration for each slot; nothing is served or reloaded.
   def perform_behaviour(context, :generate_caddy_configurations, _args),
-    do: Map.put(context, :caddy, BnestApp.Test.CaddyConfigurationProbe.generate())
+    do: Map.put(context, :caddy, CaddyConfigurationProbe.generate())
 
   def perform_behaviour(context, :query_room_list, _args) do
     graphql(
@@ -1664,16 +1665,16 @@ defmodule BnestApp.Behaviour.IntegrationFamilyChatDriver do
   # response names the room, its slug, or any room field.
   # The seeded canonical room is ID 1, with its slug, its name, and member posting enabled.
   def behaviour_outcome?(context, :caddy_omits_stream_close_delay, _args),
-    do: BnestApp.Test.CaddyConfigurationProbe.omits_stream_close_delay?(context.caddy)
+    do: CaddyConfigurationProbe.omits_stream_close_delay?(context.caddy)
 
   def behaviour_outcome?(context, :caddy_grace_period_present, _args),
-    do: BnestApp.Test.CaddyConfigurationProbe.grace_period_present?(context.caddy)
+    do: CaddyConfigurationProbe.grace_period_present?(context.caddy)
 
   def behaviour_outcome?(context, :handshake_routed_only_to_promoted, _args),
-    do: BnestApp.Test.CaddyConfigurationProbe.routed_only_to_own_slot?(context.caddy)
+    do: CaddyConfigurationProbe.routed_only_to_own_slot?(context.caddy)
 
   def behaviour_outcome?(context, :no_handshake_reaches_prior_slot, _args),
-    do: BnestApp.Test.CaddyConfigurationProbe.prior_slot_unrouted?(context.caddy)
+    do: CaddyConfigurationProbe.prior_slot_unrouted?(context.caddy)
 
   def behaviour_outcome?(_context, :seeded_room_ready_for_posting, [slug, name]) do
     match?(

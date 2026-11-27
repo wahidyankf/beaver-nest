@@ -21,9 +21,13 @@ defmodule BnestApp.Behaviour.FamilyChatOperationsTest do
   alias BnestApp.Test.InMemory.RoomStore
   alias BnestApp.Test.InMemory.ScheduleStore
 
-  # The same isolation the behaviour runner gives each unit scenario, so this test starts from the state the scenario does.
-  defp start(driver) do
-    RoomStore.install(now: DateTime.utc_now())
+  # The unit layer's fixed clock. The scenario runs from it, so the test never reads the system clock.
+  @now ~U[2026-09-18 20:00:00Z]
+
+  # The same isolation the behaviour runner gives each unit scenario, so this test starts from the state the
+  # scenario does.
+  defp start(driver, now) do
+    RoomStore.install(now: now)
     ScheduleStore.install()
     BackupConfigStore.install()
     ArtifactStore.install()
@@ -41,7 +45,7 @@ defmodule BnestApp.Behaviour.FamilyChatOperationsTest do
   # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: An old release ignores the additive family chat schema
   test "an old release ignores the additive family chat schema" do
     context =
-      start(FamilyChatDriver)
+      start(FamilyChatDriver, @now)
       |> FamilyChatDriver.prepare_behaviour(:migration_applied, [])
       |> FamilyChatDriver.perform_behaviour(:old_code_opens_database, [])
 
@@ -53,7 +57,7 @@ defmodule BnestApp.Behaviour.FamilyChatOperationsTest do
   # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: An old release ignores the additive reply column
   test "an old release ignores the additive reply column" do
     context =
-      start(FamilyChatDriver)
+      start(FamilyChatDriver, @now)
       |> FamilyChatDriver.prepare_behaviour(:reply_migration_applied, [])
       |> FamilyChatDriver.perform_behaviour(:pre_reply_release_opens_database, [])
 
@@ -65,7 +69,7 @@ defmodule BnestApp.Behaviour.FamilyChatOperationsTest do
   # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Two independent slots do not exchange family chat PubSub events
   test "two independent slots do not exchange family chat PubSub events" do
     context =
-      start(FamilyChatDriver)
+      start(FamilyChatDriver, @now)
       |> FamilyChatDriver.prepare_behaviour(:two_independent_slots, [])
       |> FamilyChatDriver.perform_behaviour(:message_commits_on_one_slot, [])
 

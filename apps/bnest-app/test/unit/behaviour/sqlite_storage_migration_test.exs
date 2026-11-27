@@ -20,9 +20,13 @@ defmodule BnestApp.Behaviour.SqliteStorageMigrationTest do
   alias BnestApp.Test.InMemory.RoomStore
   alias BnestApp.Test.InMemory.ScheduleStore
 
-  # The same isolation the behaviour runner gives each unit scenario, so this test starts from the state the scenario does.
-  defp start(driver) do
-    RoomStore.install(now: DateTime.utc_now())
+  # The unit layer's fixed clock. The scenario runs from it, so the test never reads the system clock.
+  @now ~U[2026-09-18 20:00:00Z]
+
+  # The same isolation the behaviour runner gives each unit scenario, so this test starts from the state the
+  # scenario does.
+  defp start(driver, now) do
+    RoomStore.install(now: now)
     ScheduleStore.install()
     BackupConfigStore.install()
     ArtifactStore.install()
@@ -40,7 +44,7 @@ defmodule BnestApp.Behaviour.SqliteStorageMigrationTest do
   # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Versioned SQLite migration creates the expected schema once
   test "versioned SQLite migration creates the expected schema once" do
     context =
-      start(UnitHomePageDriver)
+      start(UnitHomePageDriver, @now)
       |> UnitHomePageDriver.prepare_behaviour(:empty_isolated_database, [])
       |> UnitHomePageDriver.perform_behaviour(:apply_migration_set_twice, [])
 

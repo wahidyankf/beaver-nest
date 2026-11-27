@@ -8,8 +8,8 @@ defmodule BnestApp.PushNotificationsDispatcherTest do
 
   alias BnestApp.FamilyChat
   alias BnestApp.PushNotifications
-  alias BnestApp.SqliteRepo
   alias BnestApp.PushNotifications.Dispatcher
+  alias BnestApp.SqliteRepo
   alias BnestApp.Test.InMemory.PushSender
 
   @now ~U[2026-09-18 20:00:00Z]
