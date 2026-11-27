@@ -771,7 +771,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   # The drawer opens and closes in the browser (conversation_drawer.js); the integration layer proves the rendered
   # contract that script depends on: the toggle naming the drawer, the rail, the scrim and the close control.
   @impl true
-  def open_conversation_drawer(context) do
+  def assert_conversation_drawer_rendered(context) do
     unless conversation_drawer_rendered?(context),
       do: raise("the chat page offers no conversation drawer")
 
@@ -779,10 +779,10 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
   end
 
   @impl true
-  def conversation_drawer_open?(context), do: conversation_drawer_rendered?(context)
+  def conversation_drawer_contract_rendered?(context), do: conversation_drawer_rendered?(context)
 
   @impl true
-  def close_conversation_drawer(context) do
+  def assert_conversation_drawer_closable(context) do
     unless conversation_drawer_rendered?(context),
       do: raise("the chat page offers no conversation drawer")
 
@@ -791,7 +791,7 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # The server renders the drawer closed; closing returns it there. The overlay close itself is browser-proven.
   @impl true
-  def conversation_drawer_closed?(context) do
+  def conversation_drawer_rendered_closed?(context) do
     context.view
     |> render()
     |> LazyHTML.from_fragment()
@@ -801,13 +801,13 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # No layout engine runs here; the class names the stylesheet rule that sizes the toggle to 44 pixels.
   @impl true
-  def chats_toggle_touch_target?(context) do
+  def chats_toggle_sized_by_stylesheet?(context) do
     has_element?(context.view, "[data-role=conversations-toggle].conversations-toggle")
   end
 
   # Scrolling is a browser act on the rendered conversation; the scroll target the step acts on must exist for it.
   @impl true
-  def scroll_conversation_to_newest(context) do
+  def assert_scroll_target_rendered(context) do
     unless has_element?(context.view, "#chat-conversation"),
       do: raise("the chat page renders no conversation to scroll")
 
@@ -816,18 +816,18 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
 
   # The message and composer boxes are browser layout results; the regions the browser measures are rendered.
   @impl true
-  def newest_message_above_composer?(context) do
+  def conversation_and_composer_rendered?(context) do
     has_element?(context.view, "#chat-conversation") and
       has_element?(context.view, "#chat-composer-form")
   end
 
   @impl true
-  def codex_composer_at_bottom?(context) do
+  def composer_form_rendered?(context) do
     has_element?(context.view, "#chat-composer-form")
   end
 
   @impl true
-  def chat_page_does_not_scroll?(context) do
+  def chat_shell_rendered?(context) do
     has_element?(context.view, ".chat-shell")
   end
 

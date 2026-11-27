@@ -813,7 +813,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # The drawer opens and closes in the browser (conversation_drawer.js); the unit layer proves the rendered
   # contract that script depends on: the toggle naming the drawer, the rail, the scrim and the close control.
   @impl true
-  def open_conversation_drawer(context) do
+  def assert_conversation_drawer_rendered(context) do
     unless conversation_drawer_rendered?(context.page),
       do: raise("the chat page offers no conversation drawer")
 
@@ -821,11 +821,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def conversation_drawer_open?(context),
+  def conversation_drawer_contract_rendered?(context),
     do: conversation_drawer_rendered?(context.page)
 
   @impl true
-  def close_conversation_drawer(context) do
+  def assert_conversation_drawer_closable(context) do
     unless conversation_drawer_rendered?(context.page),
       do: raise("the chat page offers no conversation drawer")
 
@@ -834,7 +834,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # The server renders the drawer closed; closing returns it there. The overlay close itself is browser-proven.
   @impl true
-  def conversation_drawer_closed?(context) do
+  def conversation_drawer_rendered_closed?(context) do
     context.page
     |> LazyHTML.query("[data-role=conversations-toggle]")
     |> LazyHTML.attribute("aria-expanded") == ["false"]
@@ -842,7 +842,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # No layout engine runs here; the class names the stylesheet rule that sizes the toggle to 44 pixels.
   @impl true
-  def chats_toggle_touch_target?(context) do
+  def chats_toggle_sized_by_stylesheet?(context) do
     context.page
     |> LazyHTML.query("[data-role=conversations-toggle].conversations-toggle")
     |> Enum.empty?()
@@ -851,7 +851,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # Scrolling is a browser act on the rendered conversation; the scroll target the step acts on must exist for it.
   @impl true
-  def scroll_conversation_to_newest(context) do
+  def assert_scroll_target_rendered(context) do
     if context.page |> LazyHTML.query("#chat-conversation") |> Enum.empty?(),
       do: raise("the chat page renders no conversation to scroll")
 
@@ -860,18 +860,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # The message and composer boxes are browser layout results; the regions the browser measures are rendered.
   @impl true
-  def newest_message_above_composer?(context) do
+  def conversation_and_composer_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, "#chat-conversation")) and
       not Enum.empty?(LazyHTML.query(context.page, "#chat-composer-form"))
   end
 
   @impl true
-  def codex_composer_at_bottom?(context) do
+  def composer_form_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, "#chat-composer-form"))
   end
 
   @impl true
-  def chat_page_does_not_scroll?(context) do
+  def chat_shell_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, ".chat-shell"))
   end
 
