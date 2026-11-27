@@ -20,6 +20,7 @@ defmodule BnestApp.Scheduler.Domain.PolicyTest do
     assert {:error, :invalid_time} = Policy.wib_to_utc(nil)
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Claim a slot once and recover
   test "uses a renewable lease and bounded retry delays" do
     assert Policy.lease_until(@now) == ~U[2026-08-30 10:15:00Z]
     assert Policy.retry_at(1, @now) == ~U[2026-08-30 10:05:00Z]
@@ -27,6 +28,7 @@ defmodule BnestApp.Scheduler.Domain.PolicyTest do
     assert Policy.retry_at(3, @now) == nil
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Expire schedules deterministically
   test "absolute and occurrence expiry preserve the final occurrence" do
     assert Policy.eligible?(%{expiration_kind: "never"}, @now)
     refute Policy.eligible?(%{expiration_kind: "at", expires_at: @now}, @now)

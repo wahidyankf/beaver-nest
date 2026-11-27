@@ -126,9 +126,12 @@ defmodule BnestApp.BackupReconcileTaskTest do
 
       assert status != 0
 
-      assert lines(output) |> Enum.take(2) == [
+      # One of three needs attention, so the two others are counted present, and only the
+      # missing run and the summary line print.
+      assert lines(output) == [
                "Backup files: 1 of 3 retained backups needs attention",
-               "2026-08-30: file missing"
+               "2026-08-30: file missing",
+               "schedulers=[nil, nil]"
              ]
 
       assert_private_free(output, context)
@@ -199,6 +202,7 @@ defmodule BnestApp.BackupReconcileTaskTest do
 
       assert status != 0
       assert hd(lines(output)) == @could_not_check
+      refute output =~ ~r/\d{4}-\d{2}-\d{2}: file /
       assert_private_free(output, context)
     end
 
@@ -301,6 +305,32 @@ defmodule BnestApp.BackupReconcileTaskTest do
                ["Backup files: all 7 retained backups are present", "schedulers=[nil, nil]"]
 
       refute output =~ wib_date(second)
+      assert_private_free(output, context)
+    end
+  end
+
+  describe "a ledger of two verified runs" do
+    setup context do
+      runs = Enum.map(1..0//-1, &backup!(context.location, &1))
+      Map.merge(context, %{runs: runs, source: source_copy!(context)})
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero and names a <state> backup
+    test "exits non-zero and names the date and state of a changed artifact", context do
+      [_older, newest] = context.runs
+      File.write!(artifact_path(context, newest), "tampered", [:append])
+
+      {output, status} = run_task(context)
+
+      assert status != 0
+
+      assert lines(output) == [
+               "Backup files: 1 of 2 retained backups needs attention",
+               wib_date(newest) <> ": file changed",
+               "schedulers=[nil, nil]"
+             ]
+
       assert_private_free(output, context)
     end
   end

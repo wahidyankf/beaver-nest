@@ -63,5 +63,14 @@ defmodule BnestApp.SchedulerRestartTest do
     assert reloaded.enabled == saved.enabled
     assert reloaded.revision == saved.revision
     assert reloaded.next_run_at == saved.next_run_at
+
+    # The schedule is still enabled in the run database after the restart, not due before its
+    # slot, and due at the slot it saved.
+    assert reloaded.enabled == true
+    refute Enum.any?(Scheduler.claim_due(@now), &(&1.schedule_key == key))
+    due = reloaded.next_run_at
+
+    assert [%{claim_kind: "scheduled", scheduled_for: ^due}] =
+             Enum.filter(Scheduler.claim_due(due), &(&1.schedule_key == key))
   end
 end

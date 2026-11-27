@@ -5,6 +5,7 @@ defmodule BnestApp.ScheduledBackupTest do
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
+  alias BnestApp.Backup.Adapters.SqliteDatabaseSnapshot
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
   alias BnestApp.Release.Migrations.PersistentSchedules
@@ -93,6 +94,23 @@ defmodule BnestApp.ScheduledBackupTest do
     assert receipt["quickCheck"] == "ok"
     assert File.exists?(Path.join(context.backup_directory, receipt["artifactBasename"]))
     refute inspect(receipt) =~ context.backup_directory
+
+    # The artifact is the configured database's copy: an independent proof of the artifact matches the
+    # receipt, and the live database's own proof matches both.
+    artifact_path = Path.join(context.backup_directory, receipt["artifactBasename"])
+
+    assert {:ok, proof} =
+             SqliteDatabaseSnapshot.prove(SqliteDatabaseSnapshot.new(), artifact_path)
+
+    assert receipt["logicalProofSha256"] == proof.logical_sha256
+
+    assert {:ok, live} =
+             SqliteDatabaseSnapshot.prove(
+               SqliteDatabaseSnapshot.new(),
+               SqliteRepo.main_database_path()
+             )
+
+    assert proof.logical_sha256 == live.logical_sha256
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

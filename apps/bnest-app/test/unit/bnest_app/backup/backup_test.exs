@@ -86,6 +86,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert {:ok, %{destination_id: ^id}} = Backup.destination()
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The test environment refuses the production backup destination
     test "refuses the default when the repository does not ignore it", context do
       :ok = IgnoreCheck.put_ignored(context.ignore, false)
 
@@ -320,6 +322,12 @@ defmodule BnestApp.Backup.FacadeTest do
 
       assert schema_versions == DatabaseSnapshot.schema_versions(context.snapshot)
       assert byte_size(proof) == 64
+
+      # The copy is of the configured database: it holds the rows the live store holds, as VACUUM INTO copies them.
+      assert %{content: %{database: database}} =
+               ArtifactStore.file(context.artifacts, artifact.path)
+
+      assert database == RoomStore.contents(RoomStore.new())
       assert generation == DatabaseSnapshot.source_generation(context.snapshot)
     end
 
@@ -450,6 +458,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert Backup.owned_receipts("/srv/test-user-backup/unmarked") == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
     test "keeps the newest owned pair of each of the latest seven WIB dates and nothing else",
          context do
       %{location: location, artifacts: artifacts} = context

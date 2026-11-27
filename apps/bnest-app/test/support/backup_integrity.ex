@@ -335,7 +335,7 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   def perform(context, :reconcile_ledger, []) do
     directory = context.backup_directory
-    evidence = %{destination: snapshot(directory), ledger: ledger_rows()}
+    evidence = %{destination: snapshot(directory), ledger: readable_ledger()}
     runs = Scheduler.verified_runs(@handler)
 
     Map.merge(context, %{
@@ -383,7 +383,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   @spec run_task(map(), (-> map())) :: map()
   def run_task(context, task_fun) do
     ledger = readable_ledger()
-    before = %{destination: destination_before(context)}
+    before = %{destination: destination_before(context), ledger: ledger}
     {task, trace} = SchedulerWatch.record(task_fun)
 
     Map.merge(context, %{
@@ -464,7 +464,7 @@ defmodule BnestApp.Test.BackupIntegrity do
     do: snapshot(context.backup_directory) == context.evidence_before.destination
 
   def outcome?(context, :ledger_unchanged, []),
-    do: ledger_rows() == context.evidence_before.ledger
+    do: readable_ledger() == context.evidence_before.ledger
 
   def outcome?(context, :report_first_line, [line]), do: first_line(context) == line
 
@@ -1048,8 +1048,14 @@ defmodule BnestApp.Test.BackupIntegrity do
       ArtifactStore.digest(artifact_store(), path) == run.sha256
   end
 
+  # The per-run states the reconcile classifies. A run of the reconcile task has none stored, so
+  # its states come from a fresh read-only classification of the same verified runs, which
+  # changes no file and no ledger row.
   defp results(context) do
-    {:ok, results} = context.reconciliation
+    {:ok, results} =
+      Map.get(context, :reconciliation) ||
+        Backup.reconcile(context.backup_directory, Scheduler.verified_runs(@handler))
+
     results
   end
 

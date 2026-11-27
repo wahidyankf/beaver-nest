@@ -261,6 +261,7 @@ defmodule BnestApp.Backup.ReconciliationTest do
              }
 
       assert lines(outcome(7)) == ["Backup files: all 7 retained backups are present"]
+      assert hd(lines(outcome(3))) == "Backup files: all 3 retained backups are present"
     end
 
     test "counts only the retained dates a verified run is expected on" do
@@ -303,6 +304,12 @@ defmodule BnestApp.Backup.ReconciliationTest do
                "Backup files: 2 of 7 retained backups need attention",
                "2030-05-14: file missing",
                "2030-05-16: file changed"
+             ]
+
+      # A ledger of two runs, the newer changed: one of two needs attention, and the older is present.
+      assert lines(outcome(2, %{1 => :changed})) == [
+               "Backup files: 1 of 2 retained backups needs attention",
+               "2030-05-13: file changed"
              ]
     end
 

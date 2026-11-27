@@ -20,6 +20,9 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
   alias BnestApp.FamilyChat
   alias BnestApp.FamilyChat.Adapters.SqliteRoomStore
   alias BnestApp.FamilyChat.Ports.RoomStore
+  alias BnestApp.Identity.Adapters.RecordIdentityStore
+  alias BnestApp.Identity.Ports.IdentityStore
+  alias BnestApp.Storage.Records
 
   @path "/api/graphql"
 
@@ -1106,6 +1109,99 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
   defp render(%{"kind" => "LIST", "ofType" => inner}), do: "[" <> render(inner) <> "]"
   defp render(%{"name" => name}), do: name
 
+  describe "a sender's display name follows the current account" do
+    @list_messages """
+    query FamilyChatMessages($roomSlug: String!) {
+      familyChatMessages(roomSlug: $roomSlug, limit: 50) {
+        nodes {
+          id
+          senderDisplayName
+          replyTo {
+            senderDisplayName
+          }
+        }
+      }
+    }
+    """
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Re-querying an older message shows the sender's current display name
+    test "an older message re-queries under the sender's current display name", %{conn: conn} do
+      user_id = test_user_id()
+      slug = FamilyChat.canonical_room_slug()
+
+      sent =
+        post_graphql(conn, @send_plain, %{
+          "roomSlug" => slug,
+          "clientMessageId" => Ecto.UUID.generate(),
+          "body" => "Dinner is ready"
+        })
+
+      %{"data" => %{"sendFamilyChatMessage" => %{"id" => id, "senderDisplayName" => at_commit}}} =
+        Jason.decode!(sent.resp_body)
+
+      {:ok, system} =
+        FamilyChat.post_system_message(slug, "system:producer-" <> Ecto.UUID.generate(), "Notice")
+
+      rename_account!(user_id, "Renamed Member")
+      refute at_commit == "Renamed Member"
+
+      requery = post_graphql(conn, @list_messages, %{"roomSlug" => slug})
+      nodes = get_in(Jason.decode!(requery.resp_body), ["data", "familyChatMessages", "nodes"])
+
+      assert %{"senderDisplayName" => "Renamed Member"} = Enum.find(nodes, &(&1["id"] == id))
+
+      assert %{"senderDisplayName" => system_name} =
+               Enum.find(nodes, &(&1["id"] == to_string(system.id)))
+
+      assert system_name == system.sender_display_name
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quoted sender name follows the current account too
+    test "a quote names its sender under the current account", %{conn: conn} do
+      user_id = test_user_id()
+      slug = FamilyChat.canonical_room_slug()
+
+      target =
+        post_graphql(conn, @send_plain, %{
+          "roomSlug" => slug,
+          "clientMessageId" => Ecto.UUID.generate(),
+          "body" => "Nanti aku jemput jam 5"
+        })
+
+      %{
+        "data" => %{
+          "sendFamilyChatMessage" => %{"id" => target_id, "senderDisplayName" => at_commit}
+        }
+      } =
+        Jason.decode!(target.resp_body)
+
+      reply =
+        post_graphql(conn, @send_reply, %{
+          "roomSlug" => slug,
+          "clientMessageId" => Ecto.UUID.generate(),
+          "body" => "Oke, aku siapin",
+          "replyToMessageId" => target_id
+        })
+
+      %{"data" => %{"sendFamilyChatMessage" => %{"id" => reply_id}}} =
+        Jason.decode!(reply.resp_body)
+
+      rename_account!(user_id, "Renamed Member")
+      refute at_commit == "Renamed Member"
+
+      requery = post_graphql(conn, @list_messages, %{"roomSlug" => slug})
+      nodes = get_in(Jason.decode!(requery.resp_body), ["data", "familyChatMessages", "nodes"])
+      reply_node = Enum.find(nodes, &(&1["id"] == reply_id))
+      quoted_node = Enum.find(nodes, &(&1["id"] == target_id))
+
+      assert %{"replyTo" => %{"senderDisplayName" => "Renamed Member"}} = reply_node
+      assert quoted_node["senderDisplayName"] == "Renamed Member"
+      assert reply_node["replyTo"]["senderDisplayName"] == quoted_node["senderDisplayName"]
+    end
+  end
+
   defp commit_target_with_body(body) do
     sender = "test-user-family-chat-boundary-" <> Ecto.UUID.generate()
 
@@ -1158,6 +1254,14 @@ defmodule BnestAppWeb.FamilyChatGraphqlTest do
   # Resolved the same way the boundary resolves it: from a real session, not
   # from a guessed id -- so the "nothing committed" assertion looks where a
   # genuine commit would actually have landed.
+  # Writes the account's display name through the identity store, as the account rename path does.
+  defp rename_account!(user_id, display_name) do
+    store = RecordIdentityStore.new(Records)
+    {:ok, account} = IdentityStore.read_account(store, user_id)
+    updated = Map.put(account, "displayUsername", display_name)
+    {:ok, ^updated} = IdentityStore.replace_account(store, updated)
+  end
+
   defp test_user_id do
     {username, password} = test_credentials()
     {:ok, token} = BnestApp.Identity.login(username, password)

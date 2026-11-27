@@ -74,6 +74,8 @@ defmodule BnestApp.Backup.FileConfigStoreTest do
 
   # The test run's root is no git repository, so nothing marks its `data/backup` ignored and
   # a backup into the unconfigured default is refused before any directory is created.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The test environment refuses the production backup destination
   test "the unconfigured default destination fails closed" do
     restore = put_repository_root_env(@checkout)
     on_exit(restore)
@@ -92,6 +94,8 @@ defmodule BnestApp.Backup.FileConfigStoreTest do
   # refused and leaves that root as it was, so the checkout's `data/backup` is never named,
   # listed or written. The assertions about where the default lies come before any resolution:
   # a run without its own root would resolve the checkout here.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The test environment refuses the production backup destination
   test "the test run's default destination lies in its own root and resolving it creates nothing" do
     on_exit(put_repository_root_env(@checkout))
     use_absent_backup_config!()

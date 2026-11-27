@@ -652,6 +652,100 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   )
 
   # "2030-05-14 file missing; 2030-05-16 file changed" damages each listed run in turn, in the order written.
+  step("Bnest stores the private backup configuration atomically", context,
+    do: outcome(context, :atomic_backup_config)
+  )
+
+  step("Bnest creates one idempotent setup claim for that destination", context,
+    do: outcome(context, :one_setup_claim)
+  )
+
+  step("the schedule remains enabled in SQLite", context,
+    do: outcome(context, :schedule_persisted)
+  )
+
+  step("the same future UTC slot remains due", context, do: outcome(context, :same_future_slot))
+
+  step("only the latest eligible slot is claimed", context,
+    do: outcome(context, :latest_slot_only)
+  )
+
+  step("two coordinators observe the same slot and an attempt may lose its lease", context,
+    do: prepare(context, :overlapping_coordinators)
+  )
+
+  step("both coordinators reconcile", context, do: perform(context, :reconcile_overlap))
+
+  step("SQLite accepts one claim and backup tasks do not overlap", context,
+    do: outcome(context, :single_nonoverlap_claim)
+  )
+
+  step("transient failure receives at most three persisted attempts", context,
+    do: outcome(context, :bounded_attempts)
+  )
+
+  step("schedules use never absolute and occurrence expiration policies", context,
+    do: prepare(context, :expiry_policies)
+  )
+
+  step("the coordinator reconciles claims and retries", context,
+    do: perform(context, :reconcile_expiry)
+  )
+
+  step("expiry blocks only ineligible future claims", context,
+    do: outcome(context, :expiry_blocks_future)
+  )
+
+  step("retries do not consume occurrences or suppress the final occurrence", context,
+    do: outcome(context, :retry_occurrence_rules)
+  )
+
+  step("only configured authoritative SQLite is snapshotted with VACUUM INTO", context,
+    do: outcome(context, :authoritative_vacuum)
+  )
+
+  step("the candidate passes independent integrity and logical proof", context,
+    do: outcome(context, :independent_proof)
+  )
+
+  step("it reports the newer run of {string} as present", %{args: [date]} = context,
+    do: outcome(context, :newer_run_present, [date])
+  )
+
+  step("the ledger rows are unchanged", context, do: outcome(context, :ledger_unchanged))
+
+  step("every other run of the ledger is reported present", context,
+    do: outcome(context, :other_runs_present, [length(context.ledger_runs) - 1])
+  )
+
+  step("the report has no problem line", context, do: outcome(context, :report_no_problem_line))
+
+  step("a new backup becomes verified and retention runs", context,
+    do: perform(context, :run_retention)
+  )
+
+  step("Bnest keeps one newest owned pair for each retained WIB date", context,
+    do: outcome(context, :foreign_receipts_never_counted)
+  )
+
+  step("Bnest preserves every previous destination", context,
+    do: outcome(context, :unowned_files_untouched)
+  )
+
+  step("the test environment", context, do: prepare(context, :test_environment))
+
+  step("a test resolves the repository's default backup directory", context,
+    do: perform(context, :resolve_default_directory)
+  )
+
+  step("the operation fails closed before any file is created", context,
+    do: outcome(context, :default_directory_fails_closed)
+  )
+
+  step("the listing of the default backup directory is unchanged", context,
+    do: outcome(context, :default_directory_unchanged)
+  )
+
   defp damage_runs(context, damaged) do
     damaged
     |> String.split("; ")

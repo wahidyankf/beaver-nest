@@ -135,8 +135,6 @@ Feature: Family chat GraphQL API
 
   Rule: Sender display name reflects the current account, not a historical snapshot
 
-  # Exemption(integration): no public operation renames an account, so no integration boundary can change a sender's display name after the commit; alternative-proof: bnest-app:test:unit / Re-querying an older message shows the sender's current display name
-  @integration-exempt
   # Exemption(e2e): no public operation renames an account, so the exact origin cannot change a sender's display name after the commit; alternative-proof: bnest-app:test:integration / Re-querying an older message shows the sender's current display name
   @e2e-exempt
   Scenario: Re-querying an older message shows the sender's current display name
@@ -147,8 +145,6 @@ Feature: Family chat GraphQL API
     Then the response reports "Renamed Member" as that message's sender display name, not the name stored at commit time
     And the system message's sender display name remains unaffected by the account rename
 
-  # Exemption(integration): no public operation renames an account, so no integration boundary can change the quoted sender's display name after the commit; alternative-proof: bnest-app:test:unit / A quoted sender name follows the current account too
-  @integration-exempt
   # Exemption(e2e): no public operation renames an account, so the exact origin cannot change the quoted sender's display name after the commit; alternative-proof: bnest-app:test:integration / A quoted sender name follows the current account too
   @e2e-exempt
   Scenario: A quoted sender name follows the current account too

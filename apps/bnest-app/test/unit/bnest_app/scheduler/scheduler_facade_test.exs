@@ -4,6 +4,7 @@ defmodule BnestApp.Scheduler.FacadeTest do
   use ExUnit.Case, async: false
 
   alias BnestApp.Scheduler
+  alias BnestApp.Scheduler.Ports.ScheduleStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
 
   @now ~U[2026-09-18 20:00:00Z]
@@ -150,6 +151,10 @@ defmodule BnestApp.Scheduler.FacadeTest do
       assert Scheduler.claim_due(@now) == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Claim a slot once and recover
     test "claims due slots and idempotent setup runs through the configured store" do
       put_schedule("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
 
@@ -165,6 +170,31 @@ defmodule BnestApp.Scheduler.FacadeTest do
 
       assert Scheduler.claim_setup("prod-sqlite-backup-daily", "../escape", @now) ==
                {:error, :invalid_destination_id}
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Expire schedules deterministically
+    test "a retried final occurrence is still claimed, and the schedule then expires" do
+      put_schedule("final-once", "prod_sqlite_backup", "admin_system",
+        expiration_kind: "after_occurrences",
+        max_occurrences: 1
+      )
+
+      [claim] = Enum.filter(Scheduler.claim_due(@now), &(&1.schedule_key == "final-once"))
+      assert claim.occurrence_number == 1
+
+      assert {:retryable, _retry} =
+               ScheduleStore.fail_attempt(Scheduler.store(), claim.run_id, 1, :capacity, @now)
+
+      retry_at = DateTime.add(@now, 5 * 60)
+      assert [retried] = Enum.filter(Scheduler.claim_due(retry_at), &(&1.run_id == claim.run_id))
+      assert retried.occurrence_number == 1
+      assert retried.attempt == 2
+      assert Scheduler.get_schedule("final-once").expired_at != nil
+
+      refute Enum.any?(Scheduler.claim_due(DateTime.add(@now, 86_400)), fn claim ->
+               claim.schedule_key == "final-once" and claim.occurrence_number > 1
+             end)
     end
 
     test "records a run's completion and skip only for its live attempt" do
@@ -291,6 +321,22 @@ defmodule BnestApp.Scheduler.FacadeTest do
       assert reloaded.enabled == saved.enabled
       assert reloaded.revision == saved.revision
       assert reloaded.next_run_at == saved.next_run_at
+
+      # After the restart the schedule is still enabled, not due before its slot, and due at the slot it saved.
+      assert reloaded.enabled == true
+
+      refute Enum.any?(
+               Scheduler.claim_due(@now),
+               &(&1.schedule_key == "prod-sqlite-backup-daily")
+             )
+
+      due = reloaded.next_run_at
+
+      assert [%{claim_kind: "scheduled", scheduled_for: ^due}] =
+               Enum.filter(
+                 Scheduler.claim_due(due),
+                 &(&1.schedule_key == "prod-sqlite-backup-daily")
+               )
     end
 
     test "converges and activates a pristine schedule once" do

@@ -12,6 +12,8 @@ Feature: Bnest scheduled backups
     Given an administrator opened schedules and backups
     When the administrator saves a safe backup override
     Then the page shows the saved confirmation, shows the folder when reopened, and one first verification runs for a double submit
+    And Bnest stores the private backup configuration atomically
+    And Bnest creates one idempotent setup claim for that destination
 
   # Exemption(e2e): the browser and HTTP client cannot restart the Bnest server process, which the When needs; alternative-proof: bnest-app:test:integration / A saved daily schedule survives a restart
   @e2e-exempt
@@ -19,6 +21,8 @@ Feature: Bnest scheduled backups
     Given the administrator saved an enabled daily WIB schedule
     When the scheduler restarts before the schedule is due
     Then the schedules page shows the schedule enabled with the same next run time after Bnest restarts
+    And the schedule remains enabled in SQLite
+    And the same future UTC slot remains due
 
   # Exemption(e2e): the browser and HTTP client cannot stop the Bnest server across missed daily slots and start it again; alternative-proof: bnest-app:test:integration / After downtime only one catch-up backup runs
   @e2e-exempt
@@ -26,6 +30,23 @@ Feature: Bnest scheduled backups
     Given the scheduler missed more than one daily slot
     When Bnest starts after missing several daily backups
     Then exactly one backup run is recorded and the next run shows tomorrow's time
+    And only the latest eligible slot is claimed
+
+  # Exemption(e2e): the browser and HTTP client cannot start two coordinators that race for one SQLite claim, or read the attempts they persist; alternative-proof: bnest-app:test:integration / Claim a slot once and recover
+  @e2e-exempt
+  Scenario: Claim a slot once and recover
+    Given two coordinators observe the same slot and an attempt may lose its lease
+    When both coordinators reconcile
+    Then SQLite accepts one claim and backup tasks do not overlap
+    And transient failure receives at most three persisted attempts
+
+  # Exemption(e2e): the browser and HTTP client cannot set a schedule's expiry policy or drive the coordinator's claim and retry loop; alternative-proof: bnest-app:test:integration / Expire schedules deterministically
+  @e2e-exempt
+  Scenario: Expire schedules deterministically
+    Given schedules use never absolute and occurrence expiration policies
+    When the coordinator reconciles claims and retries
+    Then expiry blocks only ineligible future claims
+    And retries do not consume occurrences or suppress the final occurrence
 
   # Exemption(e2e): the scheduled backup handler runs inside the Bnest server on a daily claim, which a browser and HTTP client cannot start; alternative-proof: bnest-app:test:integration / A scheduled backup produces a verified snapshot of the live database
   @e2e-exempt
@@ -33,6 +54,8 @@ Feature: Bnest scheduled backups
     Given a production backup claim is accepted
     When the backup handler runs
     Then a backup file with its receipt appears and the run shows verified
+    And only configured authoritative SQLite is snapshotted with VACUUM INTO
+    And the candidate passes independent integrity and logical proof
 
   Rule: The reconcile task checks only the retained backups and changes no file
 
@@ -53,6 +76,7 @@ Feature: Bnest scheduled backups
       And the ledger holds an older verified run on "2030-05-15" whose artifact and receipt are absent
       When the reconcile task runs
       Then it exits 0 and does not flag the older backup of "2030-05-15" whose files are gone
+      And it reports the newer run of "2030-05-15" as present
 
     # Exemption(e2e): the browser and HTTP client cannot read the destination's file bytes before and after the Mix task runs; alternative-proof: bnest-app:test:integration / The reconcile task changes no backup file
     @e2e-exempt
@@ -63,6 +87,7 @@ Feature: Bnest scheduled backups
       And an unknown file sits in the destination
       When the reconcile task runs
       Then the destination listing and every file's bytes are unchanged
+      And the ledger rows are unchanged
 
   Rule: The reconcile report states each result in one fixed wording
 
@@ -107,18 +132,19 @@ Feature: Bnest scheduled backups
     # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task or read its exit status and printed report; alternative-proof: bnest-app:test:integration / The task exits non-zero and names a <state> backup
     @e2e-exempt
     Scenario Outline: The task exits non-zero and names a <state> backup
-      Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
+      Given an isolated ledger of <runs> verified runs on consecutive WIB dates from "2030-05-14"
       And the destination holds the artifact and receipt of every run
       And <damage>
       When the reconcile task runs
       Then it exits non-zero
       And the report names the date "<date>" and the state file <state>
+      And every other run of the ledger is reported present
       And the report contains no path, digest, destination identifier or run ID
 
       Examples:
-        | state   | date       | damage                                                                 |
-        | missing | 2030-05-16 | the artifact and receipt of "2030-05-16" are absent                     |
-        | changed | 2030-05-15 | the artifact of "2030-05-15" has a different digest from the ledger    |
+        | runs | state   | date       | damage                                                                 |
+        | 3    | missing | 2030-05-16 | the artifact and receipt of "2030-05-16" are absent                     |
+        | 2    | changed | 2030-05-15 | the artifact of "2030-05-15" has a different digest from the ledger    |
 
     # Exemption(e2e): the browser and HTTP client cannot run the reconcile Mix task or read its exit status and printed summary; alternative-proof: bnest-app:test:integration / The task exits zero only when every expected run is present
     @e2e-exempt
@@ -127,6 +153,7 @@ Feature: Bnest scheduled backups
       And the destination holds the artifact and receipt of every run
       When the reconcile task runs
       Then it exits 0 and prints the summary line stating that all retained backups are present
+      And the report's first line is "Backup files: all 3 retained backups are present"
       And it prints no per-date line
 
     # Exemption(e2e): the browser and HTTP client cannot make the server's ledger unreadable or run the reconcile Mix task; alternative-proof: bnest-app:test:integration / The task exits non-zero when the ledger is unreadable
@@ -137,6 +164,7 @@ Feature: Bnest scheduled backups
       Then it exits non-zero
       And the report's first line is "Backup files: could not be checked. Run mix bnest.backup.reconcile on the host."
       And the report states a path-free reason
+      And the report has no problem line
       And the report contains no path, digest, destination identifier or run ID
 
     # Exemption(e2e): the browser and HTTP client cannot empty the server's run ledger or run the reconcile Mix task; alternative-proof: bnest-app:test:integration / The task does not report an empty ledger as present
@@ -148,6 +176,7 @@ Feature: Bnest scheduled backups
       And it prints that there is no verified backup to check yet
       And it prints no date as present and does not state that backups are present
       And it exits non-zero
+      And the report has no problem line
 
   Rule: The reconcile task takes no argument
 
@@ -165,9 +194,11 @@ Feature: Bnest scheduled backups
     Scenario: Foreign receipts and unreceipted files are never removed or counted
       Given a destination holding owned pairs for eight WIB dates
       And receipts bearing another destination identifier, unreceipted artifacts and a malformed receipt
-      When retention runs
+      When a new backup becomes verified and retention runs
       Then exactly the owned pairs outside the seven latest dates are removed
+      And Bnest keeps one newest owned pair for each retained WIB date
       And every foreign receipt, unreceipted artifact and malformed receipt is untouched
+      And Bnest preserves every previous destination
       And no foreign receipt changes which owned run is kept for a date
 
   Rule: The restore drill restores one artifact into a root it creates and removes
@@ -263,3 +294,14 @@ Feature: Bnest scheduled backups
         | a restorable regular file sits outside the destination                        | the restore drill task is run against the file outside the destination by a relative path that climbs out of it |
         | a directory sits inside the destination                                       | the restore drill task is run against that directory                                                 |
         | a symbolic link inside the destination points to a restorable file outside it | the restore drill task is run against that symbolic link                                             |
+
+  Rule: A test cannot reach the production backup directory
+
+    # Exemption(e2e): the browser and HTTP client cannot change the test run's backup configuration path or repository root, which are fixed before the server starts; alternative-proof: bnest-app:test:integration / The test environment refuses the production backup destination
+    @e2e-exempt
+    Scenario: The test environment refuses the production backup destination
+      Given the test environment
+      When a test resolves the repository's default backup directory
+      Then the operation fails closed before any file is created
+      And the listing of the default backup directory is unchanged
+
