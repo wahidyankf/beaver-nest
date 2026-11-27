@@ -108,6 +108,48 @@ Then(
   },
 );
 
+// Restored from main: the pause must hold through a device reconnect, which the browser's
+// own online and offline events and the socket's reconnect both make.
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Authentication expiry pauses the queue without cross-user drain
+Then("queue draining pauses for that namespace", async ({ page }) => {
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  // Longer than the next two retry waits could be: a queue that only
+  // backed off would have tried again inside it.
+  await page.waitForTimeout(QUIET_WINDOW_MS);
+  expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+  expect(await storedRowFor(page, delivery.body)).toBeDefined();
+  await expect(
+    page
+      .locator('[data-role="family-chat-message"]')
+      .filter({ hasText: delivery.body }),
+  ).not.toHaveAttribute("data-delivery-state", "committed");
+});
+
+Then("no other user's session drains that queued message", async ({ page }) => {
+  // Another member signs in on the same device, in a second tab of this browser, and opens the same room.
+  // This tab's socket then reconnects, and the expired member's queue must still stay paused.
+  const other = await page.context().newPage();
+  await login(other, instanceIdentities().child);
+  await other.goto(ROOM_ROUTE);
+  await waitForRoomReady(other);
+  expect(await currentUserId(other)).not.toBe(visitorUserId);
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
+  await page.waitForTimeout(QUIET_WINDOW_MS);
+  expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+  await expect(
+    other
+      .locator('[data-role="family-chat-message"]')
+      .filter({ hasText: delivery.body }),
+  ).toHaveCount(0);
+  const row = await storedRowFor(page, delivery.body);
+  expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
+  await other.close();
+});
+
 // --- Logout ----------------------------------------------------------------
 
 When("the visitor logs out", async ({ page }) => {

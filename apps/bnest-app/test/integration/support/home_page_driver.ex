@@ -3117,6 +3117,8 @@ defmodule BnestApp.Behaviour.IntegrationHomePageDriver do
     Map.merge(context, %{
       response: response,
       response_accesses: accesses,
+      denied_response: response,
+      denied_accesses: accesses,
       denied_reads: denied,
       control_reads: control
     })

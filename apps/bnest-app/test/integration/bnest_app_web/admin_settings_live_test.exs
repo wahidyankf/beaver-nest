@@ -342,7 +342,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     end
 
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Opening the page leaves the backup folder untouched
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Rendering the label never writes
     test "rendering and reloading leave the destination and the ledger unchanged",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_unknown"])
@@ -409,6 +409,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert Enum.empty?(LazyHTML.query(item, "a, button, input, select, textarea, [tabindex]"))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A non-administrator causes no integrity check
     test "a non-administrator gets not found and no reconciliation starts",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :label_destination, ["watched"])

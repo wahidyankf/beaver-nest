@@ -633,6 +633,49 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Authentication expiry pauses the queue without cross-user drain
+step("queue draining pauses for that namespace", async () => {
+  const page = activePage();
+  // The device drops and comes back, so the socket reconnects. The pause has to hold through that: the server
+  // would take the message again now, and a paused queue does not ask.
+  setDeviceOnline(device(), false);
+  setDeviceOnline(device(), true);
+  server().setSendOutcome(visitor().id, "commit");
+  page.clock.advance(10 * 60 * 1000);
+  await settle();
+  const attempts = attemptsFor(clientMessageId()).length;
+  expect(
+    attempts === recall<number>("attemptsAtExpiry"),
+    `the queue kept sending after expiry (${attempts} attempts)`,
+  );
+  expect(
+    page.elements.room?.dataset["connectionState"] === "auth-expired",
+    "the room does not show that the session expired",
+  );
+});
+
+step("no other user's session drains that queued message", async () => {
+  const id = clientMessageId();
+  const owner = visitor();
+  await closePage(activePage());
+  // Another member signs in on the same device, with the same IndexedDB.
+  const other = otherMember("Bunda");
+  const page = await openRoomPage({ member: other });
+  page.clock.advance(10 * 60 * 1000);
+  await settle(page);
+  const drained = server().sendAttempts.filter(
+    (attempt) =>
+      attempt.clientMessageId === id && attempt.memberId !== owner.id,
+  );
+  expect(drained.length === 0, "another member's session sent the message");
+  expect(rowFor(id, page) === null, "another member's room shows the message");
+  const stillQueued = device()
+    .persistence.rowsFor(namespaceOf(owner))
+    .some((row) => row.clientMessageId === id);
+  expect(stillQueued, "the owner's queued message was lost");
+  expect(messageRows(page).length > 0, "the other member's room did not load");
+});
+
 step("the visitor logs out", async () => {
   const id = clientMessageId();
   const stored = device()
@@ -694,7 +737,8 @@ step(
 step("a visitor opens {string} with the room connected", openConnectedRoom);
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
-step("the app is updated while the room is open", async () => {
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
+async function promoteReplacementSlot(): Promise<void> {
   const page = activePage();
   // A send that is waiting on its retry timer when the cutover happens.
   server().setSendOutcome(visitor().id, "offline");
@@ -721,7 +765,46 @@ step("the app is updated while the room is open", async () => {
   // The queued send's retry comes due while the room is catching up.
   page.clock.advance(60_000);
   await settle();
+}
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+step("Caddy promotes a replacement slot", promoteReplacementSlot);
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
+step("the app is updated while the room is open", promoteReplacementSlot);
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+step("the prior-slot socket closes", () => {
+  for (const socket of recall<Page["sockets"]>("priorSockets")) {
+    expect(
+      socket.record.disconnects >= 1 && !socket.record.open,
+      "the prior slot's socket was never closed by the room",
+    );
+  }
 });
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+step(
+  "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
+  async () => {
+    const page = activePage();
+    const prior = recall<Page["sockets"]>("priorSockets");
+    const fresh = page.sockets.filter((socket) => !prior.includes(socket));
+    expect(
+      fresh.some(
+        (socket) =>
+          socket.record.open && socket.record.joins.includes(CONTROL_TOPIC),
+      ),
+      "no socket on the promoted slot joined the control channel",
+    );
+    const gap = recall<{ id: string }>("gapMessage");
+    await waitFor(
+      () => rowFor(gap.id) !== null,
+      "the gap message to be caught up",
+    );
+    const elapsed = performance.now() - recall<number>("promotedAt");
+    expect(elapsed < 10_000, `catch-up took ${Math.round(elapsed)} ms`);
+  },
+);
 
 step("the room reconnects", () => {
   for (const socket of recall<Page["sockets"]>("priorSockets")) {

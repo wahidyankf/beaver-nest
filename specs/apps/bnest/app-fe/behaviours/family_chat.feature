@@ -824,6 +824,16 @@ Feature: Family chat room
     And another member signed in on the same device does not send it
 
   @fe-vitest-unit
+  # Exemption(integration): pausing the drain is browser outbox state, and a second user's queue on the same device is browser storage Phoenix.LiveViewTest never sees; alternative-proof: bnest-app-fe-e2e:test:e2e / Authentication expiry pauses the queue without cross-user drain
+  @integration-exempt
+  Scenario: Authentication expiry pauses the queue without cross-user drain
+    Given a visitor opens "/family-chat/ruang-keluarga"
+    And a message is queued
+    When the visitor's authentication expires
+    Then queue draining pauses for that namespace
+    And no other user's session drains that queued message
+
+  @fe-vitest-unit
   Scenario: Logging out discards the member's waiting messages
     Given a visitor opens "/family-chat/ruang-keluarga"
     And a message is queued
@@ -847,6 +857,17 @@ Feature: Family chat room
     When the app is updated while the room is open
     Then the room reconnects
     And the room catches up within ten seconds
+    And any queued send drains only after catch-up completes
+    And the page does not reload
+
+  @fe-vitest-unit
+  # Exemption(integration): holding a socket across a live Caddy config reload crosses browser and release-infrastructure boundaries that Phoenix.LiveViewTest cannot observe; alternative-proof: bnest-app-fe-e2e:test:e2e / A connected client reconnects to the promoted slot without a page refresh
+  @integration-exempt
+  Scenario: A connected client reconnects to the promoted slot without a page refresh
+    Given a visitor opens "/family-chat/ruang-keluarga" with the socket connected to the current slot
+    When Caddy promotes a replacement slot
+    Then the prior-slot socket closes
+    And the browser subscribes on the promoted slot and completes catch-up within ten seconds
     And any queued send drains only after catch-up completes
     And the page does not reload
 

@@ -6,6 +6,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
+  alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.ArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore
@@ -13,6 +14,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Test.InMemory.DatabaseSnapshot
   alias BnestApp.Test.InMemory.IgnoreCheck
   alias BnestApp.Test.InMemory.RoomStore
+  alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.SubscriptionStore
   alias BnestApp.Test.UnreadableArtifactStore
 
@@ -513,7 +515,7 @@ defmodule BnestApp.Backup.FacadeTest do
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
     # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
     # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Opening the page leaves the backup folder untouched
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Rendering the label never writes
     test "reports an intact run present and a run whose digest changed changed, writing nothing",
          context do
       dates = [~D[2030-05-14], ~D[2030-05-15], ~D[2030-05-16]]
@@ -521,6 +523,11 @@ defmodule BnestApp.Backup.FacadeTest do
       :ok = ArtifactStore.put_file(context.artifacts, artifact_path(second), "changed bytes")
       :ok = ArtifactStore.put_file(context.artifacts, @destination <> "/unknown-note.txt", "note")
       before = Agent.get(context.artifacts.pid, & &1)
+      # Seeded so the ledger holds rows to keep unchanged; the empty case would prove nothing.
+      _store = InMemoryScheduleStore.install()
+      _seeded = BackupIntegrity.prepare(context, :integrity_ledger, [3, "2030-05-14"])
+      ledger = BackupIntegrity.ledger_rows()
+      assert ledger != []
 
       assert Backup.reconcile(@destination, runs) ==
                {:ok,
@@ -532,6 +539,9 @@ defmodule BnestApp.Backup.FacadeTest do
 
       # The store's whole state, files, modes, flush marks and directories, is as it was.
       assert Agent.get(context.artifacts.pid, & &1) == before
+
+      # The ledger rows are unchanged after the report has run.
+      assert BackupIntegrity.ledger_rows() == ledger
     end
 
     test "reports a run whose artifact is absent as missing and lists no file the ledger lacks",

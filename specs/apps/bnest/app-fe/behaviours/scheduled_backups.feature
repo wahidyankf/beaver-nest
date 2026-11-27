@@ -79,7 +79,7 @@ Feature: Bnest scheduled backups
       | daily schedule                |
       | backup folder, left unchanged |
 
-  Scenario: Opening the page leaves the backup folder untouched
+  Scenario: Rendering the label never writes
     Given an isolated destination with a missing artifact and an unknown file
     When the administrator opens the page and reloads it
     Then the destination directory listing and every file's bytes are unchanged
@@ -106,6 +106,14 @@ Feature: Bnest scheduled backups
     And the label asks the administrator to reload the page
     And the label names no command
     And the check is cancelled at the ceiling and nothing keeps reading the destination afterwards
+
+  # Exemption(e2e): that no reconciliation starts for a denied visitor is a server-side process observation a browser cannot make, and the not found response itself is already proved in the browser by the deny scenario above; alternative-proof: bnest-app:test:integration / A non-administrator causes no integrity check
+  @e2e-exempt
+  Scenario: A non-administrator causes no integrity check
+    Given a visitor who is not an administrator
+    When the visitor opens the schedules route
+    Then Bnest returns not found before any protected read
+    And no reconciliation is started
 
   Scenario Outline: No horizontal scrolling and no hidden problem appears at any supported width
     Given an isolated ledger holding two verified runs whose artifacts are absent or changed

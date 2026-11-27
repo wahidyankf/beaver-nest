@@ -5,6 +5,7 @@ defmodule BnestAppWeb.UserAuthTest do
 
   alias BnestApp.Identity
   alias BnestApp.Storage.Records
+  alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
   alias BnestApp.Test.InMemory.StoragePorts
   alias BnestAppWeb.UserAuth
@@ -28,6 +29,26 @@ defmodule BnestAppWeb.UserAuthTest do
            } = UserAuth.transition_user(false)
 
     assert UserAuth.transition_user(true) == nil
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A non-administrator causes no integrity check
+  test "a non-administrator is refused before any reconciliation or verified-run read starts" do
+    watched = [
+      {{BnestApp.Scheduler, :verified_runs, 1}, []},
+      {{BnestApp.Backup, :reconcile, 2}, []}
+    ]
+
+    {conn, events} =
+      CallTrace.record(watched, fn ->
+        Plug.Test.conn(:get, "/admin/settings/schedules")
+        |> Plug.Conn.assign(:current_user, %{"userId" => "child", "roles" => ["children"]})
+        |> UserAuth.require_admin_role([])
+      end)
+
+    assert conn.halted
+    assert conn.status == 404
+    assert events == []
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

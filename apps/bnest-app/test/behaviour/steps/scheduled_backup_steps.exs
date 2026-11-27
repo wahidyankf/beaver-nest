@@ -107,6 +107,20 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
 
   step("Bnest denies the operation", context, do: outcome(context, :not_found_before_reads))
 
+  step("a visitor who is not an administrator", context,
+    do: prepare(prepare(context, :denied_settings_visitor), :label_destination, ["watched"])
+  )
+
+  step("the visitor opens the schedules route", context,
+    do: perform(context, :open_schedules_route_denied, [])
+  )
+
+  step("Bnest returns not found before any protected read", context,
+    do: outcome(context, :not_found_before_reads)
+  )
+
+  step("no reconciliation is started", context, do: outcome(context, :no_reconciliation_started))
+
   step("home exposes no admin settings entry", context,
     do: outcome(context, :no_admin_home_entry)
   )

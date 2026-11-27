@@ -95,7 +95,14 @@ Given(
 );
 Given("a visitor opens {string} with the room connected", openConnectedRoom);
 
-When("the app is updated while the room is open", async ({ page, browser }) => {
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
+async function promoteReplacementSlot({
+  page,
+  browser,
+}: {
+  page: Page;
+  browser: Browser;
+}): Promise<void> {
   // The room is a plain controller, not a LiveView. A real
   // exact-once-catch-up proof needs a message this client never sent itself
   // and a message it tried to send but couldn't, both genuinely in flight
@@ -119,7 +126,41 @@ When("the app is updated while the room is open", async ({ page, browser }) => {
         )
         .toBe(true),
   ));
+}
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+When("Caddy promotes a replacement slot", promoteReplacementSlot);
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An open room keeps working after a release switch without a page refresh
+When("the app is updated while the room is open", promoteReplacementSlot);
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+Then("the prior-slot socket closes", async ({ page }) => {
+  // The socket connected to the prior slot emitted `close`, and a new one
+  // was opened after it -- the room's own reconnect, not a page load.
+  await expect.poll(() => sockets.closed.length).toBeGreaterThanOrEqual(1);
+  await expect.poll(() => sockets.opened.length).toBeGreaterThanOrEqual(2);
+  expect(sockets.opened[1] ?? 0).toBeGreaterThanOrEqual(sockets.closed[0] ?? 0);
+  await expect(page.locator('[data-role="family-chat-room"]')).toHaveAttribute(
+    "data-connection-state",
+    "ready",
+    { timeout: 10_000 },
+  );
 });
+
+Then(
+  "the browser subscribes on the promoted slot and completes catch-up within ten seconds",
+  async ({ page }) => {
+    // A message this client never sent itself, posted by another member
+    // concurrently with the promotion, must arrive exactly once -- not zero
+    // (lost across the cutover) and not more than once (duplicated by the
+    // reconnect module's merge-by-server-ID step).
+    await expect(
+      page.locator('[data-role="family-chat-message"]', {
+        hasText: catchUpProbeBody,
+      }),
+    ).toHaveCount(1, { timeout: 10_000 });
+  },
+);
 
 Then("the room reconnects", async ({ page }) => {
   // The socket connected to the prior slot emitted `close`, and a new one

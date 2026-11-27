@@ -50,7 +50,7 @@ import {
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page names each date whose backup is missing or changed
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when there is nothing to check
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page checks again after the administrator saves
-// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Opening the page leaves the backup folder untouched
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Rendering the label never writes
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label discloses no private path
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label names the same dates and states as the reconcile report
 // @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: No horizontal scrolling and no hidden problem appears at any supported width
