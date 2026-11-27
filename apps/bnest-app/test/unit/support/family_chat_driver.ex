@@ -308,7 +308,10 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     context = send_family_chat_message(context, unique_uuid(), body)
     {:ok, original} = context.family_chat_result
 
-    Map.merge(context, %{family_chat_known_body: body, family_chat_original_message_id: original.id})
+    Map.merge(context, %{
+      family_chat_known_body: body,
+      family_chat_original_message_id: original.id
+    })
   end
 
   # Commits two candidate targets so the retry can name a genuinely different
@@ -1700,8 +1703,9 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     subscription_id = context.family_chat_other_subscription_id
 
     rows =
-      for row <- stored_deliveries(), row.message_id == message_id,
-        do: {row.subscription_id, row.state}
+      for row <- stored_deliveries(),
+          row.message_id == message_id,
+          do: {row.subscription_id, row.state}
 
     rows == [{subscription_id, "pending"}]
   end

@@ -27,6 +27,7 @@ defmodule BnestAppWeb.DevRoutesTest do
   test "a build without dev routes compiles no GraphiQL route" do
     refute DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes))
 
-    assert Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql")) == []
+    assert Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql")) ==
+             []
   end
 end

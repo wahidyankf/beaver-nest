@@ -19,7 +19,10 @@ defmodule BnestApp.SqliteSchemaChecksumBindingTest do
     on_exit(&FreshDatabaseCase.drop_current/0)
 
     {conn, identity} =
-      ConnCase.scenario_authenticated_conn(Phoenix.ConnTest.build_conn(), "sqlite-schema-checksum")
+      ConnCase.scenario_authenticated_conn(
+        Phoenix.ConnTest.build_conn(),
+        "sqlite-schema-checksum"
+      )
 
     %{conn: conn, user_id: identity.user_id, test_identity: identity}
   end

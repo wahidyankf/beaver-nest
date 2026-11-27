@@ -111,7 +111,8 @@ defmodule BnestAppWeb.AuthenticationTest do
   } do
     {username, password} = test_credentials()
 
-    identity_store = BnestApp.Identity.adapter(:identity_store).new(BnestApp.Storage.active_store())
+    identity_store =
+      BnestApp.Identity.adapter(:identity_store).new(BnestApp.Storage.active_store())
 
     assert {:ok, %{"passwordVerifier" => verifier}} =
              IdentityStore.read_account(identity_store, identity.user_id)

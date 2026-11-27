@@ -354,7 +354,9 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: outcome(context, :graphiql_not_compiled)
   )
 
-  step("the additive family chat migration has applied", context, do: prepare(context, :migration_applied))
+  step("the additive family chat migration has applied", context,
+    do: prepare(context, :migration_applied)
+  )
 
   step("code built before this migration opens the same database", context,
     do: perform(context, :old_code_opens_database)
@@ -388,7 +390,9 @@ defmodule BnestApp.Behaviour.FamilyChatBackendSteps do
     do: prepare(context, :two_independent_slots)
   )
 
-  step("a message commits on one slot", context, do: perform(context, :message_commits_on_one_slot))
+  step("a message commits on one slot", context,
+    do: perform(context, :message_commits_on_one_slot)
+  )
 
   step("only sockets connected to that same slot receive the subscription event", context,
     do: outcome(context, :only_same_slot_sockets_receive)

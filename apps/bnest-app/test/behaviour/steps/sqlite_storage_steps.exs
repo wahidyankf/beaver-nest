@@ -137,7 +137,9 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   step("an empty isolated database", context, do: prepare(context, :empty_isolated_database))
 
-  step("the committed migration set is applied twice", context, do: perform(context, :apply_migration_set_twice))
+  step("the committed migration set is applied twice", context,
+    do: perform(context, :apply_migration_set_twice)
+  )
 
   step("the schema version and indexes match the declared checksum", context,
     do: outcome(context, :schema_matches_checksum)

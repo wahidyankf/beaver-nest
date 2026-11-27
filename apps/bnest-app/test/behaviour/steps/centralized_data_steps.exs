@@ -49,7 +49,9 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :source_and_record_unchanged)
   )
 
-  step("a recognized import was interrupted after source preservation and before its data was saved", context,
+  step(
+    "a recognized import was interrupted after source preservation and before its data was saved",
+    context,
     do: prepare(context, :interrupted_import)
   )
 
