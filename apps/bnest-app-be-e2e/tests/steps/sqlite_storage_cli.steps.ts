@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import {
   cleanupStorageScenario,
@@ -84,12 +84,27 @@ Then("it exits 0 and the database file is in the default data folder", () => {
   expect(storageUIRequests).toEqual([]);
 });
 
+// Every storage.json file the run left under the scenario's HOME, found by walking the tree rather
+// than by naming a path, so a pointer written anywhere else under HOME is seen as well.
+function storagePointerFilesUnder(directory: string): string[] {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const entryPath = path.join(directory, entry.name);
+    if (entry.isDirectory()) return storagePointerFilesUnder(entryPath);
+    return entry.name === "storage.json" ? [entryPath] : [];
+  });
+}
+
 // The pointer file sits in the configuration home the scenario's HOME gives, outside the database
-// directory it names. The scenario's scratch directory is removed after this last step.
+// directory it names. The Given showed no pointer before the run, so the only storage.json the walk
+// finds under HOME is the one the product wrote, and it must be the one in the configuration home.
+// The scenario's scratch directory is removed after this last step.
 Then("Bnest keeps the storage pointer under the configuration home", () => {
   const pointer = readDefaultPointer(scenario);
   expect(pointer).toBeDefined();
   const configHome = path.join(scenario.homeDirectory, ".config/bnest");
+  expect(storagePointerFilesUnder(scenario.homeDirectory)).toEqual([
+    path.join(configHome, "storage.json"),
+  ]);
   expect(
     String(pointer?.["databaseDirectory"]).startsWith(`${configHome}/`),
   ).toBe(false);

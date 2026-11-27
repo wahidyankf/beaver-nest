@@ -80,7 +80,7 @@ Feature: Family chat operations
     Then the member's current Web Push subscription reports disabled and the push service is not asked again
     And the delivery state becomes "terminal"
 
-  # Exemption(e2e): no page or GraphQL field shows a push delivery row, so the browser has no view of retention, which the server runs on its own schedule; alternative-proof: bnest-app:test:integration / Final delivery rows are soft-deleted after seven active days
+  # Exemption(e2e): retention batching is an internal scheduler-triggered SQLite boundary; alternative-proof: bnest-app:test:integration / Final delivery rows are soft-deleted after seven active days
   @e2e-exempt
   Scenario: Final delivery rows are soft-deleted after seven active days
     Given delivered and terminal delivery rows completed more than seven days ago
@@ -89,7 +89,7 @@ Feature: Family chat operations
     Then the completed rows more than seven days old are soft-deleted
     And the pending, claimed, and retryable rows remain active regardless of age
 
-  # Exemption(e2e): no page or GraphQL field shows a push delivery row, so the browser has no view of the purge, which the server runs on its own schedule; alternative-proof: bnest-app:test:integration / Soft-deleted delivery rows are purged after the grace period
+  # Exemption(e2e): purge batching is an internal scheduler-triggered SQLite boundary; alternative-proof: bnest-app:test:integration / Soft-deleted delivery rows are purged after the grace period
   @e2e-exempt
   Scenario: Soft-deleted delivery rows are purged after the grace period
     Given delivery rows soft-deleted more than seven days ago

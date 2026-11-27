@@ -40,7 +40,7 @@ Feature: Bnest scheduled backups
     Then SQLite accepts one claim and backup tasks do not overlap
     And transient failure receives at most three persisted attempts
 
-  # Exemption(e2e): no browser or HTTP action persists a second allowlisted family handler or moves its daily slot to due; alternative-proof: bnest-app:test:integration / Reuse one scheduler across contexts
+  # Exemption(e2e): coordinator dispatch and ledger updates are internal same-machine boundaries; alternative-proof: bnest-app:test:integration / Reuse one scheduler across contexts
   @e2e-exempt
   Scenario: Reuse one scheduler across contexts
     Given a second allowlisted family handler is persisted
@@ -67,7 +67,7 @@ Feature: Bnest scheduled backups
 
   Rule: Reconciliation reports a verified run whose artifact is absent or changed
 
-    # Exemption(e2e): the browser and HTTP client cannot seed a three-run ledger or remove one run's artifact and receipt from the destination, which the Given needs; alternative-proof: bnest-app:test:integration / A verified run without its artifact is reported missing
+    # Exemption(e2e): reconciliation reads the ledger and the destination below every public application boundary; alternative-proof: bnest-app:test:integration / A verified run without its artifact is reported missing
     @e2e-exempt
     Scenario: A verified run without its artifact is reported missing
       Given an isolated ledger of 3 verified runs on consecutive WIB dates from "2030-05-14"
