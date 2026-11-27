@@ -22,10 +22,10 @@ import { putTheme } from "../support/theme-preference";
 // idempotency/staleness, and the server-persistence halves of the accepted-import and Codex-resume scenarios); the
 // browser-key-clearing and fresh-conversation-report halves moved to bnest-app-fe-e2e. Every record is read from the
 // current test instance's database through production's record read, never from a file. The interrupted-import
-// scenario's bindings live in centralized_data_import.steps.ts.
+// scenario's bindings live in centralized_data_import.steps.ts; the theme scenario's live in
+// centralized_data_theme.steps.ts.
 //
 // @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
-// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Importing with no explicit browser theme leaves the theme at the system default
 // @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
 // @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: After an accepted import, later changes are kept on the server and the browser keeps no copy
 // @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
@@ -34,7 +34,6 @@ import { putTheme } from "../support/theme-preference";
 const { Given, Then, When } = createBdd();
 
 let beforeRecordSnapshot = "";
-let beforeThemeSnapshot = "";
 
 function adminId(): string {
   return userIdFor(currentIdentities().admin.username);
@@ -111,24 +110,6 @@ Then(
     }
   },
 );
-
-Given("the browser has no explicit theme source", async ({ page }) => {
-  await setSources(page, { chat: null, learning: null, theme: null });
-  beforeThemeSnapshot = recordSnapshot("theme", adminId());
-});
-
-Then(
-  "Bnest reports the theme import as accepted with nothing for the browser to clear",
-  async ({ page }) => {
-    await expect(
-      page.getByText("Theme preference: accepted and verified"),
-    ).toBeVisible();
-  },
-);
-
-Then("Bnest creates no explicit theme preference", () => {
-  expect(recordSnapshot("theme", adminId())).toBe(beforeThemeSnapshot);
-});
 
 Given("the browser has an invalid Bnest source", async ({ page }) => {
   await setSources(page, { chat: chatPayload, learning: null, theme: null });
