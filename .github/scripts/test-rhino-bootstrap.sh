@@ -1446,18 +1446,6 @@ run_missing_lock_tool_125() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
-# A unit binding runs one restored scenario through this adapter by its exact
-# title, so that one case is proven without the whole corpus. Unset, every
-# scenario runs in feature-file order.
-selected_scenarios=$actual_scenarios
-if [ -n "${RHINO_BOOTSTRAP_ONLY:-}" ]; then
-	if ! printf '%s\n' "$actual_scenarios" | grep -Fxq -- "$RHINO_BOOTSTRAP_ONLY"; then
-		echo "RHINO_BOOTSTRAP_ONLY names no scenario of the corpus" >&2
-		exit 1
-	fi
-	selected_scenarios=$RHINO_BOOTSTRAP_ONLY
-fi
-
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
 	# silent, and a corpus that shrank would still end in a pass line. A Scenario
@@ -1504,7 +1492,7 @@ while IFS= read -r scenario; do
 	*) exit 1 ;;
 	esac
 done <<EOF
-$selected_scenarios
+$actual_scenarios
 EOF
 
 echo "rhino bootstrap tests passed"

@@ -161,17 +161,49 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapModel do
     end)
   end
 
+  # The install lock is one key in an in-memory store, holding the record its
+  # owner published. Publication is create-if-absent, as the hard link at
+  # hippo:408 is: a record already present means the caller must wait.
+  def acquire_install_lock(store, path, record) do
+    if Map.has_key?(store, path),
+      do: {:busy, store},
+      else: {:ok, Map.put(store, path, record)}
+  end
+
+  # Stands for another consumer that reclaims a stale lock (hippo:355) and then
+  # publishes its own record in the same create-if-absent step (hippo:408).
+  def replace_install_lock(store, path, record), do: Map.put(store, path, record)
+
   # Mirrors release_install_lock (hippo:245-258): the lock is removed only while
   # both its file identity and its record digest are still this consumer's own.
-  def install_lock_release(%{published: true, identity: :same, digest: :same}), do: :remove
-  def install_lock_release(_replacement), do: :keep
+  def release_install_lock(store, path, %{identity: identity, digest: digest}) do
+    case Map.fetch(store, path) do
+      {:ok, %{identity: ^identity, digest: ^digest}} -> Map.delete(store, path)
+      _replacement -> store
+    end
+  end
 
-  # Mirrors acquire_install_guard (hippo:211): every release opens the one guard
-  # for the whole cache root, so the guard files left after pruning is one.
-  def install_guard_path(_release), do: ".install-guard.lock"
+  # Mirrors acquire_install_guard (hippo:208-211): the guard file sits at the cache
+  # root, so its path depends on the cache root alone and never on the release.
+  def install_guard_path(cache_root, _release), do: Path.join(cache_root, ".install-guard.lock")
 
-  def install_guard_files(releases) do
-    releases |> Enum.map(&install_guard_path/1) |> Enum.uniq() |> length()
+  # One install takes the guard, then publishes the release directory. The guard
+  # file outlives the install (release_install_guard, hippo:238-243).
+  def install_release(cache, cache_root, release) do
+    cache
+    |> Map.put_new(install_guard_path(cache_root, release), :guard)
+    |> Map.put(Path.join(cache_root, release), :release)
+  end
+
+  # Stands for prune_cache (hippo:435-476) keeping only the current release. Release
+  # directories are removed; the guard file is not a release directory and stays.
+  def prune_superseded(cache, cache_root, current) do
+    current_dir = Path.join(cache_root, current)
+
+    for {path, kind} <- cache,
+        not (kind == :release and path != current_dir),
+        into: %{},
+        do: {path, kind}
   end
 end
 
@@ -307,19 +339,52 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
   # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A consumer never removes an install lock it did not publish
   test "a consumer leaves a replacement install lock in place" do
     # Mirrors release_install_lock (hippo:245-258); harness run_never_removes_a_foreign_install_lock.
-    own = %{published: true, identity: :same, digest: :same}
-    assert Model.install_lock_release(own) == :remove
-    assert Model.install_lock_release(%{own | identity: :other}) == :keep
-    assert Model.install_lock_release(%{own | digest: :other}) == :keep
-    assert Model.install_lock_release(%{own | identity: :other, digest: :other}) == :keep
+    lock = "/cache/hippo/v9.8.7.lock"
+    own = %{identity: "pid-41:start-100", digest: "digest-a"}
+    third = %{identity: "pid-99:start-500", digest: "digest-c"}
+
+    # A live owner replaces the published record: identity differs, digest differs, both differ.
+    replacements = [
+      %{identity: "pid-77:start-900", digest: "digest-a"},
+      %{identity: "pid-41:start-100", digest: "digest-b"},
+      %{identity: "pid-77:start-900", digest: "digest-b"}
+    ]
+
+    for replacement <- replacements do
+      assert {:ok, store} = Model.acquire_install_lock(%{}, lock, own)
+      store = Model.replace_install_lock(store, lock, replacement)
+      store = Model.release_install_lock(store, lock, own)
+
+      assert Map.get(store, lock) == replacement
+      assert {:busy, _store} = Model.acquire_install_lock(store, lock, third)
+    end
+
+    # Untouched case: A's own release empties the store, so the next owner is admitted.
+    assert {:ok, store} = Model.acquire_install_lock(%{}, lock, own)
+    store = Model.release_install_lock(store, lock, own)
+
+    assert store == %{}
+    assert {:ok, _store} = Model.acquire_install_lock(store, lock, third)
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Install guard storage stays bounded across release versions
   test "install guard storage stays one file across release versions" do
     # Mirrors acquire_install_guard (hippo:208-211); harness run_bounded_install_guard_storage.
+    cache_root = "/cache/hippo"
     releases = ["v9.8.7", "v9.8.8", "v9.8.9", "v9.8.10", "v9.8.11"]
-    assert Model.install_guard_files(releases) == 1
+    current = List.last(releases)
+
+    installed = Enum.reduce(releases, %{}, &Model.install_release(&2, cache_root, &1))
+    pruned = Model.prune_superseded(installed, cache_root, current)
+
+    guard = Model.install_guard_path(cache_root, current)
+    guards = for {path, :guard} <- pruned, do: path
+    keys_per_version = Enum.map(releases, &Model.install_guard_path(cache_root, &1))
+
+    assert guards == [guard]
+    assert Enum.uniq(keys_per_version) == [guard]
+    assert pruned == %{guard => :guard, Path.join(cache_root, current) => :release}
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
