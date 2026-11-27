@@ -258,6 +258,36 @@ defmodule BnestApp.SifatAllah.Domain.QuizTest do
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz prioritizes individual questions that are not remembered yet
+  test "asks the first question of the next pair while the first two pairs are remembered" do
+    progress = Quiz.progress() |> Quiz.remember("wujud") |> Quiz.remember("qidam")
+
+    assert Quiz.first_exam_question(progress) == {Quiz.pair("baqa"), :mustahil_meaning}
+    assert Quiz.question(Quiz.pair("baqa"), :mustahil_meaning) == "Apa arti Fana’?"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A pair moves between remembered and difficult review
+  test "moves one answered question between the remembered and the difficult counts" do
+    wujud = Quiz.pair("wujud")
+    progress = Quiz.progress() |> Quiz.remember("wujud")
+
+    assert Quiz.mastered_count(progress) == 6
+
+    progress = Quiz.record_answer(progress, wujud, :wajib_meaning, false)
+
+    assert Quiz.mastered_count(progress) == 5
+    assert Quiz.unmastered_count(progress) == 115
+    assert length(progress["review_key_ids"]) == 1
+
+    progress = Quiz.record_answer(progress, wujud, :wajib_meaning, true)
+
+    assert Quiz.mastered_count(progress) == 6
+    assert Quiz.unmastered_count(progress) == 114
+    assert progress["review_key_ids"] == []
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
   # @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
   test "skips remembered individual questions in an exam until every question is mastered" do
     [wujud, qidam | _rest] = Quiz.curriculum()

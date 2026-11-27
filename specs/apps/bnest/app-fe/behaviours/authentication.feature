@@ -6,6 +6,7 @@ Feature: Bnest authentication
     Then Bnest redirects the visitor to login
     And the login form replaces protected home actions
     And the visitor sees no user data
+    And Bnest does not read or write user data
 
     Examples:
       | route |

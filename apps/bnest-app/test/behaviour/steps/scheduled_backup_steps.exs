@@ -29,6 +29,10 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
     do: prepare(context, :denied_settings_visitor)
   )
 
+  step("a non-admin family member is logged in", context,
+    do: prepare(context, :denied_settings_visitor)
+  )
+
   step("several areas of Bnest offer admin settings panels", context,
     do: prepare(context, :typed_settings_panels)
   )
@@ -100,6 +104,8 @@ defmodule BnestApp.Behaviour.ScheduledBackupSteps do
   step("Bnest returns not found before protected reads", context,
     do: outcome(context, :not_found_before_reads)
   )
+
+  step("Bnest denies the operation", context, do: outcome(context, :not_found_before_reads))
 
   step("home exposes no admin settings entry", context,
     do: outcome(context, :no_admin_home_entry)

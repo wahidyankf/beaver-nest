@@ -27,7 +27,7 @@ const acknowledgedReply = "Fixture response complete.";
 // The acknowledged state is a sent message whose Codex reply finished streaming on the
 // current route's revision; only then is the next message typed and left unsent.
 Given(
-  "the current site is healthy and a connected user has acknowledged state",
+  "the current Caddy route is healthy and a connected user has acknowledged state",
   async ({ page }) => {
     activeIdentity = instanceIdentities();
     await page.context().clearCookies();
@@ -64,6 +64,20 @@ Then(
     const body = await ready.json();
     expect(body.revision).toBe(rolloutRevisions.revision);
     expect(body.revision).not.toBe(rolloutRevisions.previousRevision);
+    expect(body.sqliteReady).toBe(true);
+  },
+);
+
+// The routed origin answers with the promoted revision in its header, and SQLite is ready on that revision.
+Then(
+  "the routed revision and SQLite readiness are proven",
+  async ({ page }) => {
+    const routed = await page.request.get("/health/ready");
+    expect(routed.status()).toBe(200);
+    expect(routed.headers()["x-bnest-revision"]).toBe(
+      rolloutRevisions.revision,
+    );
+    const body = await routed.json();
     expect(body.sqliteReady).toBe(true);
   },
 );

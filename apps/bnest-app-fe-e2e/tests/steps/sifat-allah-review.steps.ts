@@ -23,6 +23,7 @@ const { Given, Then, When } = createBdd();
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child retests a difficult pair until it is correct
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A difficult pair is kept for another try
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Every answered question moves between the review lists immediately
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A pair moves between remembered and difficult review
 
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);

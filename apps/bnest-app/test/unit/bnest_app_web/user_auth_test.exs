@@ -41,6 +41,15 @@ defmodule BnestAppWeb.UserAuthTest do
     assert conn.halted
     assert conn.status == 404
     assert conn.resp_body == "Not found"
+
+    storage =
+      Plug.Test.conn(:get, "/storage")
+      |> Plug.Conn.assign(:current_user, %{"userId" => "child", "roles" => ["children"]})
+      |> UserAuth.require_admin_role([])
+
+    assert storage.halted
+    assert storage.status == 404
+    assert storage.resp_body == "Not found"
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
@@ -76,6 +85,7 @@ defmodule BnestAppWeb.UserAuthTest do
           |> UserAuth.require_authenticated_user([])
 
         assert conn.halted
+        assert conn.assigns[:current_user] == nil
 
         assert Plug.Conn.get_resp_header(conn, "location") ==
                  ["/login?return_to=#{URI.encode_www_form(route)}"]

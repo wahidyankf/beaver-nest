@@ -119,6 +119,7 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
 
     assert child_conn |> get("/admin/settings") |> response(404)
     assert child_conn |> get("/admin/settings/schedules") |> response(404)
+    assert child_conn |> get("/storage") |> response(404) == "Not found"
   end
 
   describe "refused saves" do

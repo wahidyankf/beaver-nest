@@ -1036,6 +1036,7 @@ Feature: Beaver Nest chat
     And the header holds the brand, the repository access state and the options button
     And the brand link is not covered by any header control
     And the repository access state and the model badge are visible without opening Options
+    And the options button is at least 44 pixels across and tall
 
     Examples:
       | viewport          |

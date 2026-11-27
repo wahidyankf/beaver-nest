@@ -16,6 +16,7 @@ defmodule BnestAppWeb.AuthenticationTest do
   test "redirects protected navigation before product data is accessed", %{conn: conn} do
     conn = get(conn, "/chat")
     assert redirected_to(conn) == "/login?return_to=%2Fchat"
+    assert conn.assigns[:current_user] == nil
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

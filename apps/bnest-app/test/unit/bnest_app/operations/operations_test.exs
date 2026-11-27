@@ -153,6 +153,19 @@ defmodule BnestApp.Operations.FacadeTest do
       assert StoragePorts.calls() == [:shared_lock, :ensure_started]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: A connected user keeps their state across a compatible release
+    test "the readiness report names the running revision and proves SQLite ready", %{
+      environment: environment
+    } do
+      StoragePorts.put(:config, @sqlite_primary)
+      seed_backup_schedule(ScheduleStore.install())
+      start_scheduler()
+      ReleaseEnvironment.put_revision(environment, "fedcba9")
+
+      assert {:ok, %{revision: "fedcba9", sqliteReady: true}} = Operations.health()
+    end
+
     test "once SQLite is primary is not ready without the seeded backup schedule" do
       StoragePorts.put(:config, @sqlite_primary)
       ScheduleStore.install()

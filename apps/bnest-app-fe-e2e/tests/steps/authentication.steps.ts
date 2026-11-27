@@ -1,4 +1,8 @@
-import { expect } from "@playwright/test";
+import {
+  expect,
+  type Page,
+  type Request as BrowserRequest,
+} from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   login,
@@ -53,9 +57,18 @@ Given("a visitor has no authenticated Bnest session", async ({ page }) => {
   await page.context().clearCookies();
 });
 
+// The requests the visitor's browser sends while it opens a protected route. Writes are any method but GET or HEAD;
+// user data is read or written through the GraphQL API, a chat or family chat page, or a chat image.
+const routeRequests = new WeakMap<Page, BrowserRequest[]>();
+const userDataPath =
+  /^\/(api\/graphql|chat\/(generated-)?images\/|family-chat\/)/u;
+
 When(
   "the visitor opens the protected route {string}",
   async ({ page }, route: string) => {
+    const requests: BrowserRequest[] = [];
+    routeRequests.set(page, requests);
+    page.on("request", (request) => requests.push(request));
     await page.goto(route);
   },
 );
@@ -77,6 +90,19 @@ Then("the visitor sees no user data", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText(
     instanceIdentities().admin.username,
   );
+});
+
+Then("Bnest does not read or write user data", ({ page }) => {
+  const requests = routeRequests.get(page) ?? [];
+  expect(requests, "the visit was not recorded").not.toHaveLength(0);
+  const writes = requests
+    .filter((request) => !["GET", "HEAD"].includes(request.method()))
+    .map((request) => `${request.method()} ${new URL(request.url()).pathname}`);
+  expect(writes, "the visit sent a write").toEqual([]);
+  const reads = requests
+    .map((request) => new URL(request.url()).pathname)
+    .filter((pathname) => userDataPath.test(pathname));
+  expect(reads, "the visit reached user data").toEqual([]);
 });
 
 Given("Bnest has not been set up yet", async ({ page }) => {

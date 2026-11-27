@@ -20,6 +20,7 @@ const { Given, Then, When } = createBdd();
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz prioritizes individual questions that are not remembered yet
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Browser Back returns a child from a quiz to the mission
 
 async function waitForLiveView(page: Page) {

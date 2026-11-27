@@ -264,6 +264,7 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz prioritizes individual questions that are not remembered yet
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
@@ -274,6 +275,7 @@ export const bindingLevel = "integration";
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A difficult pair is kept for another try
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child retests a difficult pair until it is correct
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Every answered question moves between the review lists immediately
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A pair moves between remembered and difficult review
 // @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child gets another difficult pair before repeating one
 // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Accepted browser import clears only the accepted browser key
 // @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Failed Codex-thread resume reports a fresh conversation

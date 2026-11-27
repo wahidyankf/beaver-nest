@@ -58,6 +58,17 @@ Feature: Revising the 20 attributes of Allah
       | study mark       |
       | a correct answer |
 
+  Scenario: A quiz prioritizes individual questions that are not remembered yet
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor returns to the mission
+    And the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor returns to the mission
+    And the visitor starts a quiz
+    Then the page displays the text "Apa arti Fana’?"
+
   Scenario: A quiz continues as reinforcement after every pair is remembered
     Given a visitor opens "/apps/sifat-allah"
     And the visitor has remembered every Sifat Allah pair
@@ -207,6 +218,26 @@ Feature: Revising the 20 attributes of Allah
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
     And the progress shows "1 dari 120 soal sudah hafal"
     And the progress shows "119 soal masih perlu diulang"
+
+  Scenario: A pair moves between remembered and difficult review
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts learning
+    And the visitor marks the current pair as remembered
+    And the visitor returns to the mission
+    And the visitor starts learned review
+    And the visitor answers "Lemah"
+    And the visitor returns to the mission
+    Then the page displays the text "Ulangi yang sudah hafal (5)"
+    And the page displays the text "Ulangi yang masih bikin bingung (1)"
+    And the progress shows "5 dari 120 soal sudah hafal"
+    And the progress shows "115 soal masih perlu diulang"
+    When the visitor starts focused review
+    And the visitor answers "Ada" in focused review
+    Then the progress shows "6 dari 120 soal sudah hafal"
+    And the progress shows "114 soal masih perlu diulang"
+    And the visitor continues focused review
+    Then the page displays the text "Ulangi yang sudah hafal (6)"
+    And the page displays the text "Ulangi yang masih bikin bingung (0)"
 
   Scenario: A child gets another difficult pair before repeating one
     Given a visitor opens "/apps/sifat-allah"

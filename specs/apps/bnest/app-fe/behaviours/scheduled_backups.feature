@@ -13,17 +13,19 @@ Feature: Bnest scheduled backups
     And the backup row links to its typed settings
 
   Scenario Outline: A visitor who may not administer Bnest cannot open admin settings
-    Given an unauthenticated revoked or non-admin visitor
+    Given <visitor>
     When the visitor opens the route "<route>"
     Then Bnest returns not found before protected reads
+    And Bnest denies the operation
     And home exposes no admin settings entry
     And Bnest reveals no host path or migration inventory
 
     Examples:
-      | route                     |
-      | /admin/settings           |
-      | /admin/settings/schedules |
-      | /storage                  |
+      | visitor                                         | route                     |
+      | an unauthenticated revoked or non-admin visitor | /admin/settings           |
+      | an unauthenticated revoked or non-admin visitor | /admin/settings/schedules |
+      | an unauthenticated revoked or non-admin visitor | /storage                  |
+      | a non-admin family member is logged in          | /storage                  |
 
   Scenario: Every settings panel Bnest offers is listed in admin settings
     Given several areas of Bnest offer admin settings panels

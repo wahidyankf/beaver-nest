@@ -3,6 +3,8 @@ import { createBdd } from "playwright-bdd";
 import { mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { login } from "../support/authentication";
+import { instanceIdentities } from "../support/instance-identities";
 import { runLiveMix } from "../support/routed-rollout";
 import {
   expectAdminPanels,
@@ -58,6 +60,12 @@ for (const [text, state] of preparations)
     prepareScheduledBackup(page, world, state, $testInfo),
   );
 
+Given("a non-admin family member is logged in", async ({ page }) => {
+  world.identity = instanceIdentities();
+  await page.context().clearCookies();
+  await login(page, world.identity.child);
+});
+
 for (const [text, action] of actions)
   When(text, ({ page }) => performScheduledBackup(page, action));
 
@@ -73,6 +81,7 @@ When("the visitor opens the route {string}", ({ page }, route: string) =>
 Then("Bnest returns not found before protected reads", () =>
   expectDeniedSettings(world),
 );
+Then("Bnest denies the operation", () => expectDeniedSettings(world));
 Then("Bnest reveals no host path or migration inventory", () =>
   expectNoHostPathOrInventory(world),
 );
