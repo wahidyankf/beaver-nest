@@ -212,6 +212,7 @@ function createOnlineMethods(state) {
 function createLifecycleMethods(state) {
   return {
     reportAuthExpired() {
+      state.authExpired = true;
       state.draining = false;
     },
 
@@ -229,6 +230,9 @@ function createLifecycleMethods(state) {
     },
 
     resumeDrain() {
+      // A session that ended stays paused on this page. A reconnect here, such as a promotion or a socket that
+      // reopened under another member's sign-in in a second tab, must not send this queue again.
+      if (state.authExpired) return;
       state.draining = true;
       resumeOnOpen(state);
     },

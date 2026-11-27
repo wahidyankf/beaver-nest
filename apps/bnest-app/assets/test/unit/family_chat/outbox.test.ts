@@ -207,6 +207,36 @@ describe("createOutbox", () => {
     expect(outbox.status(secondId)).toBe(STATUS.WAITING);
   });
 
+  it("keeps an expired session's queue paused when a reconnect resumes the drain", async () => {
+    const { userId, roomSlug } = uniqueIdentity();
+    const clock = createFakeClock();
+    let attempts = 0;
+    const outbox = createOutbox({
+      userId,
+      roomSlug,
+      clock,
+      transport: async () => {
+        attempts += 1;
+        return attempts === 1
+          ? { ok: false, authExpired: true }
+          : { ok: true, message: { id: "server-1" } };
+      },
+    });
+
+    const id = await sendId(outbox, "queued across expiry");
+    await outbox.waitForStatus(id, STATUS.RETRYING);
+    expect(attempts).toBe(1);
+
+    // A socket reconnect resumes the drain through the promotion seam; the session that expired must not
+    // send the queue again, under whichever session is current.
+    outbox.resumeDrain();
+    clock.advance(0);
+    await Promise.resolve();
+
+    expect(attempts).toBe(1);
+    expect(outbox.status(id)).toBe(STATUS.RETRYING);
+  });
+
   it("supports an external pause/resume seam for reconnect.js's ordered promotion", async () => {
     const { userId, roomSlug } = uniqueIdentity();
     const clock = createFakeClock();

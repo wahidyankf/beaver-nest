@@ -51,6 +51,7 @@ const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
  *   onQueueFull: (() => void) | undefined,
  *   onAuthExpired: (() => void) | undefined,
  *   draining: boolean,
+ *   authExpired: boolean,
  *   online: boolean,
  * }} OutboxState
  */
@@ -82,6 +83,9 @@ export function createOutboxState({
     // new page load behind an already-revalidated session, so it always
     // resumes draining even if a *previous* instance's session had expired.
     draining: true,
+    // Set once the server reports the session as ended. This page's queue then stays paused until a page load
+    // builds a new outbox, so no reconnect may drain it under whichever session is current.
+    authExpired: false,
     // Distinct from `draining`, which reconnect owns while it fills a
     // catch-up gap. This one is the browser's own `online`/`offline`
     // verdict: a message composed with no network stays at "Waiting for
@@ -164,6 +168,7 @@ function handleTransportResult(state, message, result) {
   }
 
   if (result.authExpired) {
+    state.authExpired = true;
     state.onAuthExpired?.();
     state.draining = false;
     message.status = STATUS.RETRYING;
