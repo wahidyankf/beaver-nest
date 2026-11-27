@@ -57,14 +57,11 @@ When("the service worker's Cache Storage is inspected", async ({ page }) => {
     })
     .toBeGreaterThan(0);
   cacheEntries = await page.evaluate(async () => {
-    const pathnames: string[] = [];
-    for (const name of await caches.keys()) {
-      const cache = await caches.open(name);
-      for (const request of await cache.keys()) {
-        pathnames.push(new URL(request.url).pathname);
-      }
-    }
-    return pathnames;
+    const openCaches = await Promise.all(
+      (await caches.keys()).map((name) => caches.open(name)),
+    );
+    const requests = await Promise.all(openCaches.map((cache) => cache.keys()));
+    return requests.flat().map((request) => new URL(request.url).pathname);
   });
 });
 
