@@ -77,9 +77,18 @@ function statusSection(page: Page) {
 
 Given(
   "a storage installation in {string} state",
-  async ({ $testInfo }, setup: string) => {
+  async ({ page, $testInfo }, setup: string) => {
     if (setup === "blocked migration") {
+      // The product reports Blocked only after a migration attempt failed on
+      // the malformed source, so reach that state the way a user does.
       plantMalformedSource();
+      await openStorageAsAdmin(page);
+      await statusSection(page)
+        .getByRole("button", { name: "Move data" })
+        .click();
+      await expect(statusSection(page)).toContainText(
+        "Status: Blocked — retry available",
+      );
     } else if (setup === "active SQLite") {
       // The active state is read on the default instance, which is already
       // SQLite-primary: swap the scenario's flat-primary instance for one. The

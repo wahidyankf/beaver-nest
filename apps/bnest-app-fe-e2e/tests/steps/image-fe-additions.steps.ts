@@ -107,6 +107,12 @@ Then(
 Then(
   "activating the worker deletes every other cache name",
   async ({ page }) => {
+    // The scenario only used page.request so far, leaving the page on
+    // about:blank, which has no Cache Storage or service worker. Open a
+    // same-origin document first. It is the manifest, not an app page: an app
+    // page registers this same worker on load, and that earlier activation
+    // would finish before the old cache below exists, so nothing would delete it.
+    await page.goto("/manifest.webmanifest");
     await page.evaluate(async () => {
       await caches.delete("beaver-nest-shell-v1");
       const oldCache = await caches.open("beaver-nest-shell-v1");

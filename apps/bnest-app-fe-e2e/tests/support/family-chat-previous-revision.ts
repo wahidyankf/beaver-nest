@@ -10,7 +10,6 @@ import {
   subscriptionRefusals,
   type Schema,
 } from "./family-chat-previous-revision-judge";
-import { waitForRoomReady } from "./family-chat-resume";
 import { repositoryRoot } from "./routed-rollout-env";
 
 // Support for the earlier-revision scenarios in family-chat-rollback-floor.steps.ts: the held browser's GraphQL wire
@@ -50,6 +49,24 @@ export function liveRefusals(): string[] {
   return previousRevisionTraffic.liveErrors.map(
     (r) => `${r.operation}: ${r.reason}`,
   );
+}
+
+/** Waits for the live server's answer to the page's subscription, which can land after a step starts, then expects no live refusal. */
+export async function expectLiveServerAnswered(wording: string): Promise<void> {
+  await expect
+    .poll(
+      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+      {
+        message: `the live server never answered the ${wording} FamilyChatMessageCommitted subscription`,
+        timeout: 15_000,
+      },
+    )
+    .toBe(true);
+  const live = liveRefusals();
+  expect(
+    live,
+    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
+  ).toEqual([]);
 }
 
 const GRAPHQL_ROUTE = "**/api/graphql";
@@ -204,6 +221,15 @@ async function wirePage(page: Page): Promise<Wire> {
 }
 
 /**
+ * Routes the page's GraphQL traffic without changing or judging any of it yet. Playwright routes a socket through the
+ * patch it injects into each new document, so a page already loaded keeps opening its sockets unrouted: install this
+ * before the navigation whose document is to be judged, and a held page's later reconnects are then seen.
+ */
+export async function routeGraphqlWire(page: Page): Promise<void> {
+  await wirePage(page);
+}
+
+/**
  * The page's GraphQL requests go out as the frozen previous bundle sends them, HTTP and socket alike. Install it before
  * the navigation that loads the page's history and subscription: a request already sent is not rewritten.
  */
@@ -216,83 +242,14 @@ export async function sendPreviousBundleDocuments(page: Page): Promise<void> {
 }
 
 /** Judges each document the page sends from now on against the frozen rolled-back schema, and checks its live answer. */
-export async function judgeAgainstRolledBackSlot(page: Page): Promise<void> {
-  const wire = await wirePage(page);
+export function judgeAgainstRolledBackSlot(page: Page): void {
+  const wire = wires.get(page);
+  if (wire === undefined)
+    throw new Error(
+      "install the wire before the page loads (routeGraphqlWire): a route added to a loaded page never sees its sockets, so nothing would be judged",
+    );
   previousRevisionTraffic.floorRefusals = [];
   previousRevisionTraffic.liveErrors = [];
   previousRevisionTraffic.answered.clear();
   wire.judge = true;
-}
-
-export function navigationCount(page: Page): Promise<number> {
-  return page.evaluate(() => performance.getEntriesByType("navigation").length);
-}
-
-/**
- * Also the gate before any reload after a promotion. A room reloaded into the churn window sits at "booting" for
- * good, as it loads its history once and never retries. `/health/ready` on the new revision does not mean the process
- * can reach SQLite yet: a request there fails with `DBConnection.Holder.checkout ... (EXIT) shutdown`. That is slot
- * churn, not the room, so wait until a database-backed read succeeds before asking it to commit. The held page, still
- * open, can ask first.
- */
-export async function waitForRoutedReads(
-  page: Page,
-  revision: string,
-): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async (expected) => {
-          const probe = async (): Promise<boolean> => {
-            const response = await fetch("/api/graphql", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: {
-                "content-type": "application/json",
-                "x-csrf-token":
-                  document.querySelector<HTMLMetaElement>(
-                    "meta[name='csrf-token']",
-                  )?.content ?? "",
-              },
-              body: JSON.stringify({
-                query:
-                  "query Probe($roomSlug: String!) { familyChatMessages(roomSlug: $roomSlug, limit: 1) { nodes { id } } }",
-                variables: { roomSlug: "ruang-keluarga" },
-              }),
-            });
-            if (!response.ok) return false;
-            // Answered by the revision just routed, not one still draining.
-            if (response.headers.get("x-bnest-revision") !== expected)
-              return false;
-            const payload = (await response.json()) as { errors?: unknown };
-            return payload.errors === undefined;
-          };
-          // Side by side, so the browser's other pooled connections are asked too: the next request may not reuse one.
-          const answers = await Promise.all(
-            Array.from({ length: 6 }, () => probe().catch(() => false)),
-          );
-          return answers.every(Boolean);
-        }, revision),
-      { timeout: 20_000 },
-    )
-    .toBe(true);
-}
-
-/**
- * Reloads into the routed room. A slot still settling can answer that one request with an error page with no room in
- * it; reloading again is what a person would do.
- */
-export async function reloadRoutedRoom(page: Page): Promise<void> {
-  const room = page.locator('[data-role="family-chat-room"]');
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop -- each reload is judged on its own result.
-    await page.reload();
-    // eslint-disable-next-line no-await-in-loop -- see above.
-    const loaded = await room
-      .waitFor({ state: "attached", timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (loaded) break;
-  }
-  await waitForRoomReady(page);
 }

@@ -22,15 +22,18 @@ import {
 } from "../support/family-chat-reply";
 import { ensureRoomOpen } from "../support/family-chat-reply-room";
 import {
+  expectLiveServerAnswered,
   judgeAgainstRolledBackSlot,
-  liveRefusals,
-  navigationCount,
   previousRevisionTraffic,
   refusals,
-  reloadRoutedRoom,
+  routeGraphqlWire,
   sendPreviousBundleDocuments,
-  waitForRoutedReads,
 } from "../support/family-chat-previous-revision";
+import {
+  navigationCount,
+  reloadRoutedRoom,
+  waitForRoutedReads,
+} from "../support/family-chat-routed-room";
 // AC-FCR-13's two release scenarios: a browser holding an older bundle while
 // the routed slot changes beneath it. Neither ever navigates after the route
 // moves. `reloadRoute` only rewrites Caddy's upstream and polls readiness
@@ -55,6 +58,8 @@ let floorReplyId = "";
 /** The revision whose bundle the page holds, and the one routed after it. */
 let heldRevision = "";
 let routedRevision = "";
+/** Which scenario's page is held: the rollback one (true), or the one running the previous bundle (false). */
+let rolledBack = false;
 
 const { Given, Then, When } = createBdd();
 
@@ -68,6 +73,7 @@ const { Given, Then, When } = createBdd();
 // (a different build serving the same always-on room) is routed.
 
 Given("the newer app version is live", async ({ page }) => {
+  rolledBack = false;
   await ensureRoomOpen(page);
   ({ revision: heldRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
@@ -79,7 +85,7 @@ Given("the newer app version is live", async ({ page }) => {
   // The held page reloads below through the previous bundle's wire, so its history and subscription are the
   // previous bundle's documents, each judged against the frozen rolled-back schema.
   await sendPreviousBundleDocuments(page);
-  await judgeAgainstRolledBackSlot(page);
+  judgeAgainstRolledBackSlot(page);
   await reloadRoutedRoom(page);
   await waitForMessage(page, seededId);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
@@ -104,16 +110,22 @@ Then("the room loads", async ({ page }) => {
     "data-connection-state",
     "ready",
   );
-  // The reloaded page renders the seeded message from its history: the previous bundle's history query answered.
-  await waitForMessage(page, seededId);
+  if (rolledBack) {
+    // The held page, never reloaded, still shows the history it had: the message and the reply to it.
+    await waitForMessage(page, scenario.targetId);
+    await waitForMessage(page, scenario.replyId);
+  } else {
+    // The reloaded page renders the seeded message from its history: the previous bundle's history query answered.
+    await waitForMessage(page, seededId);
+  }
   // The room is otherwise exactly the shipped one: the reply strip is part
   // of the static shell, hidden until a reply target is chosen.
   await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
-  // The history query and the subscription both went out as the previous bundle sends them.
-  for (const operation of [
-    "FamilyChatMessages",
-    "FamilyChatMessageCommitted",
-  ]) {
+  // The history query and the subscription both went out as the previous bundle sends them. The rollback scenario
+  // replays nothing: its held page is the newer bundle, judged against the rolled-back schema instead.
+  for (const operation of rolledBack
+    ? []
+    : ["FamilyChatMessages", "FamilyChatMessageCommitted"]) {
     expect(
       previousRevisionTraffic.rewritten.get(operation) ?? 0,
       `the held page sent no previous-bundle ${operation}`,
@@ -123,22 +135,8 @@ Then("the room loads", async ({ page }) => {
     refusals(),
     "the rolled-back schema refuses a held page document",
   ).toEqual([]);
-  // The replayed subscription starts once the room is ready, so its reply can land after this Then starts: wait for it.
-  await expect
-    .poll(
-      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
-      {
-        message:
-          "the live server never answered the replayed FamilyChatMessageCommitted subscription",
-        timeout: 15_000,
-      },
-    )
-    .toBe(true);
-  const live = liveRefusals();
-  expect(
-    live,
-    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
-  ).toEqual([]);
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered(rolledBack ? "re-subscribed" : "replayed");
 });
 
 Then("the visitor can send a message normally", async ({ page }) => {
@@ -153,22 +151,8 @@ Then("the visitor can send a message normally", async ({ page }) => {
     "the older page sent no previous-bundle SendFamilyChatMessage",
   ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
-  // The replayed subscription starts once the room is ready, so its reply can land after this Then starts: wait for it.
-  await expect
-    .poll(
-      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
-      {
-        message:
-          "the live server never answered the replayed FamilyChatMessageCommitted subscription",
-        timeout: 15_000,
-      },
-    )
-    .toBe(true);
-  const live = liveRefusals();
-  expect(
-    live,
-    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
-  ).toEqual([]);
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered("replayed");
   expect(await navigationCount(page)).toBe(1);
 });
 
@@ -177,7 +161,12 @@ Then("the visitor can send a message normally", async ({ page }) => {
 Given(
   "a visitor on the newer version has a reply on screen",
   async ({ page }) => {
+    rolledBack = true;
     await ensureRoomOpen(page);
+    // Routed before the page loads the document it will hold: Playwright routes sockets through a patch injected
+    // into each new document, so the reconnect after the rollback is seen only by a wire installed before this
+    // page's last navigation (the reload below).
+    await routeGraphqlWire(page);
 
     // Seeded before any promotion, against the slot already serving. The
     // server stores `replyToMessageId` unconditionally, and every bundle
@@ -213,7 +202,7 @@ Given(
 );
 
 When("the app is rolled back to the previous version", async ({ page }) => {
-  await judgeAgainstRolledBackSlot(page);
+  judgeAgainstRolledBackSlot(page);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
   }));
@@ -250,23 +239,8 @@ When(
       "the rolled-back slot refuses a document the held bundle sends",
     ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
-    // The re-subscribed subscription can answer after this step starts: wait for it.
-    await expect
-      .poll(
-        () =>
-          previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
-        {
-          message:
-            "the live server never answered the re-subscribed FamilyChatMessageCommitted subscription",
-          timeout: 15_000,
-        },
-      )
-      .toBe(true);
-    const live = liveRefusals();
-    expect(
-      live,
-      `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
-    ).toEqual([]);
+    // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+    await expectLiveServerAnswered("re-subscribed");
     expect(sendAttempts(page).at(-1)?.replyToMessageId).toBe(scenario.targetId);
   },
 );
@@ -281,20 +255,6 @@ Then("existing replies still render their quotes", async ({ page }) => {
       await expect(quote).toContainText(scenario.targetBody);
     }),
   );
-  // The re-subscribed subscription can answer after this step starts: wait for it.
-  await expect
-    .poll(
-      () => previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
-      {
-        message:
-          "the live server never answered the re-subscribed FamilyChatMessageCommitted subscription",
-        timeout: 15_000,
-      },
-    )
-    .toBe(true);
-  const live = liveRefusals();
-  expect(
-    live,
-    `the live server refused a replayed previous-bundle document: ${live.join("; ")}`,
-  ).toEqual([]);
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered("re-subscribed");
 });

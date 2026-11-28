@@ -119,12 +119,46 @@ function fakePage() {
 async function armedPage() {
   const { page, routes } = fakePage();
   await wire.sendPreviousBundleDocuments(page);
-  await wire.judgeAgainstRolledBackSlot(page);
+  wire.judgeAgainstRolledBackSlot(page);
   const ws = fakeSocket();
   assert.ok(routes.socket, "the socket route was not registered");
   await routes.socket(ws.socket);
   return { routes, ws };
 }
+
+test("judging a page whose wire was not installed before it loaded fails loudly", () => {
+  // Playwright routes a socket through the patch it injects into each new document, so a route added to an already
+  // loaded page never sees that page's reconnects: the held page would run unjudged and the Thens would time out.
+  const { page, routes } = fakePage();
+  assert.throws(
+    () => wire.judgeAgainstRolledBackSlot(page),
+    /install the wire before the page loads/u,
+  );
+  assert.equal(routes.socket, undefined, "judging installed a late route");
+});
+
+test("a page whose wire was installed before it loaded can then be judged", async () => {
+  const { page, routes } = fakePage();
+  await wire.routeGraphqlWire(page);
+  assert.ok(routes.socket, "the socket route was not registered");
+  wire.judgeAgainstRolledBackSlot(page);
+  const ws = fakeSocket();
+  await routes.socket(ws.socket);
+  ws.fromPage(
+    frame("1", "5", CONTROL_TOPIC, "doc", {
+      query:
+        "subscription FamilyChatMessageCommitted($roomSlug: String!) { familyChatMessageCommitted(roomSlug: $roomSlug) { id } }",
+      variables: { roomSlug: ROOM },
+    }),
+  );
+  ws.fromServer(
+    frame("1", "5", CONTROL_TOPIC, "phx_reply", { status: "ok", response: {} }),
+  );
+  assert.equal(
+    wire.previousRevisionTraffic.answered.has("FamilyChatMessageCommitted"),
+    true,
+  );
+});
 
 /**
  * The step's bounded poll, as a loop: resolves once the condition holds, and rejects with the message when it does not

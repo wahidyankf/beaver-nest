@@ -174,8 +174,13 @@ When(
   "the visitor opens the migration page on the cutover-off candidate",
   async ({ page }) => {
     await ensureCandidate(candidatePort, false);
+    // The Background logs an approved user in, and cookies are shared across
+    // ports on localhost, so the candidate would authenticate that identity
+    // cookie. Drop it so the browser acts as the local user (no identity).
+    await page.context().clearCookies({ name: "_bnest_identity" });
     await page.goto(`http://localhost:${candidatePort}/data-migration`);
-    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    // No wait for a connected LiveView here: the local user is redirected to
+    // the home page, which has none. The Then steps check where it landed.
   },
 );
 

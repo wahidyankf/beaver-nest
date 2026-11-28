@@ -1,7 +1,10 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { ROOM_ROUTE } from "../support/family-chat";
-import { sendThroughComposer } from "../support/family-chat-delivery";
+import {
+  expectCommitted,
+  sendThroughComposer,
+} from "../support/family-chat-delivery";
 import { waitForRoomReady } from "../support/family-chat-resume";
 import { uniqueBody } from "../support/family-chat-reply";
 import { sendAsAnotherMember } from "../support/family-chat";
@@ -13,8 +16,6 @@ import { instanceIdentities } from "../support/instance-identities";
 const { Given, Then, When } = createBdd();
 
 // @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The service worker cache stores no authenticated content
-
-const MESSAGE = '[data-role="family-chat-message"]';
 
 // The cache entries the shipped worker wrote, as pathnames, read from the page's own Cache Storage.
 let cacheEntries: string[] = [];
@@ -35,11 +36,9 @@ Given(
     await waitForRoomReady(page);
     const body = uniqueBody("Exchanged with the service worker");
     await sendThroughComposer(page, body);
-    await expect(page.locator(MESSAGE, { hasText: body })).toHaveAttribute(
-      "data-delivery-state",
-      "committed",
-      { timeout: 15_000 },
-    );
+    // The server's push can render the committed row before this send's own response drops the pending one, so the
+    // body briefly matches two rows. Judge the settled state: one committed row, and no pending copy left.
+    await expectCommitted(page, body);
     await sendAsAnotherMember(
       browser,
       instanceIdentities(),
