@@ -1,11 +1,13 @@
 #!/usr/bin/env node
-// Prints the failing tests of one Playwright run from its JSON summary, once the logs screen has cleared the text.
+// Prints the failing and the flaky tests of one Playwright run from its JSON summary, once the logs screen has cleared
+// the text.
 //
 // Usage: node scripts/e2e-failure-summary.mjs <path-to-json-summary>
 //
 // A missing or unreadable summary prints one line and exits 0. A summary that the logs screen refuses prints nothing to
-// stdout, one line to stderr, and exits 1. What is printed is the failing test titles, the first error lines of each,
-// and the run-level errors: no stack traces, attachments, test output, raw JSON, or paths.
+// stdout, one line to stderr, and exits 1. What is printed is the failing test titles, the flaky test titles (a test
+// that failed, then passed on the retry, which failOnFlakyTests still counts as a failed run), the first error lines of
+// each, and the run-level errors: no stack traces, attachments, test output, raw JSON, or paths.
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -78,32 +80,75 @@ function plural(count, noun) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
-function buildText(summary) {
+// A flaky test failed an earlier attempt and passed the last one. Playwright marks it with the status "flaky"; the
+// attempts are checked too, so a summary that leaves the test status out still names it.
+function failedAttempt(test) {
+  const results = Array.isArray(test.results) ? test.results : [];
+  const last = results.at(-1);
+  if (last === undefined || FAILING_STATUSES.has(last.status)) return undefined;
+  const first = results
+    .slice(0, -1)
+    .find((result) => FAILING_STATUSES.has(result.status));
+  return first ?? undefined;
+}
+
+function classify(summary) {
   const failing = [];
+  const flaky = [];
   for (const { title, test } of testsWithTitles(summary.suites)) {
     const last = Array.isArray(test.results) ? test.results.at(-1) : undefined;
+    const entry = {
+      title: title.replaceAll(/\s+/gu, " "),
+      project: String(test.projectName ?? ""),
+    };
     if (last !== undefined && FAILING_STATUSES.has(last.status)) {
       failing.push({
-        title: title.replaceAll(/\s+/gu, " "),
-        project: String(test.projectName ?? ""),
+        ...entry,
         status: last.status,
         lines: resultErrors(last).flatMap((error) => messageLines(error)),
       });
+      continue;
+    }
+    const attempt = failedAttempt(test);
+    if (test.status === "flaky" || attempt !== undefined) {
+      flaky.push({
+        ...entry,
+        status: "flaky",
+        lines: resultErrors(attempt ?? {}).flatMap((error) =>
+          messageLines(error),
+        ),
+      });
     }
   }
+  return { failing, flaky };
+}
+
+function listTests(out, tests, noun) {
+  for (const test of tests.slice(0, MAX_TESTS)) {
+    out.push(`${test.title} [${test.project}, ${test.status}]`);
+    for (const line of test.lines) out.push(`    ${line}`);
+  }
+  const omitted = tests.length - Math.min(tests.length, MAX_TESTS);
+  if (omitted > 0) {
+    out.push(
+      `${plural(omitted, `more ${noun}`)} not listed; the list is capped at ${MAX_TESTS}.`,
+    );
+  }
+}
+
+function buildText(summary) {
+  const { failing, flaky } = classify(summary);
 
   const out = [
     `${plural(failing.length, "failing test")} in the Playwright summary.`,
   ];
-  for (const test of failing.slice(0, MAX_TESTS)) {
-    out.push(`${test.title} [${test.project}, ${test.status}]`);
-    for (const line of test.lines) out.push(`    ${line}`);
-  }
-  const omitted = failing.length - Math.min(failing.length, MAX_TESTS);
-  if (omitted > 0) {
+  listTests(out, failing, "failing test");
+
+  if (flaky.length > 0) {
     out.push(
-      `${plural(omitted, "more failing test")} not listed; the list is capped at ${MAX_TESTS}.`,
+      `${plural(flaky.length, "flaky test")} in the Playwright summary (failed, then passed on the retry; the run still fails).`,
     );
+    listTests(out, flaky, "flaky test");
   }
 
   const runErrors = Array.isArray(summary.errors)
