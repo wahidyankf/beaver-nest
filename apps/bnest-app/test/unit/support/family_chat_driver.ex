@@ -48,6 +48,7 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   alias BnestApp.Test.PublicMutationProbe
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.Plugs.GraphQLPipeline
+  alias BnestAppWeb.Resolvers.WebPushResolver
   alias BnestAppWeb.Schema.Complexity
 
   # This driver's whole purpose during RED is to call domain functions that do
@@ -300,6 +301,17 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
     {:ok, reply} = context.family_chat_result
     Map.put(context, :family_chat_previous_reply_id, reply.id)
+  end
+
+  # The retry's original: a plain message, and the body and client message ID the retry resends.
+  def prepare_behaviour(context, :plain_message_with_known_id, [body]) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    {:ok, original} = context.family_chat_result
+
+    Map.merge(context, %{
+      family_chat_known_body: body,
+      family_chat_original_message_id: original.id
+    })
   end
 
   # Commits two candidate targets so the retry can name a genuinely different
@@ -581,10 +593,26 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     })
   end
 
+  # The signed-in member's session with no session digest: the caller is a user, and the session has no
+  # digest for the resolver to read.
+  def prepare_behaviour(context, :session_without_digest, _args),
+    do: Map.put(context, :web_push_session_without_digest, true)
+
   # --- perform ---
 
   def perform_behaviour(context, :query_room_list, _args) do
     Map.put(context, :family_chat_result, FamilyChat.list_rooms_for(current_user(context)))
+  end
+
+  # A member lists the rooms, then posts a message to the room they can see.
+  def perform_behaviour(context, :member_lists_rooms_and_sends, _args) do
+    user_id = current_user(context) || "test-user-family-chat-" <> unique_uuid()
+    rooms = FamilyChat.list_rooms_for(user_id)
+
+    context
+    |> Map.put(:family_chat_user_id, user_id)
+    |> Map.put(:family_chat_room_list, rooms)
+    |> send_family_chat_message(unique_uuid(), "Halo keluarga")
   end
 
   def perform_behaviour(context, :query_room_by_slug, [slug]) do
@@ -1001,6 +1029,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_result, Scheduler.get_schedule(key))
   end
 
+  # The release's one converge step: the activation for a seeded disabled schedule, otherwise
+  # the convergence of an existing backup time. Both scenarios share this step text.
+  def perform_behaviour(context, :release_converge_step, _args) do
+    if Map.has_key?(context, :family_chat_activation_key),
+      do: perform_behaviour(context, :call_activation_operation, []),
+      else: perform_behaviour(context, :call_convergence_operation, [])
+  end
+
   # What a compatible start does to the schedules: the release entry point's convergence,
   # which is the Family Chat facade's, on the unit layer's in-memory schedule store (the
   # integration driver runs the release migrations themselves). The schedule's state
@@ -1079,6 +1115,14 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     Map.put(context, :family_chat_retry_claim, retried)
   end
 
+  # A scheduled backup that outlives its timeout: the run is cancelled and leaves no file,
+  # then the Scheduler records it retryable, so the claim six minutes on finds it again.
+  def perform_behaviour(context, :scheduled_backup_exceeds_timeout, _args) do
+    context
+    |> perform_behaviour(:timed_out_backup_direct, [])
+    |> perform_behaviour(:timed_out_backup_via_scheduler, [])
+  end
+
   def perform_behaviour(context, :restore_artifact_isolated_root, _args) do
     result = Backup.restore(context[:family_chat_backup_artifact])
     Map.put(context, :family_chat_result, result)
@@ -1091,16 +1135,81 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     |> Map.put(:family_chat_published_events, published_events())
   end
 
-  # The router's own mounting decision (`BnestAppWeb.DevRoutes.mounted?/1`, which its
-  # compile-time branch calls) taken for the production configuration, beside the routes
-  # this build's router compiled from its own configuration.
-  def perform_behaviour(context, :inspect_router_routes, _args) do
-    Map.merge(context, %{
-      family_chat_production_mounts_dev_routes:
-        BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes),
-      family_chat_graphiql_routes: graphiql_routes()
-    })
+  # A visitor's browser asks this build's compiled router for the GraphiQL page. A router with no
+  # such route raises a missing-route error, which carries the 404 status the visitor gets.
+  def perform_behaviour(context, :request_graphiql, _args) do
+    status =
+      try do
+        :get
+        |> Plug.Test.conn("/api/graphiql")
+        |> BnestAppWeb.Router.call(BnestAppWeb.Router.init([]))
+        |> Map.fetch!(:status)
+      rescue
+        error in Phoenix.Router.NoRouteError -> error.plug_status
+      end
+
+    Map.put(context, :graphiql_status, status)
   end
+
+  # The caller's Web Push operations, each run through the resolver the schema routes it to. The
+  # resolution holds what the endpoint would put there: no user for a visitor, and a user with no
+  # session digest for the signed-in case.
+  def perform_behaviour(context, :run_web_push_operations, _args) do
+    resolution = web_push_resolution(context)
+    input = valid_subscription_input()
+
+    Map.put(context, :web_push_results,
+      current: WebPushResolver.current_web_push_subscription(%{}, resolution),
+      upsert:
+        WebPushResolver.upsert_web_push_subscription(
+          %{endpoint: input["endpoint"], p256dh: input["p256dh"], auth: input["auth"]},
+          resolution
+        ),
+      disable: WebPushResolver.disable_current_web_push_subscription(%{}, resolution),
+      configuration: WebPushResolver.web_push_configuration(%{}, resolution)
+    )
+  end
+
+  # A GraphQL request the pipeline refuses before any resolver runs, over a `Plug.Test` conn.
+  def perform_behaviour(context, :send_graphql_get, _args),
+    do: transport_probe(context, Plug.Test.conn(:get, "/api/graphql"))
+
+  def perform_behaviour(context, :send_graphql_text_plain, _args) do
+    :post
+    |> Plug.Test.conn("/api/graphql", ~s({"query": "{ __typename }"}))
+    |> Plug.Conn.put_req_header("content-type", "text/plain")
+    |> then(&transport_probe(context, &1))
+  end
+
+  def perform_behaviour(context, :send_graphql_oversized, _args) do
+    body = String.duplicate("x", 64 * 1024 + 1)
+
+    :post
+    |> Plug.Test.conn("/api/graphql", body)
+    |> Plug.Conn.put_req_header("content-type", "application/json")
+    |> Plug.Conn.put_req_header("content-length", Integer.to_string(byte_size(body)))
+    |> then(&transport_probe(context, &1))
+  end
+
+  # The endpoint's parser refuses a malformed body before the pipeline, so the parser's own
+  # refusal is handed to the same transport refusal the endpoint uses.
+  def perform_behaviour(context, :send_graphql_malformed_json, _args) do
+    conn =
+      :post
+      |> Plug.Test.conn("/api/graphql", "{not json")
+      |> Plug.Conn.put_req_header("content-type", "application/json")
+      |> GraphQLPipeline.transport_reject(%Plug.Parsers.ParseError{})
+
+    record_transport_answer(context, conn)
+  end
+
+  # Two messages to the room, a 300 character one and a 120 character one, through the real send path
+  # so the commit is the production commit.
+  def perform_behaviour(context, :send_long_spaced_message, _args),
+    do: send_push_probe(context, :long, String.duplicate("alpha    beta\n\n", 20))
+
+  def perform_behaviour(context, :send_exact_120_message, _args),
+    do: send_push_probe(context, :exact, String.duplicate("b", 120))
 
   # --- outcome ---
 
@@ -1165,6 +1274,67 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
         %{"errors" => [%{"extensions" => %{"code" => ^code}} | _]},
         context.family_chat_result
       )
+  end
+
+  # Each Web Push subscription operation a visitor or a session with no digest runs is refused with the
+  # safe code and its fixed message, and the configuration query still answers.
+  def behaviour_outcome?(context, :web_push_operations_refused, [code, message]) do
+    results = context.web_push_results
+
+    Enum.all?([:current, :upsert, :disable], fn operation ->
+      refused_with?(Keyword.fetch!(results, operation), code, message)
+    end)
+  end
+
+  def behaviour_outcome?(context, :web_push_configuration_answers, _args),
+    do: match?({:ok, %{}}, Keyword.fetch!(context.web_push_results, :configuration))
+
+  # No push request left the process: a refused endpoint never reaches the push sender.
+  def behaviour_outcome?(_context, :no_web_push_request_sent, _args) do
+    receive do
+      {:push_notification_sent, _endpoint, _payload} -> false
+    after
+      0 -> true
+    end
+  end
+
+  def behaviour_outcome?(_context, :no_web_push_subscription_stored, _args) do
+    PushNotifications.adapter(:subscription_store).new()
+    |> InMemorySubscriptionStore.subscriptions()
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :refused_with_status_and_code, [status, code]) do
+    context[:family_chat_http_status] == status and context[:family_chat_halted] == true and
+      match?(
+        %{"errors" => [%{"extensions" => %{"code" => ^code}} | _]},
+        context.family_chat_result
+      )
+  end
+
+  # A refusal before the resolvers answers the error envelope alone, with no `data` key.
+  def behaviour_outcome?(context, :carries_no_graphql_data, _args) do
+    is_map(context.family_chat_result) and not Map.has_key?(context.family_chat_result, "data")
+  end
+
+  # The push payload of each message, built from what the send committed: the body collapsed to single
+  # spaces and cut at 120 graphemes, and the title the sender's name at commit.
+  def behaviour_outcome?(context, :long_payload_body_truncated, _args) do
+    body = push_message(context, :long).body
+    collapsed = body |> String.split() |> Enum.join(" ")
+
+    push_payload(context, :long)["body"] == String.slice(collapsed, 0, 119) <> "…" and
+      String.length(push_payload(context, :long)["body"]) == 120 and
+      not String.contains?(push_payload(context, :long)["body"], "  ")
+  end
+
+  def behaviour_outcome?(context, :exact_payload_body_unchanged, _args),
+    do: push_payload(context, :exact)["body"] == push_message(context, :exact).body
+
+  def behaviour_outcome?(context, :payload_titles_sender_name, _args) do
+    name = synthetic_display_name(current_user(context))
+
+    Enum.all?([:long, :exact], &(push_payload(context, &1)["title"] == name))
   end
 
   def behaviour_outcome?(context, :message_committed_with_id_and_time, _args),
@@ -1476,6 +1646,101 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       end)
   end
 
+  # The seeded canonical room is ID 1, with its slug, its name, and member posting enabled.
+  def behaviour_outcome?(_context, :seeded_room_ready_for_posting, [slug, name]) do
+    match?(
+      %{id: 1, slug: ^slug, name: ^name, member_posting_enabled: true},
+      FamilyChat.canonical_room()
+    )
+  end
+
+  # A repeated migration answers the seeded room as it was, and changes nothing about it.
+  def behaviour_outcome?(_context, :repeat_migration_changes_nothing, _args) do
+    before = FamilyChat.canonical_room()
+    match?({:ok, ^before}, FamilyChat.migrate!()) and FamilyChat.canonical_room() == before
+  end
+
+  # The room list holds exactly the named room, and the member's message was accepted.
+  def behaviour_outcome?(context, :room_listed_and_message_accepted, [name]) do
+    match?({:ok, [%{name: ^name}]}, context.family_chat_room_list) and
+      match?({:ok, %{id: _id}}, context.family_chat_result)
+  end
+
+  # One push to each other subscription for the message, and none to the sender's own.
+  def behaviour_outcome?(context, :each_other_subscription_pushed_once, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    :ok = PushNotifications.dispatch_all_due!()
+    sent = Enum.group_by(push_requests(), &elem(&1, 0), &elem(&1, 1))
+
+    pushes_for = fn subscription_id ->
+      endpoint = subscription_endpoint(subscription_id)
+      for %{"messageId" => ^message_id} <- Map.get(sent, endpoint, []), do: :sent
+    end
+
+    Enum.all?(context.family_chat_other_subscription_ids, &(length(pushes_for.(&1)) == 1)) and
+      pushes_for.(context.family_chat_sender_subscription_id) == []
+  end
+
+  # Exactly one push reaches the reply's recipient, and it is for the reply itself.
+  def behaviour_outcome?(context, :one_push_sent_to_reply_subscription, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    :ok = PushNotifications.dispatch_all_due!()
+    endpoint = subscription_endpoint(context.family_chat_other_subscription_id)
+
+    pushes = for {^endpoint, %{"messageId" => ^message_id}} <- peek_push_requests(), do: :sent
+    length(pushes) == 1
+  end
+
+  # The stored delivery of the owed push is in the named state.
+  def behaviour_outcome?(context, :delivery_state_is, [state]) do
+    %{family_chat_push_delivery_id: id} = context
+    match?(%{state: ^state}, stored_delivery(id))
+  end
+
+  # The reply's only delivery row is pending for the recipient's subscription.
+  def behaviour_outcome?(context, :one_pending_delivery_for_reply_subscription, _args) do
+    {:ok, %{id: message_id}} = context.family_chat_result
+    subscription_id = context.family_chat_other_subscription_id
+
+    rows =
+      for row <- stored_deliveries(),
+          row.message_id == message_id,
+          do: {row.subscription_id, row.state}
+
+    rows == [{subscription_id, "pending"}]
+  end
+
+  # The first wait is 30 seconds; the policy's later waits are 120, 480 and 1920 seconds.
+  # No sixth attempt and no attempt past the hour follow.
+  def behaviour_outcome?(context, :retries_follow_fixed_waits, _args) do
+    waits =
+      for attempt <- 1..4,
+          do: PushPolicy.next_wait_seconds(attempt, @behaviour_now, @behaviour_now)
+
+    waits == [30, 120, 480, 1920] and
+      behaviour_outcome?(context, :delivery_retryable_with_wait, ["retryable"]) and
+      behaviour_outcome?(context, :no_attempt_past_ceiling, [])
+  end
+
+  # A device the push service reports gone is disabled, and no further attempt is scheduled.
+  def behaviour_outcome?(context, :subscription_reports_disabled_no_retry, _args) do
+    behaviour_outcome?(context, :delivery_terminal_subscription_disabled, ["terminal"]) and
+      behaviour_outcome?(context, :no_further_attempt_scheduled, [])
+  end
+
+  # The push retention schedule reads enabled, and a second activation changes nothing.
+  def behaviour_outcome?(context, :retention_enabled_second_run_changes_nothing, _args) do
+    behaviour_outcome?(context, :schedule_field_enabled, ["family-chat-push-retention-daily"]) and
+      behaviour_outcome?(context, :activation_call_idempotent, [])
+  end
+
+  # The run is refused as a timeout, leaves no file, and the Scheduler keeps it claimable.
+  def behaviour_outcome?(context, :timeout_failure_retried, [category]) do
+    behaviour_outcome?(context, :retryable_failure, [category]) and
+      behaviour_outcome?(context, :no_partial_or_final_artifact, []) and
+      behaviour_outcome?(context, :schedule_remains_claimable, [])
+  end
+
   def behaviour_outcome?(context, :no_hidden_room_state, _args) do
     refused_without_capability?(context, "FORBIDDEN") and
       not leaks_room?(context.family_chat_result)
@@ -1593,13 +1858,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
   def behaviour_outcome?(context, :subscription_still_disabled, _args),
     do: subscription_disabled?(context)
 
-  # Rejected before storage: no subscription holds the endpoint, the session has none, and
-  # the push client was asked for nothing.
-  def behaviour_outcome?(context, :no_subscription_stored_or_network, _args) do
-    match?({:error, %{code: "VALIDATION_FAILED"}}, context.family_chat_result) and
+  # Rejected before storage: the refused endpoint is stored nowhere, and the member's
+  # current subscription, as a fresh query reports it, reads disabled.
+  def behaviour_outcome?(context, :current_subscription_reads_disabled, _args) do
+    match?({:ok, %{enabled: false}}, context.family_chat_result) and
       stored_subscription(context.family_chat_push_endpoint) == nil and
-      not session_subscribed?(current_user(context), session_digest(context)) and
-      push_requests() == []
+      not session_subscribed?(current_user(context), session_digest(context))
   end
 
   # The context is the session's own user and the digest of the session's own token.
@@ -1631,15 +1895,18 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     context.family_chat_result == :error or match?({:error, _}, context.family_chat_result)
   end
 
-  # The production configuration mounts nothing, and the router follows that same
-  # decision: the routes it compiled carry GraphiQL exactly when the decision it took for
-  # this build's own configuration says so. A router that mounted GraphiQL regardless of
-  # the decision, or a decision that mounted it for production, fails here.
-  def behaviour_outcome?(context, :no_graphiql_route, _args) do
-    context.family_chat_production_mounts_dev_routes == false and
-      BnestAppWeb.Router.dev_routes_enabled?() ==
-        BnestAppWeb.DevRoutes.mounted?(Application.get_env(:bnest_app, :dev_routes)) and
-      context.family_chat_graphiql_routes != [] == BnestAppWeb.Router.dev_routes_enabled?()
+  # The production configuration mounts nothing, and this build's router, whose GraphiQL gate
+  # is the same compile-time value, answers a GraphiQL request with not found. A decision that
+  # mounted GraphiQL for production, or a router that mounted it here, fails here.
+  # The compiled router holds no GraphiQL route, and the production configuration mounts none.
+  def behaviour_outcome?(context, :graphiql_not_compiled, _args) do
+    BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
+      Enum.all?(BnestAppWeb.Router.__routes__(), &(not String.contains?(&1.path, "graphiql")))
+  end
+
+  def behaviour_outcome?(context, :graphiql_not_found, _args) do
+    BnestAppWeb.DevRoutes.mounted?(context.family_chat_production_dev_routes) == false and
+      context.graphiql_status == 404
   end
 
   # The migration's room, and the room read back from the store, both open for posting.
@@ -1916,6 +2183,12 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     %{sent_ids: sent_ids} = context.family_chat_load_probes
     live_ids = live_family_chat_message_ids()
     sent_ids != [] and Enum.all?(sent_ids, &MapSet.member?(live_ids, &1))
+  end
+
+  # The probes ran, and none failed.
+  def behaviour_outcome?(context, :probes_complete_with_zero_failures, _args) do
+    %{failures: failures, samples: samples} = context.family_chat_load_probes
+    failures == 0 and samples != []
   end
 
   def behaviour_outcome?(context, :probes_zero_failures, _args) do
@@ -2428,6 +2701,58 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
 
   defp expand_body_fixture(other), do: other
 
+  # The resolution the endpoint would build for the caller: no user for a visitor, and a user whose
+  # session has no digest when the scenario says so.
+  defp web_push_resolution(context) do
+    user_id = current_user(context)
+    user = if user_id, do: %{"userId" => user_id, "roles" => ["parents"]}
+    digest = if context[:web_push_session_without_digest], do: nil, else: session_digest(context)
+
+    %{context: %{current_user: user, session_digest: digest}}
+  end
+
+  defp refused_with?({:error, details}, code, message) when is_list(details) do
+    Keyword.get(details, :message) == message and get_in(details, [:extensions, :code]) == code
+  end
+
+  defp refused_with?(_result, _code, _message), do: false
+
+  defp transport_probe(context, conn) do
+    conn = GraphQLPipeline.call(conn, GraphQLPipeline.init([]))
+    record_transport_answer(context, conn)
+  end
+
+  defp record_transport_answer(context, conn) do
+    Map.merge(context, %{
+      family_chat_result: decode_conn_body(conn),
+      family_chat_http_status: conn.status,
+      family_chat_halted: conn.halted
+    })
+  end
+
+  # A committed message, kept under its key with the body it was sent with.
+  defp send_push_probe(context, key, body) do
+    context = send_family_chat_message(context, unique_uuid(), body)
+    {:ok, %{id: id}} = context.family_chat_result
+    messages = Map.get(context, :push_messages, %{})
+
+    Map.put(context, :push_messages, Map.put(messages, key, %{id: id, body: body}))
+  end
+
+  defp push_message(context, key), do: Map.fetch!(context.push_messages, key)
+
+  # The payload the dispatcher builds for the committed message, with the sender's display name at commit.
+  defp push_payload(context, key) do
+    message = push_message(context, key)
+
+    PushPolicy.build_payload(
+      message.id,
+      synthetic_display_name(current_user(context)),
+      message.body,
+      "ruang-keluarga"
+    )
+  end
+
   defp disable_subscription(context) do
     Map.put(
       context,
@@ -2464,9 +2789,6 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     do:
       context[:family_chat_room_slug] || context[:family_chat_subscribed_slug] ||
         "ruang-keluarga"
-
-  defp graphiql_routes,
-    do: Enum.filter(BnestAppWeb.Router.__routes__(), &String.contains?(&1.path, "graphiql"))
 
   defp stored_message(slug, message_id) do
     store = FamilyChat.adapter(:room_store).new()
@@ -2751,6 +3073,25 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
     after
       0 -> []
     end
+  end
+
+  # The recorded requests, read for a later check of the same scenario. They go back into the
+  # mailbox in their original order.
+  defp peek_push_requests do
+    requests = push_requests()
+
+    for {endpoint, payload} <- requests,
+        do: send(self(), {:push_notification_sent, endpoint, payload})
+
+    requests
+  end
+
+  # The endpoint of the stored subscription with `subscription_id`.
+  defp subscription_endpoint(subscription_id) do
+    PushNotifications.adapter(:subscription_store).new()
+    |> InMemorySubscriptionStore.subscriptions()
+    |> Enum.find(&(&1.id == subscription_id))
+    |> Map.fetch!(:endpoint)
   end
 
   defp page_ids(%{
@@ -3080,8 +3421,8 @@ defmodule BnestApp.Behaviour.UnitFamilyChatDriver do
       try do
         _committed =
           FamilyChat.send_message(
-            context.family_chat_user_id,
-            context.family_chat_room_slug,
+            Map.get(context, :family_chat_user_id) || context.user_id,
+            Map.get(context, :family_chat_room_slug) || "ruang-keluarga",
             client_message_id,
             "Dinner is ready, again"
           )

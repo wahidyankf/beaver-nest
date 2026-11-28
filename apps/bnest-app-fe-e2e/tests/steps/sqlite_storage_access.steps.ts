@@ -1,4 +1,3 @@
-import os from "node:os";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { login } from "../support/authentication";
@@ -8,46 +7,16 @@ import {
 } from "../support/instance-identities";
 import { promoteCompatibleCandidate } from "../support/routed-rollout";
 
-// Non-admin denial and post-rollout reconnect flows (feature scenarios 9,
-// 10). Split out of sqlite_storage.steps.ts to stay under the repository's
-// 300-line step-file budget.
+// Post-rollout reconnect flow (feature scenario 10). Split out of
+// sqlite_storage.steps.ts to stay under the repository's 300-line step-file
+// budget. The non-admin denial moved to scheduled-backups.steps.ts.
 
 const { Given, Then, When } = createBdd();
 
-const repositoryRoot = process.cwd();
+// @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: A connected user keeps their state across a compatible release
 
 let activeIdentity: InstanceIdentities;
-let deniedRouteStatus = 0;
-let deniedRouteBody = "";
 let rolloutRevisions: { previousRevision: string; revision: string };
-
-// --- Scenario 9: non-admin cannot configure storage --------------------------
-
-Given("a non-admin family member is logged in", async ({ page }) => {
-  activeIdentity = instanceIdentities();
-  await page.context().clearCookies();
-  await login(page, activeIdentity.child);
-});
-
-When("the user opens the storage settings route", async ({ page }) => {
-  // Plug's send_resp(:not_found, ...) leaves content-type unset, which
-  // Chrome's navigation stack treats as an attachment download rather than
-  // a renderable page; page.request sidesteps navigation/download detection
-  // the same way authorization.steps.ts already does for other 404 routes.
-  const response = await page.request.get("/storage");
-  deniedRouteStatus = response.status();
-  deniedRouteBody = await response.text();
-});
-
-Then("Bnest denies the operation", () => {
-  expect(deniedRouteStatus).toBe(404);
-});
-
-Then("Bnest reveals no host path or migration inventory", () => {
-  expect(deniedRouteBody).not.toContain("Storage setup");
-  expect(deniedRouteBody).not.toContain(os.homedir());
-  expect(deniedRouteBody).not.toContain(repositoryRoot);
-});
 
 // --- Scenario 10: routed client reconnects across a compatible rollout ------
 
@@ -83,18 +52,32 @@ Given(
   },
 );
 
-When("a revision-compatible candidate is promoted", async ({ page }) => {
+When("a compatible new release is promoted", async ({ page }) => {
   rolloutRevisions = await promoteCompatibleCandidate(page);
 });
 
 Then(
-  "the routed revision and SQLite readiness are proven",
+  "the deploy report names the new release and shows SQLite ready",
   async ({ page }) => {
     const ready = await page.request.get("/health/ready");
     expect(ready.status()).toBe(200);
     const body = await ready.json();
     expect(body.revision).toBe(rolloutRevisions.revision);
     expect(body.revision).not.toBe(rolloutRevisions.previousRevision);
+    expect(body.sqliteReady).toBe(true);
+  },
+);
+
+// The routed origin answers with the promoted revision in its header, and SQLite is ready on that revision.
+Then(
+  "the routed revision and SQLite readiness are proven",
+  async ({ page }) => {
+    const routed = await page.request.get("/health/ready");
+    expect(routed.status()).toBe(200);
+    expect(routed.headers()["x-bnest-revision"]).toBe(
+      rolloutRevisions.revision,
+    );
+    const body = await routed.json();
     expect(body.sqliteReady).toBe(true);
   },
 );

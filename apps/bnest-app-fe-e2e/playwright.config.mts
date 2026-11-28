@@ -13,7 +13,10 @@ const codexModelsRunner = path.resolve(
   "test/support/codex_fixture_models.mjs",
 );
 const port = process.env["BNEST_E2E_PORT"] ?? "4010";
-const backendPort = String(Number(port) + 100);
+// The integration layer (tools/run-integration.mts) has no reverse proxy: the primary server serves the public port
+// itself, so its backend port is the public port. The E2E layer keeps the Caddy topology.
+const integrationLayer = process.env["BNEST_E2E_LAYER"] === "integration";
+const backendPort = integrationLayer ? port : String(Number(port) + 100);
 const caddyAdminPort = String(Number(port) + 200);
 const baseURL = `http://localhost:${port}`;
 process.env["BNEST_E2E_BACKEND_PORT"] = backendPort;
@@ -64,7 +67,8 @@ const testDir = defineBddConfig({
   steps: "tests/steps/**/*.ts",
   tags: "not @e2e-exempt",
 });
-const setupScenario = /Initial setup warns about unavailable recovery/u;
+const setupScenario =
+  /First-time setup warns that accounts cannot be managed or recovered later/u;
 const desktopOnlyLoadScenario =
   /Ten synthetic visitors preserve recoverable state/u;
 // A fine primary pointer is a desktop input property: a Pixel-class touch context reports a coarse pointer, so the
@@ -82,13 +86,41 @@ const finePointerScenario = /@fine-pointer/u;
 // candidate proof's `toHaveCount(1)` assertion saw 2 and then 3
 // matching messages on the second and third project runs.)
 const sqliteStorageScenario =
-  /Non-admin cannot configure storage|reconnects across compatible SQLite rollout|Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate/u;
+  /A connected user keeps their state across a compatible release|Two members prove draft, offline queue, and exact-once catch-up on the promoted candidate/u;
 
 export default defineConfig({
   testDir,
   fullyParallel: false,
   timeout: 120_000,
   workers: 1,
+  // The scheduled end-to-end legs run in CI with one retry: a failed test is re-run once with a trace, and a test that
+  // passes on the retry is reported as flaky and still fails the run, so nothing is hidden. The integration layer (the
+  // pull-request gate) and local runs keep retries 0.
+  retries: process.env["CI"] && !integrationLayer ? 1 : 0,
+  failOnFlakyTests: Boolean(process.env["CI"]) && !integrationLayer,
+  // The console reporter keeps the job log readable. The JSON summary is written at run end, after Playwright has
+  // cleared its output directory, and the failure step reads it (scripts/e2e-failure-summary.mjs). The HTML report
+  // is the browsable record of a failed run; the scheduled workflow uploads it with the traces and screenshots.
+  reporter: [
+    [process.env["CI"] ? "dot" : "list"],
+    [
+      "html",
+      {
+        open: "never",
+        outputFolder: path.resolve(import.meta.dirname, "playwright-report"),
+      },
+    ],
+    [
+      "json",
+      {
+        outputFile: path.resolve(
+          import.meta.dirname,
+          "test-results",
+          "e2e-summary.json",
+        ),
+      },
+    ],
+  ],
   globalTeardown: path.resolve(
     import.meta.dirname,
     "tests/support/global-teardown.ts",
@@ -97,7 +129,11 @@ export default defineConfig({
     baseURL,
     // Browsers get no test-control secret; the servers and the test steps keep it.
     launchOptions: { env: browserEnvironment(process.env) },
+    // A trace of every passing test costs about 30 percent of the run time (55 chromium tests: 131 s against 102 s with
+    // the trace off), and one project needs about 22 minutes without it. The retry gives a trace of a failure at no cost
+    // to a green run. The screenshot is cheap and is kept for a failed test only, which bounds the uploaded artifact.
     trace: "on-first-retry",
+    screenshot: "only-on-failure",
   },
   webServer: [
     {
@@ -122,21 +158,25 @@ export default defineConfig({
       reuseExistingServer: false,
       timeout: 120_000,
     },
-    {
-      command: "node apps/bnest-app-fe-e2e/tools/run-caddy.mts",
-      cwd: path.resolve(import.meta.dirname, "../.."),
-      // Caddy only routes requests and never calls the control routes, so it starts from the browser's copy, which
-      // has no control secret.
-      env: {
-        ...browserEnvironment(process.env),
-        BNEST_E2E_BACKEND_PORT: backendPort,
-        BNEST_E2E_CADDY_ADMIN_PORT: caddyAdminPort,
-        BNEST_E2E_PORT: port,
-      },
-      url: baseURL,
-      reuseExistingServer: false,
-      timeout: 30_000,
-    },
+    ...(integrationLayer
+      ? []
+      : [
+          {
+            command: "node apps/bnest-app-fe-e2e/tools/run-caddy.mts",
+            cwd: path.resolve(import.meta.dirname, "../.."),
+            // Caddy only routes requests and never calls the control routes, so it starts from the browser's copy, which
+            // has no control secret.
+            env: {
+              ...browserEnvironment(process.env),
+              BNEST_E2E_BACKEND_PORT: backendPort,
+              BNEST_E2E_CADDY_ADMIN_PORT: caddyAdminPort,
+              BNEST_E2E_PORT: port,
+            },
+            url: baseURL,
+            reuseExistingServer: false,
+            timeout: 30_000,
+          },
+        ]),
   ],
   projects: [
     {

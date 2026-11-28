@@ -15,6 +15,12 @@ import { testUsername } from "../support/test-instance-lifecycle.mts";
 // persistence, independent browser sessions, and the accounts/password-policy half of initial setup); the
 // unauthenticated-redirect and approved-login/logout scenarios moved to bnest-app-fe-e2e. Every account here is the
 // current test instance's own (ADR 001, section 2), never a shared one.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup rejects a password missing a letter, number, or punctuation mark and accepts any length
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Initial setup creates the accounts once and then closes
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Logging in never exposes the password in storage, logs, or pages
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: Login persists across reload and browser restart until logout or browser data clearing
+// @scenario specs/apps/bnest/app-be/behaviours/authentication.feature: One user can use independent simultaneous browser sessions
 
 const { Given, Then, When } = createBdd();
 
@@ -33,7 +39,7 @@ Given("an approved user is logged in", async ({ page }) => {
   await login(page, currentIdentities().admin);
 });
 
-Given("Bnest has no bootstrap journal", async ({ page }) => {
+Given("Bnest has not been set up yet", async ({ page }) => {
   const response = await page.goto("/setup");
   expect(response?.status()).toBe(200);
   await expect(
@@ -74,6 +80,14 @@ Then("Bnest creates the accounts exactly once", async ({ page }) => {
     ),
   ).toBeVisible();
 });
+
+Then(
+  "setup and public registration are unavailable afterward",
+  async ({ page }) => {
+    expect((await page.request.get("/setup")).status()).toBe(404);
+    expect((await page.request.get("/register")).status()).toBe(404);
+  },
+);
 
 Then(
   "Bnest accepts the passwords without a character-count rule",

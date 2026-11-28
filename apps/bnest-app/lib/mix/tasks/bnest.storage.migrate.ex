@@ -8,21 +8,17 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
 
   @shortdoc "Runs the managed flat-file to SQLite storage migration without a browser visit"
 
+  @usage "usage: mix bnest.storage.migrate [--root <flat-root>] [--activate]"
+
   @impl Mix.Task
   def run(arguments) do
+    options = parse!(arguments)
     Mix.Task.run("app.config")
     {:ok, _apps} = Application.ensure_all_started(:ecto_sql)
     {:ok, _apps} = Application.ensure_all_started(:exqlite)
 
-    {options, remaining, invalid} =
-      OptionParser.parse(arguments, strict: [root: :string, activate: :boolean])
-
-    if remaining != [] or invalid != [] do
-      Mix.raise("usage: mix bnest.storage.migrate [--root <flat-root>] [--activate]")
-    end
-
-    flat_root = options[:root] || Application.fetch_env!(:bnest_app, :runtime_root)
-    activate? = Keyword.get(options, :activate, false)
+    flat_root = options.root || Application.fetch_env!(:bnest_app, :runtime_root)
+    activate? = options.activate?
 
     case Storage.migrate(flat_root, activate?) do
       {:ok, outcome, report} ->
@@ -42,6 +38,25 @@ defmodule Mix.Tasks.Bnest.Storage.Migrate do
         report_verification(report)
         Mix.raise("verification failed; SQLite storage was not activated")
     end
+  end
+
+  # The option check runs before the application boots, so a usage refusal
+  # never starts an application or touches configuration, a database or a
+  # scheduler, and the unit layer can assert its wording without that boot.
+  @doc """
+  Validates the task's options before the application boots. Raises
+  `Mix.Error` with the usage line for an unknown option or a stray argument.
+  """
+  @spec parse!([String.t()]) :: %{root: String.t() | nil, activate?: boolean()}
+  def parse!(arguments) do
+    {options, remaining, invalid} =
+      OptionParser.parse(arguments, strict: [root: :string, activate: :boolean])
+
+    if remaining != [] or invalid != [] do
+      Mix.raise(@usage)
+    end
+
+    %{root: options[:root], activate?: options[:activate] == true}
   end
 
   defp report_run(%{run: run}) do

@@ -22,6 +22,15 @@ import { clearCodexChat } from "../support/chat-ui-steps";
 // The browser-only Codex diagram scenarios of chat.feature (tag @codex-diagram). Each one runs in real Chromium:
 // the picture is decoded, the network is recorded, and the offline cache is used. Their unit proof is the
 // Vitest binding in apps/bnest-app/assets/test/behaviour/codex_diagram.steps.ts.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex flowchart is drawn as a picture
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A drawn diagram stays drawn and keeps its source open when the conversation grows
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram stays as source when the diagram engine cannot load
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws after the diagram engine starts on a later try
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clearing the Codex chat removes its diagrams and the next reply draws again
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws again offline after it was drawn once
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex chat without a diagram does not load the diagram engine
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The largest allowed Codex flowchart is drawn within the time budget
 const { Before, Given, Then, When } = createBdd();
 
 // Every scenario in the group starts recording its requests before the first page opens.
@@ -217,7 +226,7 @@ Then("the diagram shows the note {string}", async ({ page }, note: string) => {
   ).toHaveCount(1);
 });
 
-Then("the picture is the same node as before", async ({ page }) => {
+Then("the picture is still shown and not redrawn", async ({ page }) => {
   // The probe was set on the first picture before the later reply arrived; a replaced node has no probe.
   await expect(page.locator('[data-bnest-probe="same"]')).toHaveCount(1);
   await expect(drawnFigures(page)).toHaveCount(1);

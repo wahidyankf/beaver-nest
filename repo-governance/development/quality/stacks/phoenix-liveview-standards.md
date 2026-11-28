@@ -14,9 +14,7 @@ This standard is canonical for Phoenix with LiveView and holds only the choices 
 [Elixir Standards](elixir-standards.md), whose gates, failure forms, process rules, and test isolation apply unchanged,
 and a Phoenix LiveView framework skill defers here for each rule it applies.
 
-It implements Fail Closed,
-Explicit Over Implicit, and
-Pure Functions.
+It implements Fail Closed, Explicit Over Implicit, and Pure Functions.
 
 ## Gates
 
@@ -30,7 +28,8 @@ A live view, controller, or component calls the public functions of a
 [context](https://phoenix.hexdocs.pm/contexts.html) module and never reaches the repository or a schema query directly.
 Each context module is one bounded context's facade under [Hexagonal Architecture](../code/hexagonal-architecture.md):
 it holds the decisions, returns tagged tuples, and knows nothing about sockets, assigns, or templates, as
-[Functional Core, Imperative Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
+[Functional Core, Imperative
+Shell](../code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
 requires. Live views, controllers, resolvers, plugs, and Mix tasks are inbound adapters; each translates an event into
 one context call and the result into assigns.
 

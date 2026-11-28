@@ -56,6 +56,9 @@ defmodule BnestAppWeb.ChatConversationsLiveTest do
     assert [%{title: "First chat topic"}] = CodexChat.list_conversations(conversations)
   end
 
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor starts a second chat from the conversation rail
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor switches between two chats and each keeps its messages
   test "a new chat starts empty and switching keeps each conversation", %{conn: conn} do
     {conn, _identity} = scenario_authenticated_conn(conn, "chat-conv-switch", ["admin"])
     {:ok, view, _html} = live(conn, "/chat")
@@ -226,6 +229,75 @@ defmodule BnestAppWeb.ChatConversationsLiveTest do
     submit_visitor_message(view, "Continued")
     assert has_element?(view, "[data-role=user-message]", "Continued")
     assert has_element?(view, "[data-role=user-message]", "Legacy topic")
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor deletes a chat from the conversation rail
+  test "deleting a chat from the rail keeps the other chat's messages on screen", %{
+    conn: conn
+  } do
+    {conn, _identity} = scenario_authenticated_conn(conn, "chat-conv-rail-delete", ["admin"])
+    {:ok, view, _html} = live(conn, "/chat")
+
+    submit_visitor_message(view, "First chat topic")
+    send(view.pid, {:codex, view.pid, :turn_completed})
+
+    view |> element("[data-role=new-conversation]") |> render_click()
+    submit_visitor_message(view, "Second chat topic")
+    send(view.pid, {:codex, view.pid, :turn_completed})
+
+    [{_second, "Second chat topic", true}, {first_id, "First chat topic", false}] =
+      rail_items(view)
+
+    view
+    |> element("[data-role=delete-conversation][phx-value-id=\"#{first_id}\"]")
+    |> render_click()
+
+    assert [{_second, "Second chat topic", true}] = rail_items(view)
+    assert has_element?(view, "[data-role=user-message]", "Second chat topic")
+    refute has_element?(view, "[data-role=user-message]", "First chat topic")
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor renames a chat from the conversation rail
+  test "renaming a chat from the rail shows the new title in its place", %{conn: conn} do
+    {conn, _identity} = scenario_authenticated_conn(conn, "chat-conv-rail-rename", ["admin"])
+    {:ok, view, _html} = live(conn, "/chat")
+
+    submit_visitor_message(view, "First chat topic")
+    send(view.pid, {:codex, view.pid, :turn_completed})
+
+    [{id, "First chat topic", true}] = rail_items(view)
+
+    view
+    |> element("[data-role=rename-toggle][phx-value-id=\"#{id}\"]")
+    |> render_click()
+
+    view
+    |> element("form[phx-submit=rename_conversation]")
+    |> render_submit(%{"conversation_id" => id, "title" => "Renamed chat"})
+
+    assert [{^id, "Renamed chat", true}] = rail_items(view)
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor keeps every chat after a reload
+  test "a reload keeps every chat in the rail and shows the selected chat's messages", %{
+    conn: conn
+  } do
+    {conn, _identity} = scenario_authenticated_conn(conn, "chat-conv-rail-reload", ["admin"])
+    {:ok, view, _html} = live(conn, "/chat")
+
+    submit_visitor_message(view, "First chat topic")
+    send(view.pid, {:codex, view.pid, :turn_completed})
+
+    view |> element("[data-role=new-conversation]") |> render_click()
+    submit_visitor_message(view, "Second chat topic")
+    send(view.pid, {:codex, view.pid, :turn_completed})
+
+    {:ok, reloaded, _html} = live(conn, "/chat")
+
+    assert [{_second, "Second chat topic", true}, {_first, "First chat topic", false}] =
+             rail_items(reloaded)
+
+    assert has_element?(reloaded, "[data-role=user-message]", "Second chat topic")
   end
 
   defp rail_items(view) do

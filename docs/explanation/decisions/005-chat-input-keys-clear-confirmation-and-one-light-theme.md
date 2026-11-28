@@ -1,9 +1,8 @@
 # 005. Chat input keys, Clear chat confirmation, one light theme, and own-message Markdown
 
-Status: Accepted (2026-11-13). Decision 5 amended (2026-11-14): the soft keyboard rule, the composer caps, the overscroll
-rule, and the reversal of the coarse-pointer hide of the actions control. Decision 1 follows the visitor's pointer, never
-the screen width.
-The owner asked for consistent chat rooms: the same keys in both message boxes, a safe
+Status: Accepted (2026-11-13). Decision 5 amended (2026-11-14): the soft keyboard rule, the composer caps, the
+overscroll rule, and the reversal of the coarse-pointer hide of the actions control. Decision 1 follows the visitor's
+pointer, never the screen width. The owner asked for consistent chat rooms: the same keys in both message boxes, a safe
 Clear chat, no dark mode, Markdown in the visitor's own Codex messages, and a phone layout that gives the conversation
 most of the screen. Decision 8 of [004](004-mermaid-diagrams-in-both-chat-rooms.md) is partly superseded by this record:
 its items 5 to 7 describe the theme buttons and the old header budget. Its other items stand.
@@ -31,12 +30,14 @@ key press, so a pointer change while the page is open takes effect at the next k
 for keyCode 229, which Safari uses for the same Enter. `sendOnKey` runs the send once: a held send key (`repeat`) stops
 the newline and sends nothing more. Both rooms call `sendOnKey`: the Family Chat mount (`mount_browser_composer.js`) and
 the Codex message box (`installComposerKeys(window, window)` on `data-role="chat-composer"`). So the rooms cannot drift
-apart. A send with a blank draft does not send. While Codex replies, the Codex box is read-only, not disabled. It keeps keyboard focus, takes no text, and never sends, so a reply in progress cannot be sent twice.
+apart. A send with a blank draft does not send. While Codex replies, the Codex box is read-only, not disabled. It keeps
+keyboard focus, takes no text, and never sends, so a reply in progress cannot be sent twice.
 
-A pointer press on the Send button keeps keyboard focus in the message box, in both rooms (`keepFocusOnSendPress` in `chat_keys.js`
-for Codex, and the Family Chat mount for Family). A browser would otherwise move focus to the button, and a phone's keyboard closes
-when focus leaves the box. The Codex box has a LiveView hook (`ChatComposer`, `codex_composer_hook.js`): when the server clears the
-box after a send, the hook puts back the text the visitor typed after the send, so that text is not lost.
+A pointer press on the Send button keeps keyboard focus in the message box, in both rooms (`keepFocusOnSendPress` in
+`chat_keys.js` for Codex, and the Family Chat mount for Family). A browser would otherwise move focus to the button, and
+a phone's keyboard closes when focus leaves the box. The Codex box has a LiveView hook (`ChatComposer`,
+`codex_composer_hook.js`): when the server clears the box after a send, the hook puts back the text the visitor typed
+after the send, so that text is not lost.
 
 The behaviour follows the input type, never the screen size. The rule never reads the user agent, the window width, a
 viewport or a breakpoint. A narrow desktop window keeps the fine-pointer rule, and a wide touch tablet keeps the
@@ -58,20 +59,21 @@ Focus moves to Cancel when the dialog opens, and back to Clear chat when it clos
 targets and fits a 320 by 568 screen. The open and close state lives in the browser (`chat_controls.js`); the server
 sees only the confirmed clear.
 
-Role: the confirmation keeps `role="alertdialog"`. It is a question that the visitor must answer
-right away, and focus moves to Cancel when it opens, so screen readers announce the question at once. It is not a modal:
-it has no backdrop and no focus trap. The visitor can leave it at any time, so it closes in these cases:
+Role: the confirmation keeps `role="alertdialog"`. It is a question that the visitor must answer right away, and focus
+moves to Cancel when it opens, so screen readers announce the question at once. It is not a modal: it has no backdrop
+and no focus trap. The visitor can leave it at any time, so it closes in these cases:
 
 - the options panel closes, by a tap outside it, by the Options button, or by Escape, so a reopened panel never shows a
   stale question;
 - focus leaves its group (Clear chat and the confirmation buttons), so the question never stays open behind the page.
   Focus moves that the confirmation makes itself do not count as leaving;
-- Escape is pressed while the confirmation is open, from anywhere on the page. Focus goes back to Clear chat only when it
-  was inside the confirmation. Escape never moves focus when focus was outside the confirmation; it leaves focus where it is.
+- Escape is pressed while the confirmation is open, from anywhere on the page. Focus goes back to Clear chat only when
+  it was inside the confirmation. Escape never moves focus when focus was outside the confirmation; it leaves focus
+  where it is.
 
-Hiding the confirmation never moves focus, except for the Cancel, Escape and "Yes, delete" paths above. A press that starts
-inside the group is not treated as leaving, because Safari does not focus a button on click. The confirmation sits inside
-the options panel on a phone, as in `chat_live.ex`.
+Hiding the confirmation never moves focus, except for the Cancel, Escape and "Yes, delete" paths above. A press that
+starts inside the group is not treated as leaving, because Safari does not focus a button on click. The confirmation
+sits inside the options panel on a phone, as in `chat_live.ex`.
 
 ## Decision 3. One light appearance; no theme control
 
@@ -108,9 +110,8 @@ controls; a translated label is not part of this decision.
 
 ## Decision 5. The phone layout gives the conversation most of the screen
 
-The budget is the share of the screen height that the conversation keeps when the composer is empty, and the space
-that is not conversation. The rules apply on a phone (`max-width: 767px`) and on a short window
-(`max-height: 33rem`).
+The budget is the share of the screen height that the conversation keeps when the composer is empty, and the space that
+is not conversation. The rules apply on a phone (`max-width: 767px`) and on a short window (`max-height: 33rem`).
 
 | Screen (CSS px)        | Codex conversation share (at least) | Family history share (at least) |
 | ---------------------- | ----------------------------------- | ------------------------------- |
@@ -133,24 +134,24 @@ that is not conversation. The rules apply on a phone (`max-width: 767px`) and on
   wide; the accepted figure is stated under Accepted limits.
 - The room is sticky, in the WhatsApp style, on every Codex and Family Chat screen the layout scenarios cover (phone,
   tablet, landscape and desktop). The page never scrolls. The header stays at the top, the message list is the only
-  scroller, and the composer stays at the bottom. The Send button and the header are ordinary boxes in the column; neither
-  is positioned out of the flow.
+  scroller, and the composer stays at the bottom. The Send button and the header are ordinary boxes in the column;
+  neither is positioned out of the flow.
 - Soft keyboard: the viewport meta asks for `interactive-widget=resizes-content`. `js/viewport_height.js` writes the
   visual viewport's height to `--vvh` and puts the page back at the top, and the room heights read `var(--vvh, 100dvh)`,
-  so a keyboard that shrinks the screen shrinks the room with it. Without `visualViewport` the `100dvh` fallback applies.
-  The header keeps its full height when the conversation takes the room that is left (`flex-shrink: 0`), and its
-  controls stay inside its box. The unit tests check the module. The Vitest layer checks the declared rules, and the
+  so a keyboard that shrinks the screen shrinks the room with it. Without `visualViewport` the `100dvh` fallback
+  applies. The header keeps its full height when the conversation takes the room that is left (`flex-shrink: 0`), and
+  its controls stay inside its box. The unit tests check the module. The Vitest layer checks the declared rules, and the
   Chromium check resizes the emulated viewport. That exercises the `--vvh` write and the `100dvh` fallback; it does not
   run a real soft keyboard. A real phone's keyboard is not yet checked (see Accepted limits).
 - The list does not pass its overscroll to the page: the Codex conversation and the Family history declare
   `overscroll-behavior: contain`. No new buttons are added.
 - A growing draft stops at five lines in both rooms, measured with the box's own padding and border. The Codex message
-  box is capped at `min(9.25rem, 22svh)`: 7.5 rem of text (five lines of 1.5 rem) and 1.75 rem of padding and border. The
-  Family box is capped at `min(9.15rem, 22svh)`: 7.5 rem of text and 1.65 rem of padding and border. Past the cap the
-  draft scrolls inside the box, and the box never takes more of the screen than that cap.
+  box is capped at `min(9.25rem, 22svh)`: 7.5 rem of text (five lines of 1.5 rem) and 1.75 rem of padding and border.
+  The Family box is capped at `min(9.15rem, 22svh)`: 7.5 rem of text and 1.65 rem of padding and border. Past the cap
+  the draft scrolls inside the box, and the box never takes more of the screen than that cap.
 
-Measured in Chromium (touch pointer, empty draft, the layout budget scenarios of `chat.feature` and `family_chat.feature`
-run on the touch project, with the boxes read from the rendered page):
+Measured in Chromium (touch pointer, empty draft, the layout budget scenarios of `chat.feature` and
+`family_chat.feature` run on the touch project, with the boxes read from the rendered page):
 
 | Screen (CSS px)        | Codex measured share | Family measured share |
 | ---------------------- | -------------------- | --------------------- |
@@ -164,10 +165,10 @@ The Codex targets are met at every size with the two-row header: 64.2 against 60
 against 52. The Codex space that is not conversation is 203.2 CSS px at 320, 360 and 390 wide (the 106 px header and the
 97.2 px composer), under its 220 CSS px limit, and 164.4 CSS px at 844 by 390. The Family space is 213.8 CSS px at 320
 and 360 wide and 157.8 CSS px at 390 wide (the 180 CSS px budget is covered under Accepted limits), and 157.0 CSS px at
-844 by 390. The figures were measured again on 2026-11-14. The stylesheet of HEAD (4c2ae09), run with the current templates, gives
-the same numbers as this change, so this change does not move the boxes of an empty draft. The earlier Codex figures
-(62.1, 66.4, 74.5 and 54.8 percent, with 215 and 176 CSS px of space) are not reproduced by either; this record does not
-trace that difference.
+844 by 390. The figures were measured again on 2026-11-14. The stylesheet of HEAD (4c2ae09), run with the current
+templates, gives the same numbers as this change, so this change does not move the boxes of an empty draft. The earlier
+Codex figures (62.1, 66.4, 74.5 and 54.8 percent, with 215 and 176 CSS px of space) are not reproduced by either; this
+record does not trace that difference.
 
 Decision (2026-11-13): the header keeps two rows on phone widths. A one-row header at 320 CSS px cannot hold the brand,
 the repository access state, the model badge and Options without hiding the brand name or shortening a label. Safety
@@ -176,10 +177,12 @@ comes first, and the access state must stay visible while the brand is never cov
 
 The header changes apply on phone widths only.
 
-On a landscape phone with a fine pointer (the desktop Chromium project), the composer keeps its keyboard hint row. The conversation measured 193.8 CSS px of 390 with a half-rem row gap, just under the half-screen floor of 195 CSS px. The landscape rule therefore sets a quarter-rem row gap instead of a half-rem gap. The number 195 is not changed.
+On a landscape phone with a fine pointer (the desktop Chromium project), the composer keeps its keyboard hint row. The
+conversation measured 193.8 CSS px of 390 with a half-rem row gap, just under the half-screen floor of 195 CSS px. The
+landscape rule therefore sets a quarter-rem row gap instead of a half-rem gap. The number 195 is not changed.
 
-Reversal (2026-11-14): the `⋯` actions control of a Family Chat message is shown on every pointer. An earlier rule hid it
-on a coarse pointer, where holding the message was the only route to the menu. A touch visitor now sees the control
+Reversal (2026-11-14): the `⋯` actions control of a Family Chat message is shown on every pointer. An earlier rule hid
+it on a coarse pointer, where holding the message was the only route to the menu. A touch visitor now sees the control
 without a long press, and holding the message still opens the same menu. The stylesheet has no coarse-pointer rule for
 the control, and `message_render.js` says so.
 
@@ -205,8 +208,8 @@ Accepted limits:
   an earlier visit that left the engine in the service worker cache, which draws at once by design; no scenario covers
   that precondition.
 - A short landscape window with a keyboard open keeps the header whole and the composer on screen. The conversation
-  keeps its horizontal padding but only 0.5 rem of vertical padding in that window, because its own padding is the
-  floor of its box. Its box, and so its share of the screen, is set by the room's flex layout, not by that padding.
+  keeps its horizontal padding but only 0.5 rem of vertical padding in that window, because its own padding is the floor
+  of its box. Its box, and so its share of the screen, is set by the room's flex layout, not by that padding.
 - Small portrait list height (not changed here): the message list is 50 CSS px at 320 by 300, 81 CSS px at 360 by 340,
   and 151 CSS px at 390 by 430. The header and composer take the rest. The two-row phone header is kept (see the
   decision above), so these figures stand.
@@ -221,8 +224,8 @@ Accepted limits:
   for example by a rotation while zoomed, a room can be taller than the screen and its composer can sit below the
   visible area. The page is clipped, so it cannot be scrolled to. The height is written again at scale 1. No code change
   is made for this.
-- In 4 of 12 first long-presses on the last message right after page load, the history scrolled up during the press,
-  and the menu still opened. This case is not reproduced, and no code change is made for it.
+- In 4 of 12 first long-presses on the last message right after page load, the history scrolled up during the press, and
+  the menu still opened. This case is not reproduced, and no code change is made for it.
 
 Open usability findings (not fixed here). These were seen in use and are plain facts about the current screens:
 
@@ -235,8 +238,8 @@ Open usability findings (not fixed here). These were seen in use and are plain f
 - The placement of the Clear chat control needs a review.
 - Family Chat timestamps are absolute US-format dates with seconds.
 - "Notifications blocked" is shown with no action to fix it.
-- On a short landscape window (844 by 240 CSS px), the "Delete all messages?" confirmation of Clear chat was reported
-  to sit over the Send button and to be cut off by the card. In Chromium the confirmation stays inside the card and the
+- On a short landscape window (844 by 240 CSS px), the "Delete all messages?" confirmation of Clear chat was reported to
+  sit over the Send button and to be cut off by the card. In Chromium the confirmation stays inside the card and the
   viewport at that size, and it covers the Send button by design (it is a popover over the composer). The reported
   clipping is not reproduced here, so no change is made. The e2e outline "The Clear chat confirmation fits a narrow
   screen with 44 pixel targets" now includes this size as a regression guard.
@@ -244,8 +247,8 @@ Open usability findings (not fixed here). These were seen in use and are plain f
 ## Trade-offs
 
 - A visitor on a touch pointer who sends from Family Chat's keyboard now uses Shift+Enter, and Enter makes a new line. A
-  visitor on a fine pointer sends with Enter, as in Codex chat. The hint names the shortcut for the visitor's pointer, and
-  the Send button stays on every device.
+  visitor on a fine pointer sends with Enter, as in Codex chat. The hint names the shortcut for the visitor's pointer,
+  and the Send button stays on every device.
 - The Clear chat confirmation adds one click. It protects a whole conversation from a stray tap.
 - Keeping the inert theme column is extra data that nothing reads. It keeps the migration and the rollback reader safe.
 - Visitor Markdown can look different from what the visitor typed. The raw view is one click away.
@@ -284,4 +287,5 @@ Open usability findings (not fixed here). These were seen in use and are plain f
   the measured boxes at each viewport.
 - The sticky room is proven by `codex_sticky.steps.ts` (Vitest, the declared layout contract) and by
   `codex-sticky-layout.steps.ts` (e2e, the measured header, composer, newest message and page scroll). With
-  `BNEST_SCREENSHOT_DIR` set, those steps and the budget steps also write the screenshots and boxes used for this record.
+  `BNEST_SCREENSHOT_DIR` set, those steps and the budget steps also write the screenshots and boxes used for this
+  record.

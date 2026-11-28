@@ -28,7 +28,6 @@ import {
  *   newestKnownId: string | null,
  *   hasNewer: boolean,
  *   atBottom: boolean,
- *   replies: boolean,
  * }} RealStoreState
  */
 
@@ -46,15 +45,13 @@ export function keyOf(message) {
 export function appendMessages(elements, state, currentUserId, messages) {
   const fragment = document.createDocumentFragment();
   for (const message of messages) {
-    const node = messageNode(message, {
-      pending: false,
-      currentUserId,
-      replies: state.replies,
-    });
+    const node = messageNode(message, { pending: false, currentUserId });
     fragment.append(node);
     state.rendered.set(keyOf(message), node);
   }
   elements.list.append(fragment);
+  // The room no longer has nothing to show once a message renders.
+  elements.empty.hidden = state.rendered.size > 0;
   const oldest = messages[0];
   const newest = messages.at(-1);
   if (oldest) state.oldestKnownId ??= keyOf(oldest);
@@ -153,11 +150,7 @@ export function createPrependOlderMethods(elements, state, currentUserId) {
 
       const fragment = document.createDocumentFragment();
       for (const message of messages) {
-        const node = messageNode(message, {
-          pending: false,
-          currentUserId,
-          replies: state.replies,
-        });
+        const node = messageNode(message, { pending: false, currentUserId });
         fragment.append(node);
         state.rendered.set(keyOf(message), node);
       }

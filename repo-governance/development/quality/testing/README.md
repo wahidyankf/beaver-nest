@@ -5,4 +5,6 @@ Adopted testing rules that complement the local [Quality Gates](../../quality-ga
 
 ## Directory Map
 
-- [Meaningful coverage](meaningful-coverage.md) limits numeric coverage to authored executable production code a reliable instrument measures.
+- [Meaningful coverage](meaningful-coverage.md) limits numeric coverage to authored executable production code a
+  reliable instrument measures.
+- [Test doubles](test-doubles.md) selects the double for each collaborator: fakes over mocks for owned ports.

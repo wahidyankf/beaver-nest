@@ -25,7 +25,7 @@
     "lint": {
       "command": "npm exec -- oxlint --deny correctness --deny suspicious --deny pedantic --deny perf --deny typescript/no-explicit-any --deny-warnings --report-unused-disable-directives apps/bnest-app-fe-e2e"
     },
-    "test:coverage:behaviour": {
+    "test:behaviour:verify": {
       "executor": "nx:run-commands",
       "cache": true,
       "inputs": [
@@ -50,10 +50,42 @@
         "parallel": false
       }
     },
+    "test:behaviour:coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/repo-config.yml",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/specs/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./rhino behaviour coverage validate",
+            "forwardAllArgs": false
+          }
+        ],
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
     "test:e2e": {
       "command": "BNEST_E2E_PORT=${BNEST_E2E_PORT:-4010} ./hippo run --class ephemeral --resource-tier standard --disk-path . --lease-port ${BNEST_E2E_PORT:-4010} --lease-owner fe-e2e --lease-min 4010 --lease-max 4019 -- node apps/bnest-app-fe-e2e/tools/run-e2e.mts",
       "dependsOn": [
-        "test:coverage:behaviour",
+        "test:behaviour:verify",
+        {
+          "projects": ["bnest-app"],
+          "target": "assets:build"
+        }
+      ],
+      "cache": false
+    },
+    "test:integration": {
+      "command": "BNEST_E2E_PORT=${BNEST_E2E_PORT:-4010} ./hippo run --class ephemeral --resource-tier standard --disk-path . --lease-port ${BNEST_E2E_PORT:-4010} --lease-owner fe-integration --lease-min 4010 --lease-max 4019 -- node apps/bnest-app-fe-e2e/tools/run-integration.mts",
+      "dependsOn": [
+        "test:behaviour:verify",
         {
           "projects": ["bnest-app"],
           "target": "assets:build"
@@ -62,7 +94,7 @@
       "cache": false
     },
     "test:unit": {
-      "command": "node --test apps/bnest-app-fe-e2e/tests/support/test-instance-paths.test.mts apps/bnest-app-fe-e2e/tests/support/testing-control.test.mts apps/bnest-app-fe-e2e/tests/support/testing-control-errors.test.mts apps/bnest-app-fe-e2e/tests/support/test-runtime.test.mts apps/bnest-app-fe-e2e/tests/support/browser-environment.test.mts apps/bnest-app-fe-e2e/tests/support/run-base-leaks.test.mts apps/bnest-app-fe-e2e/tests/support/test-instance-lifecycle.test.mts apps/bnest-app-fe-e2e/tests/support/test-instance-lifecycle-state.test.mts apps/bnest-app-fe-e2e/tests/support/instance-record-read.test.mts apps/bnest-app-fe-e2e/tests/support/secondary-environment.test.mts apps/bnest-app-fe-e2e/tests/support/backup-repository.test.mts apps/bnest-app-fe-e2e/tests/support/delete-when-idle.test.mts apps/bnest-app-fe-e2e/tests/support/scenario-tags.test.mts apps/bnest-app-fe-e2e/tests/support/pages-idle.test.mts apps/bnest-app-fe-e2e/tests/support/codex-fixture-runner.test.mts",
+      "command": "node --test apps/bnest-app-fe-e2e/tests/support/test-instance-paths.test.mts apps/bnest-app-fe-e2e/tests/support/testing-control.test.mts apps/bnest-app-fe-e2e/tests/support/testing-control-errors.test.mts apps/bnest-app-fe-e2e/tests/support/test-runtime.test.mts apps/bnest-app-fe-e2e/tests/support/browser-environment.test.mts apps/bnest-app-fe-e2e/tests/support/run-base-leaks.test.mts apps/bnest-app-fe-e2e/tests/support/test-instance-lifecycle.test.mts apps/bnest-app-fe-e2e/tests/support/test-instance-lifecycle-state.test.mts apps/bnest-app-fe-e2e/tests/support/instance-record-read.test.mts apps/bnest-app-fe-e2e/tests/support/secondary-environment.test.mts apps/bnest-app-fe-e2e/tests/support/backup-repository.test.mts apps/bnest-app-fe-e2e/tests/support/delete-when-idle.test.mts apps/bnest-app-fe-e2e/tests/support/scenario-tags.test.mts apps/bnest-app-fe-e2e/tests/support/pages-idle.test.mts apps/bnest-app-fe-e2e/tests/support/codex-fixture-runner.test.mts apps/bnest-app-fe-e2e/tests/support/family-chat-previous-revision-judge.test.mts apps/bnest-app-fe-e2e/tests/support/family-chat-previous-revision.test.mts apps/bnest-app-fe-e2e/tests/support/family-chat-previous-revision-judged.test.mts",
       "cache": false
     },
     "test:quick": {
@@ -82,7 +114,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:coverage:behaviour",
+            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:behaviour:verify",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app-fe-e2e -t test:behaviour:coverage",
             "forwardAllArgs": false
           }
         ],

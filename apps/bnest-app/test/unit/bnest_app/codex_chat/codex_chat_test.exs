@@ -59,6 +59,10 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
       refute_received {:agent_session, :open, _second}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Failed Codex-thread resume reports a fresh conversation
     test "starts a fresh conversation when the saved thread cannot be resumed" do
       transcript = saved_transcript("unavailable-thread")
 
@@ -88,6 +92,8 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
   end
 
   describe "replace_conversation/4" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
     test "closes the failed session and keeps the transcript in a fresh conversation" do
       {:ok, session, _transcript} =
         CodexChat.open_conversation(Transcript.new(), :read_only, @agent)
@@ -121,6 +127,8 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
       assert_received {:agent_session, :prompt, ^session, "Hello"}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sees an alert when Codex cannot take or finish a message
     test "fails the transcript when the agent session refuses the prompt" do
       {:ok, session, _transcript} =
         CodexChat.open_conversation(Transcript.new(), :read_only, @agent)
@@ -200,6 +208,10 @@ defmodule BnestApp.CodexChat.CodexChatUnitTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
   describe "save_transcript/4 and load_transcript/2" do
     test "a first save stores a new chat record in its unchanged format", %{store: store} do
       {:ok, transcript} = Transcript.submit(Transcript.new(), "Hello")

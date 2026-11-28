@@ -39,6 +39,19 @@ import {
 
 const { Given, When, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message with a mermaid flowchart shows a diagram
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram stays as source when the diagram engine cannot load
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram that arrives live is drawn
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending shows its diagram source as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A narrow diagram is readable on the own message bubble and fits a 320 px message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A repository image in a message is shown inline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An https image in a message is shown inline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An oversized, unsupported or surplus diagram in a message stays as source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message with a diagram copies the typed Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Hostile diagram text in a message is inert
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a message with a diagram quotes the typed Markdown as plain text
+
 /** Names the message a later step is about, for both the page-keyed lookup and the reply and menu steps. */
 function pointTo(page: Page, messageId: string): void {
   setTargetMessage(page, messageId);

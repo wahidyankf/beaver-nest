@@ -9,6 +9,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+
 // --- Header row and the composer's cap (chat.feature, Rule "Codex chat on touch and short screens") ---
 
 type Box = { x: number; y: number; width: number; height: number };
@@ -25,7 +27,6 @@ function viewportHeight(page: Page): number {
   return viewport.height;
 }
 
-const SEND_BUTTON = ".send-button";
 const CHAT_CONVERSATION = "#chat-conversation";
 const CONVERSATION_SHARE_CAPPED = 0.25;
 
@@ -42,27 +43,6 @@ When(
     );
   },
 );
-
-Then("the Codex Send button is on screen", async ({ page }) => {
-  const send = page.locator(SEND_BUTTON);
-  await expect(send).toBeVisible();
-  const box = await boxOf(send, "the Send button");
-  expect(box.y, "the Send button top edge").toBeGreaterThanOrEqual(0);
-  expect(box.y + box.height, "the Send button bottom edge").toBeLessThanOrEqual(
-    viewportHeight(page) + 1,
-  );
-});
-
-Then("the Codex header is on screen", async ({ page }) => {
-  const box = await boxOf(page.locator(".chat-header"), "the Codex header");
-  expect(box.y, "the Codex header is cut at the top").toBeGreaterThanOrEqual(
-    -0.5,
-  );
-  expect(
-    box.y + box.height,
-    "the Codex header's bottom edge",
-  ).toBeLessThanOrEqual(viewportHeight(page) + 1);
-});
 
 Then(
   "the conversation is at least 25 percent of the screen height",

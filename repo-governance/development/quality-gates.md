@@ -1,41 +1,75 @@
 # Quality Gates
 
-Define project gates as documented Nx targets invoked through the workspace package manager. The [enforcement map](software-quality-enforcement.md) classifies their blocking, scheduled, runtime, and evidence routes.
+Define project gates as documented Nx targets invoked through the workspace package manager. The
+[enforcement map](software-quality-enforcement.md) classifies their blocking, scheduled, runtime, and evidence routes.
 
 ## Test Boundaries
 
-- **Unit** tests run in-process and replace filesystem, database, environment, clock, randomness, child-process, network, and other OS-facing dependencies with injected mocks, fakes, or stubs. Setup and assertions must not access those real resources.
-- **Integration** tests may use real OS resources and same-machine processes: isolated files, SQLite, environment state, child processes, stdin, stdout, and stderr. They may bind a loopback socket they own, but never reach an external network, drive a browser, or observe the routed public origin. Isolate and clean every resource deterministically.
-- **End-to-end** tests exercise a public system boundary and may use OS resources, processes, and network communication when the journey requires them. They remain subject to the [test-data iron rule](test-identities.md#iron-rule): use synthetic identities and isolated data, never production users or data. Uncontrolled external services require explicit authorization.
+- **Unit** tests run in-process and replace filesystem, database, environment, clock, randomness, child-process,
+  network, and other OS-facing dependencies with injected mocks, fakes, or stubs. Setup and assertions must not access
+  those real resources.
+- **Integration** tests may use real OS resources and same-machine processes: isolated files, SQLite, environment state,
+  child processes, stdin, stdout, and stderr. They may bind a loopback socket they own, but never reach an external
+  network, drive a browser, or observe the routed public origin. Isolate and clean every resource deterministically.
+- **End-to-end** tests exercise a public system boundary and may use OS resources, processes, and network communication
+  when the journey requires them. They remain subject to the [test-data iron rule](test-identities.md#iron-rule): use
+  synthetic identities and isolated data, never production users or data. Uncontrolled external services require
+  explicit authorization.
 
-Classify each test by the strongest real boundary touched by its setup, subject, or assertions. E2E is defined by public-boundary observation, not merely by permission to use more resources. Keep executable tests in separate `unit`, `integration`, and E2E project directories; shared contracts, bindings, fixtures, and non-executable support may remain shared. Put E2E in a dedicated Nx app when a project has a public browser, HTTP, or process boundary. Review topology during changes; do not add a repository-wide topology validator unless a demonstrated risk justifies it.
+Classify each test by the strongest real boundary touched by its setup, subject, or assertions. E2E is defined by
+public-boundary observation, not merely by permission to use more resources. Keep executable tests in separate `unit`,
+`integration`, and E2E project directories; shared contracts, bindings, fixtures, and non-executable support may remain
+shared. Put E2E in a dedicated Nx app when a project has a public browser, HTTP, or process boundary. Review topology
+during changes; do not add a repository-wide topology validator unless a demonstrated risk justifies it.
 
 ## Gate Contracts
 
-| Gate                      | Contract                                                                                                                                                                                                                                                                                                                                           |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `lint`                    | Reject configured formatting, style, suspicious-code, and dependency-hygiene findings.                                                                                                                                                                                                                                                             |
-| `typecheck`               | Reject compiler or static-type findings without leaving distributable artifacts.                                                                                                                                                                                                                                                                   |
-| `test:unit`               | Run fast deterministic tests at the unit boundary and measure their line coverage in the same execution, failing below 99%. Omit only for a dedicated end-to-end harness.                                                                                                                                                                          |
-| `test:integration`        | Run tests across local real boundaries. Keep it out of `test:quick`. It carries no coverage threshold.                                                                                                                                                                                                                                             |
-| `test:coverage`           | Add only where a project's unit layer structurally cannot reach most of its production code. Run every layer tree with no module exclusion at 99%, and keep it scheduled.                                                                                                                                                                          |
-| `test:coverage:behaviour` | Statically prove every canonical feature and non-exempt scenario resolves exactly once in each adapter the project itself owns, every step has exactly one binding, every binding is used, and exemption syntax is valid under the [BDD standard](behaviour-driven-development.md). Semantic implementation remains a separate manual review gate. |
-| `test:e2e`                | Exercise relevant journeys at the public boundary under the [end-to-end standard](end-to-end-testing.md). Dedicated harnesses must expose this target.                                                                                                                                                                                             |
-| `test:quick`              | Run `typecheck` → `lint` → `test:unit` → required static behaviour coverage. Dedicated E2E harnesses use `typecheck` → `lint` → static behaviour coverage. Never run integration or E2E scenarios.                                                                                                                                                 |
-| `pre-commit`              | Run deterministic staged-file checks selected by `lint-staged`.                                                                                                                                                                                                                                                                                    |
-| `pre-push`                | Run one HIPPO-guarded affected `test:quick` graph that uses its admitted allocation, then repository validation under the [push-hook convention](../conventions/push-hook-verification.md).                                                                                                                                                        |
+- **`lint`**
+  - Contract: Reject configured formatting, style, suspicious-code, and dependency-hygiene findings.
+- **`typecheck`**
+  - Contract: Reject compiler or static-type findings without leaving distributable artifacts.
+- **`test:unit`**
+  - Contract: Run fast deterministic tests at the unit boundary and measure their line coverage in the same execution,
+    failing below 99%. Omit only for a dedicated end-to-end harness.
+- **`test:integration`**
+  - Contract: Run tests across local real boundaries. Keep it out of `test:quick`. It carries no coverage threshold.
+- **`test:behaviour:coverage`**
+  - Contract: Statically prove every canonical feature and non-exempt scenario resolves exactly once in each adapter the
+    project itself owns, every step has exactly one binding, every binding is used, and exemption syntax is valid under
+    the [BDD standard](behaviour-driven-development.md). Semantic implementation remains a separate manual review gate.
+- **`test:e2e`**
+  - Contract: Exercise relevant journeys at the public boundary under the [end-to-end standard](end-to-end-testing.md).
+    Dedicated harnesses must expose this target.
+- **`test:quick`**
+  - Contract: Run `typecheck` → `lint` → `test:unit` → `test:behaviour:coverage`. Dedicated E2E harnesses use
+    `typecheck` → `lint` → `test:behaviour:coverage`. Never run integration or E2E scenarios.
+- **`pre-commit`**
+  - Contract: Run staged-file formatters that rewrite and restage; never a check, test, or scan (C6).
+- **`pre-push`**
+  - Contract: Run the deterministic leak scan over the pushed range; never tests, lint, or document checks (C6).
+    `test:quick` and repository validation run at pull-request.
 
 ## Application
 
-- Run the narrowest relevant gate during development and keep every gate applicable under the [enforcement map](software-quality-enforcement.md) green before completion.
-- Invoke compute-bearing local gates through [resource-aware development](resource-aware-development.md); capacity deferral is not a test failure and must not be bypassed.
-- A deliberate failing test during the red phase of [TDD](test-driven-development.md) is temporary evidence, not a completed state.
-- Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the [end-to-end testing standard](end-to-end-testing.md).
+- Run the narrowest relevant gate during development and keep every gate applicable under the
+  [enforcement map](software-quality-enforcement.md) green before completion.
+- Invoke compute-bearing local gates through [resource-aware development](resource-aware-development.md); capacity
+  deferral is not a test failure and must not be bypassed.
+- A deliberate failing test during the red phase of [TDD](test-driven-development.md) is temporary evidence, not a
+  completed state.
+- Run `test:quick` after the final red–green–refactor cycle. Select `test:e2e` cases according to the
+  [end-to-end testing standard](end-to-end-testing.md).
 - Do not duplicate tool commands outside their canonical Nx target. Aggregate gates must compose named targets.
-- `test:unit` is the only numeric gate. Exclude from its denominator only modules a unit test may not touch, and name them in the project README. Never split one project's behaviour check across projects or compose a coverage target across a project boundary; each project checks the adapters it owns.
-- Scheduled CI runs every applicable integration suite before the owning complete, unfiltered E2E target; integration and E2E remain outside `test:quick` and Git hooks. Before completing a change, run by hand the integration suites covering it; keep that in prose, never wired into `test:quick`, a dependency, or a hook.
+- `test:unit` is the only numeric gate. Exclude from its denominator only modules a unit test may not touch, and name
+  them in the project README. Never split one project's behaviour check across projects or compose a coverage target
+  across a project boundary; each project checks the adapters it owns.
+- Pull-request CI runs every applicable integration suite. Scheduled CI runs only the owning complete, unfiltered E2E
+  target. Integration and E2E remain outside `test:quick` and Git hooks. Before completing a change, run by hand the
+  integration suites covering it; keep that in prose, never wired into `test:quick`, a dependency, or a hook.
 - An end-to-end harness has no `test:unit` or numeric coverage target; behaviour coverage is its only static gate.
-- Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing result.
+- Fix failures at their root cause. Do not disable, weaken, bypass, or superficially satisfy a gate to obtain a passing
+  result.
 - Do not invent an inapplicable target merely for naming symmetry; explain legitimate omissions in the project README.
 
-This standard follows [minimal sufficiency](../principles/minimal-sufficiency.md), [project READMEs](../conventions/project-readmes.md), and [TDD](test-driven-development.md).
+This standard follows [minimal sufficiency](../principles/minimal-sufficiency.md),
+[project READMEs](../conventions/project-readmes.md), and [TDD](test-driven-development.md).

@@ -50,8 +50,6 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: context |> spawn_plain(phase: :flat_primary)
   )
 
-  step("a test spawns an instance", context, do: spawn_plain(context))
-
   step("the next test spawns its own instance", context,
     do:
       context
@@ -116,12 +114,14 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
   # Then
 
   step(
-    "the instance database holds no account, browser session, chat message, or user record",
+    "no account can log in, the chat has no messages, and the initial setup page is open",
     context,
-    do: assert_empty_database(context)
+    do: context |> assert_empty_database() |> assert_setup_open()
   )
 
-  step("the initial setup stays open for that instance", context, do: assert_setup_open(context))
+  step("the instance database holds no browser session or user record", context,
+    do: assert_no_session_or_user_record(context)
+  )
 
   step("the next instance has a different instance ID and generation", context,
     do: assert_new_instance(context)
@@ -137,14 +137,10 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: assert_readiness_reports_next(context)
   )
 
-  # Unit: the digest is order-independent and detects an extra object (PARTIAL, not equality).
-  # Integration: the instance's digest equals the release database's digest (exact).
   step("the schema objects and the applied migration versions are identical", context,
     do: assert_schema_identical(context)
   )
 
-  # Unit: the digest detects a missing version (PARTIAL). Integration: both databases hold exactly the
-  # committed migration files' versions, in order (exact).
   step("the applied migration versions match the committed migration files exactly", context,
     do: assert_versions_exact(context)
   )
@@ -219,6 +215,53 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     do: assert_no_leftovers(context)
   )
 
+  # Seeding after a spawn, and the conflicting testing-control answers. Each answer is the status and the
+  # body the route gave, so the assertion reads what a client receives.
+
+  step("a test seeded a current instance under a seed key", context,
+    do: adapter(context).prepare_seeded(context)
+  )
+
+  step("a scheduler task is running", context, do: adapter(context).hold_scheduler_task(context))
+
+  step("a test seeds the current instance under a new seed key", context,
+    do: adapter(context).seed_request(context, :new_key)
+  )
+
+  step("the test repeats that seed key with the same body", context,
+    do: adapter(context).seed_request(context, :same_body)
+  )
+
+  step("a test seeds the current instance with another body under it", context,
+    do: adapter(context).seed_request(context, :other_body)
+  )
+
+  step("a test seeds an instance that is not current", context,
+    do: adapter(context).seed_request(context, :not_current)
+  )
+
+  step("a test asks the server to spawn an instance under another run id", context,
+    do: adapter(context).spawn_request(context, :other_run)
+  )
+
+  step("a test asks the server to spawn an instance", context,
+    do: adapter(context).spawn_request(context, :plain)
+  )
+
+  step("the seed answers applied true and the seeded account can log in", context,
+    do: context |> assert_applied(true) |> assert_seed_account_logs_in()
+  )
+
+  step("the repeat answers applied false and writes no new account", context,
+    do: context |> assert_applied(false) |> assert_one_seed_account()
+  )
+
+  step("the response is a 409 answer with the code {string}", %{args: [code]} = context,
+    do: assert_conflict(context, code)
+  )
+
+  step("the answer echoes none of the request's input", context, do: assert_no_echo(context))
+
   # Shared actions. The adapter is the layer's; every assertion is the feature's.
 
   defp adapter(context), do: context.isolation_adapter
@@ -272,6 +315,13 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     context
   end
 
+  # Browser sessions and user records are both records the unit port counts in `records`, and SQLite
+  # keeps the instance's records in `bnest_records`, so an empty record count holds neither.
+  defp assert_no_session_or_user_record(context) do
+    assert adapter(context).database_contents(context).records == 0
+    context
+  end
+
   defp assert_setup_open(context) do
     assert adapter(context).setup_open?(context)
     context
@@ -298,16 +348,6 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     {:ok, next} = context.spawn
 
     assert adapter(context).readiness_generation(context) == next.generation
-    context
-  end
-
-  defp assert_schema_identical(context) do
-    assert adapter(context).schema_identical?(context)
-    context
-  end
-
-  defp assert_versions_exact(context) do
-    assert adapter(context).versions_exact?(context)
     context
   end
 
@@ -364,6 +404,16 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
     context
   end
 
+  defp assert_schema_identical(context) do
+    assert adapter(context).schema_identical?(context)
+    context
+  end
+
+  defp assert_versions_exact(context) do
+    assert adapter(context).versions_exact?(context)
+    context
+  end
+
   defp assert_no_mount(context) do
     assert context.mount.decision == false
     assert Enum.all?(context.mount.checks, &(&1 == false))
@@ -415,6 +465,40 @@ defmodule BnestApp.Behaviour.TestIsolationSteps do
 
   defp assert_failed_at(context, step) do
     assert {:error, %{step: ^step}} = context.spawn
+    context
+  end
+
+  defp assert_applied(context, applied) do
+    assert %{status: 200, body: %{"applied" => ^applied}} = context.isolation_answer
+    context
+  end
+
+  defp assert_seed_account_logs_in(context) do
+    assert adapter(context).seed_account_login(context) == :ok
+    context
+  end
+
+  # The repeat of a seed writes nothing, so the seed's one account is still the only one it made.
+  defp assert_one_seed_account(context) do
+    assert adapter(context).seed_account_count(context) == 1
+    context
+  end
+
+  defp assert_conflict(context, code) do
+    answer = context.isolation_answer
+
+    assert match?(%{status: 409, body: %{"error" => %{"code" => ^code}}}, answer),
+           "expected a 409 #{code} answer, got #{inspect(answer)}"
+
+    context
+  end
+
+  # The answer repeats none of the values the request sent: the run id, the seed key, the instance id.
+  defp assert_no_echo(context) do
+    %{body: body, sent: sent} = context.isolation_answer
+    text = inspect(body)
+
+    Enum.each(sent, fn value -> refute String.contains?(text, value) end)
     context
   end
 end

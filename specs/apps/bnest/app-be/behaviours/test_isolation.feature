@@ -4,11 +4,11 @@ Feature: Bnest test isolation
 
   # The empty-database scenario needs a flat-primary instance with no seeded account, so /setup stays open.
   @flat-primary @open-setup
-  Scenario: A test starts from an empty migrated database
+  Scenario: A spawned instance with no seeded accounts starts empty with initial setup open
     Given no test instance is current
     When a test spawns an instance with no seeded accounts
-    Then the instance database holds no account, browser session, chat message, or user record
-    And the initial setup stays open for that instance
+    Then no account can log in, the chat has no messages, and the initial setup page is open
+    And the instance database holds no browser session or user record
 
   Scenario: Consecutive tests never share a database
     Given a test spawned an instance and created an account in it
@@ -34,6 +34,21 @@ Feature: Bnest test isolation
     And the seeded account can log in as soon as the spawn returns
     And the instance stays current until the test deletes it
 
+  Scenario: A seed is applied once per key
+    Given a test instance is current
+    When a test seeds the current instance under a new seed key
+    Then the seed answers applied true and the seeded account can log in
+    When the test repeats that seed key with the same body
+    Then the repeat answers applied false and writes no new account
+
+  # Carries BN-TEST-03.
+  Scenario: POST /instances/:id/seed applies a seed once per key
+    Given a test instance is current
+    When a test seeds the current instance under a new seed key
+    Then the seed answers applied true and the seeded account can log in
+    When the test repeats that seed key with the same body
+    Then the repeat answers applied false and writes no new account
+
   Rule: Teardown leaves nothing behind
 
   Scenario: Teardown removes the instance from the running server
@@ -50,23 +65,17 @@ Feature: Bnest test isolation
 
   Rule: Testing endpoints stay closed to every caller but the test runner
 
-  Scenario: A request without the testing header gets the stock not-found response
+  Scenario Outline: A request that is not the test runner's gets the stock not-found response
     Given no test instance is current
-    When a client creates a test instance without the testing header
+    When a client creates a test instance <request>
     Then the response is the stock "Not Found" response that a missing route gets
     And no test instance is created
 
-  Scenario: A request with a wrong testing header gets the stock not-found response
-    Given no test instance is current
-    When a client creates a test instance with a testing header that is not the run secret
-    Then the response is the stock "Not Found" response that a missing route gets
-    And no test instance is created
-
-  Scenario: A request with a forwarded header gets the stock not-found response
-    Given no test instance is current
-    When a client creates a test instance with the run secret and an x-forwarded-for header
-    Then the response is the stock "Not Found" response that a missing route gets
-    And no test instance is created
+    Examples:
+      | request                                                  |
+      | without the testing header                               |
+      | with a testing header that is not the run secret         |
+      | with the run secret and an x-forwarded-for header        |
 
   # Exemption(e2e): the browser and HTTP client always connects over loopback, so it cannot present a non-loopback peer address; alternative-proof: bnest-app:test:integration / A request from a non-loopback peer gets the stock not-found response
   @e2e-exempt
@@ -104,22 +113,62 @@ Feature: Bnest test isolation
 
   Rule: A failed spawn leaves nothing behind
 
-  # Exemption(e2e): the testing endpoints cannot inject a write fault after the first seeded account is created, because seed validation runs before any write; the invalid-seed rollback is proved in the browser suite by the refused username scenario; alternative-proof: bnest-app:test:integration / A failed seed step rolls the spawn back
+  # Exemption(e2e): the testing endpoints cannot place a fault inside a spawn, neither a write fault after the first seeded account, because seed validation runs before any write, nor a failing migration; alternative-proof: bnest-app:test:integration / A failed spawn leaves nothing behind
   @e2e-exempt
-  Scenario: A failed seed step rolls the spawn back
+  Scenario Outline: A failed spawn leaves nothing behind
     Given no test instance is current
-    And seeding will fail after the first seeded account is created
+    And <fault>
     When a test spawns an instance with two seeded accounts
-    Then the spawn fails at the seed step
+    Then the spawn fails at the <step> step
     And no test instance is current
     And no instance directory, storage pointer, or backup configuration file remains
 
-  # Exemption(e2e): a fault cannot be placed in the middle of a spawn through the testing endpoints, so the browser and HTTP boundary cannot force it; alternative-proof: bnest-app:test:integration / A failed migration rolls the spawn back
+    Examples:
+      | fault                                                       | step    |
+      | seeding will fail after the first seeded account is created | seed    |
+      | the migration will fail on its first migration              | migrate |
+
+  Rule: A conflicting testing-control request answers 409 with its code
+
+  Scenario Outline: A conflicting testing-control request answers 409 with its code
+    Given <setup>
+    When <conflict>
+    Then the response is a 409 answer with the code "<code>"
+    And the answer echoes none of the request's input
+
+    Examples:
+      | setup                                                  | conflict                                                       | code            |
+      | no test instance is current                            | a test asks the server to spawn an instance under another run id | run_mismatch    |
+      | a test instance is current                             | a test asks the server to spawn an instance                    | instance_active |
+      | no test instance is current                            | a test seeds an instance that is not current                   | not_current     |
+      | a test seeded a current instance under a seed key      | a test seeds the current instance with another body under it  | seed_conflict   |
+
+  # Exemption(e2e): a scheduler task cannot be held running from the exact origin, because the e2e server runs with the automatic scheduler off and exposes no way to start one; alternative-proof: bnest-app:test:integration / A spawn while a scheduler task runs answers 409 instance_busy
   @e2e-exempt
-  Scenario: A failed migration rolls the spawn back
+  Scenario: A spawn while a scheduler task runs answers 409 instance_busy
     Given no test instance is current
-    And the migration will fail on its first migration
-    When a test spawns an instance
-    Then the spawn fails at the migrate step
-    And no test instance is current
-    And no instance directory, storage pointer, or backup configuration file remains
+    And a scheduler task is running
+    When a test asks the server to spawn an instance
+    Then the response is a 409 answer with the code "instance_busy"
+
+  # Carries BN-TEST-10.
+  Scenario Outline: Conflicts answer 409: run mismatch, active, busy, seed key
+    Given <setup>
+    When <conflict>
+    Then the response is a 409 answer with the code "<code>"
+    And the answer echoes none of the request's input
+
+    Examples:
+      | setup                                                 | conflict                                                       | code            |
+      | no test instance is current                           | a test asks the server to spawn an instance under another run id | run_mismatch    |
+      | a test instance is current                            | a test asks the server to spawn an instance                    | instance_active |
+      | a test seeded a current instance under a seed key     | a test seeds the current instance with another body under it   | seed_conflict   |
+
+  # Carries BN-TEST-10.
+  # Exemption(e2e): a scheduler task cannot be held running from the exact origin, because the e2e server runs with the automatic scheduler off and exposes no way to start one; alternative-proof: bnest-app:test:integration / A spawn refused by a running scheduler task answers 409 instance_busy
+  @e2e-exempt
+  Scenario: A spawn refused by a running scheduler task answers 409 instance_busy
+    Given no test instance is current
+    And a scheduler task is running
+    When a test asks the server to spawn an instance
+    Then the response is a 409 answer with the code "instance_busy"

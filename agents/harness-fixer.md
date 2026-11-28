@@ -22,11 +22,11 @@ Repairs binding drift where it starts.
 
 ## Sole Writer
 
-It executes [Harness Propagation](../repo-governance/workflows/quality/harness-propagation.md), the `harness`
-family's sole writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it
-repairs only the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the
-row's ledger status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it.
-It never commits, starts a gate, or runs another propagation.
+It executes [Harness Propagation](../repo-governance/workflows/quality/harness-propagation.md), the `harness` family's
+sole writer under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only
+the rows of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger
+status, as [Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It
+never commits, starts a gate, or runs another propagation.
 
 ## Responsibility
 

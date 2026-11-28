@@ -1,0 +1,88 @@
+defmodule BnestAppWeb.HomeLinksTest do
+  # The home page hides the Sifat Allah mission entry and keeps Start
+  # chatting, and always offers the Family chat entry.
+  #
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
+  use ExUnit.Case, async: false
+
+  import Phoenix.HTML.Safe, only: [to_iodata: 1]
+
+  alias BnestAppWeb.PageHTML
+
+  @admin %{
+    "displayUsername" => "test-user-unit",
+    "roles" => ["admin"],
+    "migrationMode" => false
+  }
+
+  test "hides the Sifat Allah mission entry and keeps the chat entry" do
+    page = render_home()
+
+    refute page =~ "Misi hafal 40 sifat Allah"
+    refute page =~ "/apps/sifat-allah"
+    assert page =~ "Start chatting"
+    assert page =~ ~s(href="/chat")
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page offers a Start chatting link
+  test "the home page links Start chatting to the chat page" do
+    page = render_home()
+
+    assert page =~ "Beaver Nest"
+    assert page =~ ~s(href="/chat")
+    assert page =~ "Start chatting"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor returns home through the Beaver Nest brand
+  test "the Beaver Nest brand links home beside the Start chatting entry" do
+    page = render_home()
+
+    assert page =~ ~s(aria-label="Beaver Nest home")
+    assert page =~ ~s(href="/")
+    assert page =~ "Beaver Nest logo"
+    assert page =~ ~s(href="/chat")
+    assert page =~ "Start chatting"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor can install Beaver Nest as an app
+  test "the home page carries the Beaver Nest install identity" do
+    page = render_home()
+
+    assert page =~ "Beaver Nest logo"
+    assert page =~ "/images/beaver-nest-logo.png"
+    assert page =~ "Beaver Nest"
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Completed browser migration is not offered from the home page
+  test "completed browser migration is not offered from the home page" do
+    for migration_mode <- [false, true] do
+      page =
+        %{flash: %{}, current_user: Map.put(@admin, "migrationMode", migration_mode)}
+        |> PageHTML.home()
+        |> to_iodata()
+        |> IO.iodata_to_binary()
+
+      refute page =~ "data-migration-entry"
+    end
+  end
+
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home offers the Family chat link
+  test "offers the Family chat link" do
+    page = render_home()
+
+    assert page =~ "Family chat"
+    assert page =~ ~s(href="/family-chat")
+  end
+
+  defp render_home do
+    %{flash: %{}, current_user: @admin}
+    |> PageHTML.home()
+    |> to_iodata()
+    |> IO.iodata_to_binary()
+  end
+end

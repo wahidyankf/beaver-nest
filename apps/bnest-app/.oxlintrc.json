@@ -1,0 +1,21 @@
+{
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
+  "overrides": [
+    {
+      "files": ["assets/test/unit/**/*.ts"],
+      "rules": {
+        "no-restricted-globals": [
+          "error",
+          {
+            "name": "fetch",
+            "message": "Unit tests must not reach the network. Inject a double (a fake GraphQL server or response) or move the test to the integration layer."
+          },
+          {
+            "name": "process",
+            "message": "Unit tests must not read the process environment. Inject a double (pass the config value as an argument) or move the test to the integration layer."
+          }
+        ]
+      }
+    }
+  ]
+}

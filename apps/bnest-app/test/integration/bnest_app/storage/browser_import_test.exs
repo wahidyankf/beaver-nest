@@ -7,10 +7,13 @@ defmodule BnestApp.BrowserImportTest do
 
   alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.Storage.Adapters.FileRecordBackend
+  alias BnestApp.Storage.Domain.Manifest
   alias BnestApp.Storage.Import
   alias BnestApp.Storage.Records
   alias BnestApp.Storage.RecoverySource
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
   test "preserves and accepts each recognized browser source" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -27,6 +30,15 @@ defmodule BnestApp.BrowserImportTest do
 
       assert envelope["ownerId"] == owner_id
 
+      assert {:error, :exists} =
+               FileRecordBackend.put_new(store, :browser_import, {owner_id, result.import_id}, %{
+                 envelope
+                 | "payload" => "replaced"
+               })
+
+      assert {:ok, ^envelope} =
+               FileRecordBackend.read(store, :browser_import, {owner_id, result.import_id})
+
       assert {:ok, %{"status" => "accepted"}} =
                FileRecordBackend.read(store, :manifest, result.import_id)
     end
@@ -39,6 +51,8 @@ defmodule BnestApp.BrowserImportTest do
     assert {:ok, %{"theme" => "dark"}} = FileRecordBackend.read(store, :theme, owner_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Retrying an interrupted import completes it without duplicating data
   test "reuses an accepted import identity without duplicating its envelope" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -51,10 +65,17 @@ defmodule BnestApp.BrowserImportTest do
     assert {:ok, second} = Import.browser(store, owner_id, source)
     assert first.import_id == second.import_id
 
+    {expected_id, _checksum} =
+      Manifest.identity(owner_id, source["storageArea"], source["storageKey"], source["payload"])
+
+    assert first.import_id == expected_id
+
     assert after_first_count in [before_count, before_count + 1]
     assert length(Path.wildcard(Path.join(import_directory, "*.json"))) == after_first_count
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects malformed and oversized sources without replacing accepted data" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -77,6 +98,8 @@ defmodule BnestApp.BrowserImportTest do
              FileRecordBackend.read(store, :browser_import, {owner_id, accepted.import_id})
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
   test "rejects an unrecognized client-selected source before writing an envelope" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -89,6 +112,30 @@ defmodule BnestApp.BrowserImportTest do
              })
   end
 
+  # After an accepted import the browser's own copy is authoritative nowhere: a later theme
+  # change is written only to the server record, and the home the server then renders
+  # tells the browser script to keep no copy of its own.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: After an accepted import, later changes are kept on the server and the browser keeps no copy
+  test "a theme change after an accepted import stays server-only", %{
+    conn: conn,
+    test_identity: identity
+  } do
+    store = Records.store()
+    owner_id = identity.user_id
+    assert {:ok, _accepted} = Import.browser(store, owner_id, theme_source())
+
+    assert conn |> put("/preferences/theme", %{"theme" => "light"}) |> response(204)
+
+    assert {:ok, %{"theme" => "light", "ownerId" => ^owner_id}} =
+             FileRecordBackend.read(store, :theme, owner_id)
+
+    home = conn |> recycle() |> get("/") |> html_response(200)
+    assert home =~ ~s(data-browser-persistence="false")
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
   test "keeps a newer accepted record when another browser presents a different legacy source" do
     store = Records.store()
     owner_id = owner_id(store)
@@ -109,6 +156,8 @@ defmodule BnestApp.BrowserImportTest do
     assert {:ok, ^before} = FileRecordBackend.read(store, :chat, owner_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Importing with no explicit browser theme leaves the theme at the system default
   test "records absent system theme without creating a preference" do
     store = Records.store()
     owner_id = owner_id(store)

@@ -1,19 +1,20 @@
 # File Impact
 
-Every path this plan expects to create, change, move, or delete. `[N]` new, `[E]` edit, `[M]` moved, `[D]` deleted. No directory, glob, or ellipsis stands in for a file.
+Every path this plan expects to create, change, move, or delete. `[N]` new, `[E]` edit, `[M]` moved, `[D]` deleted. No
+directory, glob, or ellipsis stands in for a file.
 
 ## Shared event log
 
 Domain-agnostic infrastructure delivered by this plan, owned by no single feature. Learning is its first writer.
 
 ```text
-apps/bnest-app/lib/bnest_app/event_log.ex                                 [N] append with expected version, read by domain
-apps/bnest-app/lib/bnest_app/event_log/registry.ex                        [N] per-domain event names and upcasters
-apps/bnest-app/lib/bnest_app/event_log/upcaster.ex                        [N] event version chain behaviour
-apps/bnest-app/lib/bnest_app/event_log/dispatcher.ex                      [N] post-commit publish and cursor advance
-apps/bnest-app/lib/bnest_app/event_log/schema/event.ex                    [N] bnest_events
-apps/bnest-app/lib/bnest_app/event_log/schema/projection_cursor.ex        [N] bnest_projection_cursors
-apps/bnest-app/lib/bnest_app/event_log/schema/listener_cursor.ex          [N] bnest_event_listeners
+apps/bnest-app/lib/bnest_app/event_log.ex                               [N] append with expected version, read by domain
+apps/bnest-app/lib/bnest_app/event_log/registry.ex                      [N] per-domain event names and upcasters
+apps/bnest-app/lib/bnest_app/event_log/upcaster.ex                      [N] event version chain behaviour
+apps/bnest-app/lib/bnest_app/event_log/dispatcher.ex                    [N] post-commit publish and cursor advance
+apps/bnest-app/lib/bnest_app/event_log/schema/event.ex                  [N] bnest_events
+apps/bnest-app/lib/bnest_app/event_log/schema/projection_cursor.ex      [N] bnest_projection_cursors
+apps/bnest-app/lib/bnest_app/event_log/schema/listener_cursor.ex        [N] bnest_event_listeners
 ```
 
 ## Learning domain
@@ -52,19 +53,22 @@ apps/bnest-app/lib/bnest_app/learning/schema/coin_entry.ex                [N] pr
 ## Database and tasks
 
 ```text
-apps/bnest-app/priv/sqlite_repo/migrations/20260901000000_create_event_log.exs         [N] shared log and cursors
+apps/bnest-app/priv/sqlite_repo/migrations/20260901000000_create_event_log.exs        [N] shared log and cursors
 apps/bnest-app/priv/sqlite_repo/migrations/20260901000100_create_learning_projections.exs [N] learning projections
-apps/bnest-app/lib/mix/tasks/bnest.learning.sync.ex                                    [N] headless content sync
-apps/bnest-app/lib/mix/tasks/bnest.learning.rebuild_projections.ex                     [N] drop and replay
-apps/bnest-app/lib/mix/tasks/bnest.learning.generate_sifat_allah.ex                    [N] corpus generator
-apps/bnest-app/lib/mix/tasks/bnest.learning.migrate_sifat_allah.ex                     [N] progress migration
-apps/bnest-app/lib/bnest_app/application.ex                                            [E] supervise the event dispatcher
-apps/bnest-app/project.json                                                            [E] learning Nx targets
+apps/bnest-app/lib/mix/tasks/bnest.learning.sync.ex                                   [N] headless content sync
+apps/bnest-app/lib/mix/tasks/bnest.learning.rebuild_projections.ex                    [N] drop and replay
+apps/bnest-app/lib/mix/tasks/bnest.learning.generate_sifat_allah.ex                   [N] corpus generator
+apps/bnest-app/lib/mix/tasks/bnest.learning.migrate_sifat_allah.ex                    [N] progress migration
+apps/bnest-app/lib/bnest_app/application.ex                                           [E] supervise the event dispatcher
+apps/bnest-app/project.json                                                           [E] learning Nx targets
 ```
 
 ## Authored corpus
 
-The generated Sifat Allah mission files are committed. Their exact set is deterministic: `sifat-allah/<pair_id>/kenalan` for each of the 40 pairs, and `sifat-allah/<pair_id>/<kind>` for each of the 6 question kinds, giving 280 files under `apps/bnest-app/priv/learning/missions/sifat-allah/`. The generator task owns their creation and a test asserts regeneration produces no diff.
+The generated Sifat Allah mission files are committed. Their exact set is deterministic: `sifat-allah/<pair_id>/kenalan`
+for each of the 40 pairs, and `sifat-allah/<pair_id>/<kind>` for each of the 6 question kinds, giving 280 files under
+`apps/bnest-app/priv/learning/missions/sifat-allah/`. The generator task owns their creation and a test asserts
+regeneration produces no diff.
 
 ```text
 apps/bnest-app/priv/learning/courses/aqidah-dasar.json                    [N] first course
@@ -124,7 +128,8 @@ apps/bnest-app/test/unit/bnest_app/learning/mission_kind_test.exs               
 apps/bnest-app/test/unit/bnest_app/learning/corpus_test.exs                       [N] slug and corpus validation
 apps/bnest-app/test/unit/bnest_app/learning/authorization_test.exs                [N] access matrix
 apps/bnest-app/test/integration/bnest_app/learning/schema_test.exs                [N] DDL contract, idempotent apply
-apps/bnest-app/test/integration/bnest_app/event_log/event_log_test.exs            [N] append-only triggers, stream version, domain scoping
+apps/bnest-app/test/integration/bnest_app/event_log/event_log_test.exs            [N] append-only triggers,
+                                                                                      stream version, domain scoping
 apps/bnest-app/test/integration/bnest_app/event_log/dispatcher_test.exs           [N] cursors, resume, idempotence
 apps/bnest-app/test/integration/bnest_app/learning/rebuild_test.exs               [N] byte-identical replay
 apps/bnest-app/test/unit/bnest_app/event_log/catalog_spec_test.exs                [N] registry and catalogue agree
@@ -174,4 +179,10 @@ plans/backlog/README.md                                                  [E] ind
 
 ## Prerequisites blocking execution
 
-None outstanding. The four decisions that would otherwise block naming files are settled and recorded: the event log is the single source of truth with projections rebuilt from it ([event model](001-event-model.md)), progress is keyed by learner and mission ([data model](002-data-model.md)), authored content files are a command input rather than an authority ([event model](001-event-model.md)), and Sifat Allah merges into the generic runner rather than keeping a bespoke screen ([UI design](004-ui-design.md)). The one remaining external check — current Absinthe maintenance and compatibility evidence — is a Phase 1 task with a named fallback in [the GraphQL document](003-graphql-api.md#dependency-decision), not an unmade decision hidden in this tree.
+None outstanding. The four decisions that would otherwise block naming files are settled and recorded: the event log is
+the single source of truth with projections rebuilt from it ([event model](001-event-model.md)), progress is keyed by
+learner and mission ([data model](002-data-model.md)), authored content files are a command input rather than an
+authority ([event model](001-event-model.md)), and Sifat Allah merges into the generic runner rather than keeping a
+bespoke screen ([UI design](004-ui-design.md)). The one remaining external check — current Absinthe maintenance and
+compatibility evidence — is a Phase 1 task with a named fallback in
+[the GraphQL document](003-graphql-api.md#dependency-decision), not an unmade decision hidden in this tree.

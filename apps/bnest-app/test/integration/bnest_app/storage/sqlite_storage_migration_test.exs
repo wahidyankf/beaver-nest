@@ -1,14 +1,18 @@
 defmodule BnestApp.SqliteStorageMigrationTest do
   use ExUnit.Case, async: false
 
+  alias BnestApp.SifatAllah.Domain.Quiz
   alias BnestApp.SqliteRepo
   alias BnestApp.Storage.Adapters.FileConfigStore
   alias BnestApp.Storage.Adapters.SqliteCoordinator
   alias BnestApp.Storage.Adapters.SqliteMigration
   alias BnestApp.Storage.Adapters.SqliteRecordBackend
   alias BnestApp.Storage.Domain.FlatMigration
+  alias BnestApp.Storage.Import
   alias BnestApp.Storage.Migration, as: StorageMigration
   alias BnestApp.TestRuntimeRoot
+  alias Mix.Tasks.Bnest.Storage.Relocate, as: RelocateTask
+  alias Mix.Tasks.Bnest.Storage.Retire, as: RetireTask
 
   setup do
     runtime = TestRuntimeRoot.create!("sqlite-storage-backfill")
@@ -31,6 +35,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     %{flat_root: runtime.path, database_path: database_path}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task moves every recognized record and reports none blocked
   test "backfills every recognized flat-file record with immutable checksum evidence", %{
     flat_root: flat_root
   } do
@@ -67,6 +73,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
            end)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Running the storage migration task again after an interruption finishes it without duplicates
   test "retrying the same migration identifier does not rewrite or duplicate accepted items", %{
     flat_root: flat_root
   } do
@@ -99,6 +107,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert SqliteMigration.integrity_ok?()
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
   test "activation switches the phase to sqlite_primary and marks the run verified", %{
     flat_root: flat_root
   } do
@@ -117,6 +127,217 @@ defmodule BnestApp.SqliteStorageMigrationTest do
       ])
 
     assert state == "verified"
+  end
+
+  # After the switch commits, a restart keeps every survivor: chat, learning and theme records
+  # written through the production import, the account sources login reads, and the session
+  # logout revokes — all still readable from SQLite after the coordinator stops and starts
+  # on the same file. Legacy retirement itself is proved by the dedicated retire binding.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
+  test "chat, learning, theme, login and logout survive a restart after the switch", %{
+    flat_root: flat_root,
+    database_path: database_path
+  } do
+    FileConfigStore.ensure_default!()
+    result = StorageMigration.run(flat_root)
+
+    assert result.blocked == 0
+    assert StorageMigration.parity_ok?(flat_root)
+    assert SqliteMigration.integrity_ok?()
+
+    rehearsal = Path.join(Path.dirname(database_path), "restart-rehearsal.sqlite3")
+    assert SqliteMigration.restore_rehearsal(rehearsal)
+
+    assert :ok = StorageMigration.activate!()
+    assert FileConfigStore.phase() == :sqlite_primary
+
+    store = SqliteRecordBackend.new()
+    owner = "user-restart-1"
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "bnest.chat.v1"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "sessionStorage",
+               "storageKey" => "bnest.chat.v1",
+               "payload" =>
+                 Jason.encode!(%{
+                   "version" => 2,
+                   "thread_id" => nil,
+                   "model" => "fixture-model",
+                   "reasoning_effort" => "medium",
+                   "messages" => []
+                 })
+             })
+
+    learning_payload =
+      Quiz.progress() |> Map.put("session", %{"mode" => "dashboard"}) |> Jason.encode!()
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "bnest.sifat-allah.v1"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "localStorage",
+               "storageKey" => "bnest.sifat-allah.v1",
+               "payload" => learning_payload
+             })
+
+    assert {:ok, %{status: :accepted, cleanup: %{"storageKey" => "phx:theme"}}} =
+             Import.browser(store, owner, %{
+               "storageArea" => "localStorage",
+               "storageKey" => "phx:theme",
+               "payload" => "dark"
+             })
+
+    now = DateTime.utc_now() |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+    digest = String.duplicate("a", 64)
+
+    assert {:ok, _account} =
+             SqliteRecordBackend.put_new(store, :account, "user-restart-login", %{
+               "schemaVersion" => 1,
+               "recordType" => "account",
+               "userId" => "user-restart-login",
+               "displayUsername" => "Restart Login",
+               "normalizedUsername" => "restartlogin",
+               "roles" => ["parents"],
+               "passwordVerifier" => "$argon2id$v=19$m=32768,t=2,p=1$c3ludGhlc2ljaA$bw",
+               "createdAt" => now
+             })
+
+    assert {:ok, _index} =
+             SqliteRecordBackend.put_new(store, :username_index, "restartlogin", %{
+               "schemaVersion" => 1,
+               "recordType" => "username-index",
+               "normalizedUsername" => "restartlogin",
+               "userId" => "user-restart-login"
+             })
+
+    assert {:ok, _session} =
+             SqliteRecordBackend.put_new(store, :session, digest, %{
+               "schemaVersion" => 1,
+               "recordType" => "browser-session",
+               "tokenDigest" => digest,
+               "userId" => "user-restart-login",
+               "issuedAt" => now,
+               "revokedAt" => nil
+             })
+
+    :ok = SqliteCoordinator.stop()
+    :ok = SqliteCoordinator.ensure_started!(database_path)
+
+    assert FileConfigStore.phase() == :sqlite_primary
+
+    assert {:ok, %{"recordType" => "chat"}} = SqliteRecordBackend.read(store, :chat, owner)
+
+    assert {:ok, %{"recordType" => "sifat-allah-progress"}} =
+             SqliteRecordBackend.read(store, :sifat_allah, owner)
+
+    assert {:ok, %{"recordType" => "theme-preference", "theme" => "dark"}} =
+             SqliteRecordBackend.read(store, :theme, owner)
+
+    assert {:ok, %{"recordType" => "account"}} =
+             SqliteRecordBackend.read(store, :account, "user-restart-login")
+
+    assert {:ok, %{"recordType" => "username-index"}} =
+             SqliteRecordBackend.read(store, :username_index, "restartlogin")
+
+    assert {:ok, %{"recordType" => "browser-session", "revokedAt" => nil}} =
+             SqliteRecordBackend.read(store, :session, digest)
+
+    assert StorageMigration.parity_ok?(flat_root)
+  end
+
+  # Once SQLite is authoritative, the operator moves it out of the configuration
+  # directory: the task copies the database with proof, points the configuration at the
+  # production folder, and leaves the legacy files where they were. The configuration
+  # names the live database directory first, so the proof compares the database the
+  # app actually reads.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The relocate task moves SQLite to the production data folder and keeps the old files until proof
+  test "relocation moves the authoritative database and keeps the legacy files", %{
+    flat_root: flat_root,
+    database_path: database_path
+  } do
+    import ExUnit.CaptureIO
+
+    legacy_directory = Path.dirname(database_path)
+    assert {:ok, _persisted} = BnestApp.Storage.persist_directory(legacy_directory)
+    StorageMigration.run(flat_root)
+    assert :ok = StorageMigration.activate!()
+
+    {:ok, before} = FileConfigStore.read()
+    assert before["phase"] == "sqlite_primary"
+    legacy_database = Path.join(before["databaseDirectory"], before["databaseFilename"])
+    assert File.regular?(legacy_database)
+
+    production = Path.join(before["databaseDirectory"], "production-data")
+
+    output =
+      capture_io(fn ->
+        RelocateTask.run(["--destination", production])
+      end)
+
+    assert output =~ "relocation verified"
+
+    {:ok, after_relocation} = FileConfigStore.read()
+    assert after_relocation["databaseDirectory"] == production
+    assert is_binary(after_relocation["databaseGeneration"])
+
+    assert File.regular?(Path.join(production, before["databaseFilename"]))
+    assert File.regular?(legacy_database)
+  end
+
+  # Once SQLite is authoritative and every flat file is verified against the migrated
+  # evidence, the operator retires the legacy store: verified flat files and the legacy
+  # database go, while the configuration and tracked placeholders stay. The retired
+  # flat root holds only the migrated fixtures, so nothing outside the evidence can
+  # block the verification.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Verified legacy flat-file storage is retired
+  test "retirement removes verified flat files and keeps configuration and placeholders",
+       %{flat_root: flat_root, database_path: database_path} do
+    import ExUnit.CaptureIO
+
+    legacy_directory = Path.dirname(database_path)
+    assert {:ok, _persisted} = BnestApp.Storage.persist_directory(legacy_directory)
+
+    retired_root = Path.join(flat_root, "legacy-flat")
+    File.mkdir_p!(retired_root)
+    seed_flat_fixtures!(retired_root)
+
+    StorageMigration.run(retired_root)
+    assert :ok = StorageMigration.activate!()
+
+    {:ok, pre_relocation} = FileConfigStore.read()
+
+    production = Path.join(pre_relocation["databaseDirectory"], "production-data")
+
+    capture_io(fn ->
+      RelocateTask.run(["--destination", production])
+    end)
+
+    {:ok, config} = FileConfigStore.read()
+    generation = config["databaseGeneration"]
+    assert is_binary(generation)
+
+    output =
+      capture_io(fn ->
+        RetireTask.run([
+          "--root",
+          retired_root,
+          "--generation",
+          generation
+        ])
+      end)
+
+    assert output =~ "verified legacy storage retired"
+
+    remaining =
+      retired_root
+      |> Path.join("**/*")
+      |> Path.wildcard()
+      |> Enum.filter(&File.regular?/1)
+      |> Enum.reject(&(Path.basename(&1) == ".gitkeep"))
+
+    assert remaining == []
+    assert FileConfigStore.phase() == :sqlite_primary
   end
 
   test "verified retry preserves a newer authoritative record while reconciling sources", %{
@@ -145,6 +366,8 @@ defmodule BnestApp.SqliteStorageMigrationTest do
     assert {:ok, ^authoritative} = SqliteRecordBackend.read(store, :theme, user_id)
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
   test "a source that changes after inventory blocks cutover with a value-free retry category", %{
     flat_root: flat_root
   } do

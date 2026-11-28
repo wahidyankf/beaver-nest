@@ -67,10 +67,15 @@ defmodule BnestApp.Backup.ReconciliationTest do
   defp lines(outcome), do: outcome |> Reconciliation.report() |> Reconciliation.render()
 
   describe "classify/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A verified run without its artifact is reported missing
     test "reports a verified run whose artifact is not on disk as missing" do
       [first, second, third] = runs = nightlies(3, ~D[2030-05-14])
 
-      assert Reconciliation.classify(runs, Map.delete(artifacts(runs), third.artifact_basename)) ==
+      results =
+        Reconciliation.classify(runs, Map.delete(artifacts(runs), third.artifact_basename))
+
+      assert results ==
                [
                  %{
                    date: ~D[2030-05-14],
@@ -91,6 +96,17 @@ defmodule BnestApp.Backup.ReconciliationTest do
                    state: :missing
                  }
                ]
+
+      # The missing run keeps the name its artifact carries: the fixed prefix and suffix around its
+      # WIB date, and no directory separator.
+      assert [
+               %{state: :present},
+               %{state: :present},
+               %{state: :missing, artifact_basename: missing_name}
+             ] =
+               results
+
+      assert missing_name =~ ~r/\Abnest-prod-20300516\.sqlite3\z/
     end
 
     test "reports an artifact whose digest or size differs from the ledger as changed" do
@@ -112,6 +128,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
                }
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task ignores a backup older than the seven retained days
     test "does not expect a run older than the seven latest WIB dates" do
       [oldest | retained] = runs = nightlies(8, ~D[2030-05-11])
 
@@ -137,6 +155,8 @@ defmodule BnestApp.Backup.ReconciliationTest do
       assert states(rest) == List.duplicate(:present, 7)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task expects only the newest backup of each day
     test "expects only the newest of two verified runs on one WIB date" do
       older = run("older", ~U[2030-05-14 17:30:00Z])
       newer = run("newer", ~U[2030-05-15 10:00:00Z])
@@ -241,6 +261,10 @@ defmodule BnestApp.Backup.ReconciliationTest do
       assert lines(:checking) == ["Backup files: checking"]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits zero only when every expected run is present
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page states that every retained backup is present
     test "states that every retained backup is present and exits zero" do
       assert Reconciliation.report(outcome(3)) == %{
                label: @label,
@@ -253,6 +277,7 @@ defmodule BnestApp.Backup.ReconciliationTest do
              }
 
       assert lines(outcome(7)) == ["Backup files: all 7 retained backups are present"]
+      assert hd(lines(outcome(3))) == "Backup files: all 3 retained backups are present"
     end
 
     test "counts only the retained dates a verified run is expected on" do
@@ -272,6 +297,14 @@ defmodule BnestApp.Backup.ReconciliationTest do
                Reconciliation.report(outcome(1, %{0 => :missing}))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report counts the backups that need attention
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero and names a <state> backup
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page names each date whose backup is missing or changed
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label names the same dates and states as the reconcile report
     test "counts the backups that need attention and names the date and state of each" do
       assert Reconciliation.report(outcome(7, %{2 => :missing, 4 => :changed})) == %{
                label: @label,
@@ -288,8 +321,16 @@ defmodule BnestApp.Backup.ReconciliationTest do
                "2030-05-14: file missing",
                "2030-05-16: file changed"
              ]
+
+      # A ledger of two runs, the newer changed: one of two needs attention, and the older is present.
+      assert lines(outcome(2, %{1 => :changed})) == [
+               "Backup files: 1 of 2 retained backups needs attention",
+               "2030-05-13: file changed"
+             ]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report counts the backups that need attention
     test "uses the singular verb for one backup that needs attention" do
       assert lines(outcome(7, %{2 => :missing})) == [
                "Backup files: 1 of 7 retained backups needs attention",
@@ -321,6 +362,10 @@ defmodule BnestApp.Backup.ReconciliationTest do
              ]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task exits non-zero when the ledger is unreadable
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when the check could not run
     test "says plainly that the check could not run, whatever the reason" do
       reasons = [
         :ledger_unreadable,
@@ -362,6 +407,10 @@ defmodule BnestApp.Backup.ReconciliationTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The task does not report an empty ledger as present
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when there is nothing to check
     test "says there is nothing to check for a ledger with no verified run" do
       assert Reconciliation.report({:ok, []}) == %{
                label: @label,
@@ -422,6 +471,10 @@ defmodule BnestApp.Backup.ReconciliationTest do
              ]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report and the log line carry no private value
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label discloses no private path
     test "discloses no path, digest, destination identifier or run ID in any state" do
       {:ok, results} = outcome(7, %{1 => :missing, 3 => :changed})
 

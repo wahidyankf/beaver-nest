@@ -23,10 +23,10 @@ Repairs gate wiring from confirmed findings, one finding at a time.
 ## Sole Writer
 
 It executes [CI Propagation](../repo-governance/workflows/quality/ci-propagation.md), the `ci` family's sole writer
-under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only the rows
-of a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger status, as
-[Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never commits, starts
-a gate, or runs another propagation.
+under [Sole-Writer Propagation](../repo-governance/development/sole-writer-propagation.md): it repairs only the rows of
+a frozen ledger, or rows an explicit request names, and each disposition below becomes the row's ledger status, as
+[Applying Maker, Checker, and Fixer](../.agents/skills/applying-maker-checker-fixer/SKILL.md) maps it. It never commits,
+starts a gate, or runs another propagation.
 
 ## Normal Workload
 
@@ -39,8 +39,8 @@ the configuration or code a repair changes is `swe-developer`'s, per
 
 1. **Read the latest report.** Findings recorded against an older revision are re-validated one by one, never applied
    wholesale.
-2. **Order by priority,** as [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md)
-   explains.
+2. **Order by priority,** as
+   [Assessing Criticality and Confidence](../.agents/skills/assessing-criticality-confidence/SKILL.md) explains.
 3. **Re-validate each finding** against the current file and rate its confidence, per Confidence and Re-Validation. A
    finding whose exact predicate is delegated is skipped and its evidence carried unchanged.
 4. **Apply only what the rule settles.** Typical repairs:
@@ -56,8 +56,8 @@ the configuration or code a repair changes is `swe-developer`'s, per
    failed, and the fixer continues with the next finding.
 6. **Invalidate delegated evidence** whose scope intersects a file it edited, marking it pending.
 7. **Write the fix report,** naming the audit it answers, per
-   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md): each finding's disposition, each
-   false positive with what would stop it recurring, and the changed files for a scoped re-validation.
+   [Generating Validation Reports](../.agents/skills/generating-validation-reports/SKILL.md): each finding's
+   disposition, each false positive with what would stop it recurring, and the changed files for a scoped re-validation.
 
 ## Writing Configuration and Code
 

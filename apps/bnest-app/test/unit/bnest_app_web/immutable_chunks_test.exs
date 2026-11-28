@@ -11,11 +11,11 @@ defmodule BnestAppWeb.ImmutableChunksTest do
   @immutable "public, max-age=31536000, immutable"
 
   # The header is written when the response is sent (the plug registers a before-send callback), so the test sends it.
-  defp cache_control(path) do
+  defp cache_control(path, status \\ 200) do
     conn =
       conn(:get, path)
       |> ImmutableChunks.call(ImmutableChunks.init([]))
-      |> send_resp(200, "")
+      |> send_resp(status, "")
 
     Plug.Conn.get_resp_header(conn, "cache-control")
   end
@@ -31,5 +31,16 @@ defmodule BnestAppWeb.ImmutableChunksTest do
   test "other assets get no lifetime from this plug" do
     refute @immutable in cache_control("/assets/js/app.js")
     refute @immutable in cache_control("/assets/js/diagrams/engine.js")
+  end
+
+  test "a chunk served as not-modified keeps its year-long lifetime" do
+    assert cache_control("/assets/js/diagrams/chunks/engine_core-4kZ9Qa.js", 304) == [
+             @immutable
+           ]
+  end
+
+  test "a missing chunk gets no lifetime from this plug" do
+    refute @immutable in cache_control("/assets/js/diagrams/chunks/engine_core-4kZ9Qa.js", 404)
+    refute @immutable in cache_control("/assets/js/app.js", 404)
   end
 end

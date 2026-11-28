@@ -10,19 +10,17 @@ defmodule BnestAppWeb.Resolvers.WebPushResolver do
   alias BnestApp.Identity
   alias BnestApp.PushNotifications
 
-  @spec web_push_configuration(map(), Absinthe.Resolution.t()) :: {:ok, map()}
+  @spec web_push_configuration(map(), map()) :: {:ok, map()}
   def web_push_configuration(_args, _resolution), do: PushNotifications.configuration()
 
-  @spec current_web_push_subscription(map(), Absinthe.Resolution.t()) ::
-          {:ok, map()} | {:error, keyword()}
+  @spec current_web_push_subscription(map(), map()) :: {:ok, map()} | {:error, keyword()}
   def current_web_push_subscription(_args, resolution) do
     with {:ok, user_id, session_digest} <- authorize(resolution) do
       wrap(PushNotifications.current_subscription(user_id, session_digest))
     end
   end
 
-  @spec upsert_web_push_subscription(map(), Absinthe.Resolution.t()) ::
-          {:ok, map()} | {:error, keyword()}
+  @spec upsert_web_push_subscription(map(), map()) :: {:ok, map()} | {:error, keyword()}
   def upsert_web_push_subscription(args, resolution) do
     with {:ok, user_id, session_digest} <- authorize(resolution) do
       input = %{"endpoint" => args.endpoint, "p256dh" => args.p256dh, "auth" => args.auth}
@@ -30,8 +28,7 @@ defmodule BnestAppWeb.Resolvers.WebPushResolver do
     end
   end
 
-  @spec disable_current_web_push_subscription(map(), Absinthe.Resolution.t()) ::
-          {:ok, map()} | {:error, keyword()}
+  @spec disable_current_web_push_subscription(map(), map()) :: {:ok, map()} | {:error, keyword()}
   def disable_current_web_push_subscription(_args, resolution) do
     with {:ok, user_id, session_digest} <- authorize(resolution) do
       wrap(PushNotifications.disable_subscription(user_id, session_digest))

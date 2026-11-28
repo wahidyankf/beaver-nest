@@ -26,6 +26,11 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member sends a message online and sees it reach Sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A network failure shows Retrying then automatic recovery
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A non-retryable rejection shows Couldn't send
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued message survives a real browser reload while offline
+
 Given("a fresh visitor opens {string}", async ({ page }, route: string) => {
   // Every E2E test worker already gets its own isolated `test-user-`
   // identity per test (`instanceIdentities`, via the Background's own "an

@@ -14,14 +14,12 @@ This standard is canonical for shell as a stack. It inherits [Shell Scripts](../
 declared interpreter, strict mode, the executable bit, comments, JSON parsing, and output inspection, and it adds only
 the choices a shell stack leaves open. A shell programming skill defers to both.
 
-It implements Fail Closed,
-Simplicity Over Complexity, and
-Automation Over Manual.
+It implements Fail Closed, Simplicity Over Complexity, and Automation Over Manual.
 
 ## Gates
 
-- **Static analysis:** every script is analysed at the threshold [Quality Gates](../../quality-gates.md) sets,
-  each directive that disables a check carrying its reason. Example: ShellCheck.
+- **Static analysis:** every script is analysed at the threshold [Quality Gates](../../quality-gates.md) sets, each
+  directive that disables a check carrying its reason. Example: ShellCheck.
 - **Format:** one formatter in diff mode over committed settings, failing on any change. Example: `shfmt -d`.
 - **Unsupported dialect:** a script in a dialect the analyser cannot read passes the shell's own syntax check instead,
   and review carries what analysis would have caught. Example: ShellCheck reads sh, Bash, dash, and ksh but not Zsh
@@ -63,9 +61,8 @@ layer ([Shell Style Guide](https://google.github.io/styleguide/shellguide.html))
 ## Tests
 
 A shell test runs the script as its callers do and asserts on exit status, output, and effects. Each test works in
-isolation per Git Fixture Isolation and
-[Test Identities](../../test-identities.md), and is classified by the boundary it touches under
-[Quality Gates](../../quality-gates.md). Example: bats-core.
+isolation per Git Fixture Isolation and [Test Identities](../../test-identities.md), and is classified by the boundary
+it touches under [Quality Gates](../../quality-gates.md). Example: bats-core.
 
 Shell coverage is never a gate. The available instruments report unreliably for shell
 ([kcov](https://raw.githubusercontent.com/SimonKagstrom/kcov/master/doc/kcov.1)), so no floor or surrogate figure is
@@ -75,15 +72,19 @@ carry the evidence instead.
 ## Documentation
 
 A script's header comment says what it is for, as Shell Scripts requires. Its exit statuses and streams follow
-[Command-Line Interface](../../../conventions/command-line-interface.md) at the tier the adopter records for
-it, and a script at the full bar documents its usage through help.
+[Command-Line Interface](../../../conventions/command-line-interface.md) at the tier the adopter records for it, and a
+script at the full bar documents its usage through help.
 
 ## Adopter Decisions
 
-| Decision  | Option                           | Gains                                    | Costs                                    |
-| --------- | -------------------------------- | ---------------------------------------- | ---------------------------------------- |
-| test tool | a shell test framework           | tests read as the shell they exercise    | a dependency to pin                      |
-|           | the repository's main test stack | one runner and one report for every test | each test spawns the script as a process |
+- **test tool**
+  - Option: a shell test framework
+  - Gains: tests read as the shell they exercise
+  - Costs: a dependency to pin
+- **test tool**
+  - Option: the repository's main test stack
+  - Gains: one runner and one report for every test
+  - Costs: each test spawns the script as a process
 
 Record the choice in the repository adapter [Stack Packs](../../../conventions/structure/stack-packs.md) defines.
 

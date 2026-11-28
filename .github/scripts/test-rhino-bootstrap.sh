@@ -1,5 +1,5 @@
 #!/bin/sh
-# The adapter for specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature.
+# The adapter for specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature.
 #
 # This is a documented fork of .github/scripts/test-hippo-bootstrap.sh. The two
 # consumers pin releases of different tools, but the hazard they defend against
@@ -291,30 +291,28 @@ rm -f -- "$counter_probe" "$temporary_root/probe-one.tar.gz" "$temporary_root/pr
 # This adapter binds the canonical tool corpus by exact scenario title. The
 # exact-list comparison makes a missing, duplicate, renamed, or unknown
 # scenario fail before any fixture runs.
-feature_file="$repository_root/specs/tools/rhino-consumer/behaviours/rhino-bootstrap.feature"
+feature_file="$repository_root/specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature"
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 The caller'"'"'s argument vector reaches the release unchanged
 Tampered warm-cache payload never executes
-A downloaded archive whose digest misses the pin never executes
+A downloaded release that fails verification is refused
 Non-exact stable release version is rejected
-Exact candidate tag uses stable release identity
-Release identity envelope must match exactly
+A pinned release candidate installs and runs
 Unsupported platform is refused before any transport
-Matching live install-lock owner remains protected
-Malformed identity for a live install-lock owner fails closed
-Reused live PID with a different valid identity is reclaimed
-Dead install-lock owner is reclaimed
-Crash before install-lock metadata publication is recoverable
-Concurrent cold callers install from exactly one verified download
-Concurrent stale reclaimers preserve a replacement live owner
+A caller waits while another caller is installing
+A caller takes over an install whose owner is gone
+Two callers starting together download once and both run the release
 A consumer never removes an install lock it did not publish
 Install guard storage stays bounded across release versions
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
-Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window
-The two consumer bootstraps never reach each other'"'"'s state'
-actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
+Installing both tools on one machine keeps their caches apart
+Each tool honours only its own cache-root setting
+A missing, duplicated, or malformed pin exits 125 before any transport
+A bounded wait for the install guard or lock that runs out exits 124
+A host without flock or lockf exits 125'
+actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 # Said out loud rather than left to `set -e`. This assertion runs before the
 # first scenario name is printed, so a bare test exits with no output at all --
 # and the one change that trips it, editing the corpus, is also the one where a
@@ -372,6 +370,7 @@ assert_waits_for_live_lock() {
 	[ -f "$install_lock" ]
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A cold cache installs once and a warm cache needs no transport
 run_cold_then_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -393,6 +392,7 @@ run_cold_then_warm_cache() {
 # the wrapper, not an absence, so it is asserted: a real command spelling goes
 # in, and exactly that spelling must come out with nothing added, removed, or
 # reordered.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: The caller's argument vector reaches the release unchanged
 run_argument_vector_passthrough() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -410,6 +410,7 @@ README.md'
 	[ "$(sed -n '1,$p' "$arguments_file")" = "$expected_arguments" ]
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Tampered warm-cache payload never executes
 run_tampered_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -457,6 +458,7 @@ EOF
 
 # Integrity failures are configuration errors, not transport errors, and must
 # stop before an unverified payload is published or executed.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A downloaded release that fails verification is refused
 run_download_digest_mismatch() {
 	rm -rf -- "$cache_root"
 	write_lock "$test_version" 0000000000000000000000000000000000000000000000000000000000000000
@@ -476,6 +478,7 @@ run_download_digest_mismatch() {
 	write_lock "$test_version" "$checksum"
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Non-exact stable release version is rejected
 run_non_exact_stable_version() {
 	rm -rf -- "$cache_root"
 	downloads_before=$(download_count)
@@ -498,6 +501,7 @@ run_non_exact_stable_version() {
 	write_lock "$test_version" "$checksum"
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A pinned release candidate installs and runs
 run_exact_candidate_tag_uses_stable_product_identity() {
 	candidate_version=v9.8.7-rc.5
 	stable_product_version=v9.8.7
@@ -510,6 +514,25 @@ run_exact_candidate_tag_uses_stable_product_identity() {
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ -x "$cache_root/$candidate_version/$host_platform/rhino" ]
 	[ -f "$cache_root/$candidate_version/$host_platform/rhino.sha256" ]
+
+	# The second run is served from the cache: transport is broken, so a second
+	# download would fail the run rather than pass it.
+	result=$(PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_CURL_FAIL=1 \
+		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$stable_product_version\",\"commit\":\"$test_commit\"}" "$subject" probe)
+	[ "$result" = probe-ok ]
+	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
+	# The stable identity is verified rather than assumed: an executable that reports
+	# a different stable version is refused before anything is published.
+	rm -rf -- "$cache_root"
+	candidate_mismatch_output="$temporary_root/candidate-identity-output"
+	set +e
+	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"v9.8.8\",\"commit\":\"$test_commit\"}" "$subject" probe >"$candidate_mismatch_output" 2>/dev/null
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	[ ! -s "$candidate_mismatch_output" ]
+	[ ! -e "$cache_root/$candidate_version/$host_platform/rhino" ]
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
 }
@@ -521,10 +544,12 @@ run_non_exact_identity_envelope() {
 	set +e
 	PATH="$test_path" RHINO_INSTALL_CACHE="$cache_root" RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
 		RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$test_version\",\"commit\":\"$test_commit\",\"version\":\"v0.0.0\"}" \
-		"$subject" probe >/dev/null 2>&1
+		"$subject" probe >"$temporary_root/envelope-output" 2>/dev/null
 	status=$?
 	set -e
 	[ "$status" -eq 125 ]
+	# The envelope is refused before the payload runs, so the payload never spoke.
+	[ ! -s "$temporary_root/envelope-output" ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/rhino" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/rhino.sha256" ]
@@ -536,6 +561,7 @@ run_non_exact_identity_envelope() {
 # is the kind of error a caller retries forever. The refusal is attributed by
 # its message, because exit 125 is also what an unreadable lock produces -- and
 # the platform branch runs before the lock's per-target checksum is ever read.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Unsupported platform is refused before any transport
 run_unsupported_platform_refused() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -564,6 +590,7 @@ run_unsupported_platform_refused() {
 	[ ! -e "$cache_root" ]
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A caller waits while another caller is installing
 run_matching_live_owner() {
 	prepare_atomic_install_lock
 	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
@@ -601,6 +628,7 @@ run_reused_live_pid() {
 	assert_pinned_release_installed "$downloads_before"
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A caller takes over an install whose owner is gone
 run_dead_owner() {
 	prepare_atomic_install_lock
 	dead_pid=2147483647
@@ -670,6 +698,7 @@ run_crash_before_publication() {
 # transport, so this is contention rather than two runs that happened to
 # overlap. Both complete from one verified download, and exact-owner cleanup
 # leaves neither the published lock nor a prepared-record file behind.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Two callers starting together download once and both run the release
 run_concurrent_cold_callers() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -687,6 +716,9 @@ run_concurrent_cold_callers() {
 		RHINO_TEST_CURL_GATE="$gate" "$subject" probe >"$second_result" &
 	second_pid=$!
 	wait_for "the second cold caller to start" claim_exists_for "$cache_root/$test_version" "$second_pid"
+	# With both callers running, the first still owns the install lock.
+	[ -f "$cache_root/$test_version/$host_platform.lock" ]
+	[ "$(sed -n '1p' "$cache_root/$test_version/$host_platform.lock")" = "$first_pid" ]
 	: >"$gate/release"
 	wait "$first_pid"
 	wait "$second_pid"
@@ -784,6 +816,7 @@ run_peer_consumer() {
 		"$temporary_root/peers/$peer_name/rhino" probe
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Retention never deletes a release another consumer is using
 run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 	claimed_version=v9.7.2
@@ -845,6 +878,7 @@ run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Retention never evicts a release another repository still uses
 run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 	sharing_versions='v9.5.1 v9.5.2 v9.5.3 v9.5.4'
@@ -868,6 +902,7 @@ run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Retention reclaims releases left idle beyond its window
 run_retention_reclaims_idle_releases() {
 	rm -rf -- "$cache_root" "$curl_count"
 	idle_version=v9.4.9
@@ -907,6 +942,7 @@ run_retention_reclaims_idle_releases() {
 # place keeps the inode and breaks only the digest, and a byte-identical copy
 # keeps the digest and breaks only the inode. Dropping either conjunct survives
 # the other two.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A consumer never removes an install lock it did not publish
 run_never_removes_a_foreign_install_lock() {
 	for substitution in foreign-owner rewritten-in-place identical-copy; do
 		prepare_atomic_install_lock
@@ -957,6 +993,7 @@ run_never_removes_a_foreign_install_lock() {
 	done
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Install guard storage stays bounded across release versions
 run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 	for release_version in v9.8.7 v9.8.8 v9.8.9 v9.8.10; do
@@ -1039,6 +1076,40 @@ run_release_ranking_reads_real_timestamps() {
 		[ ! -d "$cache_root/v8.1.2" ]
 		[ ! -d "$cache_root/v8.1.1" ]
 	done
+	# Name order and time order must disagree, or a ranking that sorted by name would pass
+	# the fixture above. Here the newest release carries the first name.
+	for simulated_stat in bsd gnu; do
+		case "$simulated_stat" in
+		bsd)
+			simulated_uname=Darwin; simulated_system=apple-darwin
+			;;
+		*)
+			simulated_uname=Linux; simulated_system=unknown-linux-gnu
+			;;
+		esac
+		simulated_platform="$host_architecture-$simulated_system"
+		ranking_version=v9.3.9
+		rm -rf -- "$cache_root" "$curl_count"
+		install_peer_consumer "ranking-$simulated_stat" "$ranking_version"
+		idle_stamp=5
+		for idle_release in v8.1.1 v8.1.2 v8.1.3 v8.1.4 v8.1.5; do
+			mkdir -p "$cache_root/$idle_release"
+			touch -t "20000${idle_stamp}010000" "$cache_root/$idle_release"
+			idle_stamp=$((idle_stamp - 1))
+		done
+		observed=$(PATH="$temporary_root/stat-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+			RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+			RHINO_TEST_UNAME_S="$simulated_uname" RHINO_TEST_STAT_EMULATE="$simulated_stat" \
+			RHINO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$ranking_version\",\"commit\":\"$test_commit\"}" \
+			"$temporary_root/peers/ranking-$simulated_stat/rhino" probe)
+		[ "$observed" = probe-ok ]
+		[ -x "$cache_root/$ranking_version/$simulated_platform/rhino" ]
+		[ -d "$cache_root/v8.1.1" ]
+		[ -d "$cache_root/v8.1.2" ]
+		[ ! -d "$cache_root/v8.1.3" ]
+		[ ! -d "$cache_root/v8.1.4" ]
+		[ ! -d "$cache_root/v8.1.5" ]
+	done
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root" "$curl_count"
 }
@@ -1055,7 +1126,7 @@ run_release_ranking_reads_real_timestamps() {
 # directory, and asset URL before that failure, so what each one actually
 # touched can be compared. Nothing here reaches the network, and neither
 # wrapper's real cache is involved.
-run_bootstraps_never_share_state() {
+prepare_shared_machine() {
 	rhino_wrapper="$repository_root/rhino"
 	hippo_wrapper="$repository_root/hippo"
 	[ -x "$rhino_wrapper" ]
@@ -1099,7 +1170,14 @@ OBSERVEEOF
 		find "$shared/home" "$shared/cache" "$shared/tmp" -mindepth 1 |
 			sed "s|^$shared/||" | LC_ALL=C sort >"$temporary_root/footprint-$observed_tool"
 	}
+}
 
+# Installing both tools on one machine keeps their caches apart: the two wrappers
+# touch no common path, neither cache root lies inside the other, and each asks
+# transport only for the release its own lock pins.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Installing both tools on one machine keeps their caches apart
+run_bootstraps_keep_caches_apart() {
+	prepare_shared_machine
 	observe_bootstrap rhino
 	rhino_guard=$(find "$shared" -name '.install-guard.lock' -print -quit)
 	rhino_root=$(dirname -- "$(find "$shared" -type d -name 'v[0-9]*.[0-9]*.[0-9]*' -print -quit)")
@@ -1164,6 +1242,13 @@ OBSERVEEOF
 		;;
 	esac
 
+}
+
+# Each tool honours only its own cache-root setting, and is blind to the other's.
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: Each tool honours only its own cache-root setting
+run_each_tool_honours_its_own_cache_root() {
+	prepare_shared_machine
+
 	# Each wrapper honours its own cache-root override and is blind to the
 	# other's. Both directions are asked, because they fail differently: a
 	# wrapper that stopped reading its own variable would silently keep using
@@ -1211,33 +1296,199 @@ OBSERVEEOF
 	fi
 }
 
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A missing, duplicated, or malformed pin exits 125 before any transport
+run_pin_refusals_125() {
+	marker="$temporary_root/curl-called"
+	rm -f -- "$marker"
+	mkdir -p "$temporary_root/fail-bin"
+	cat >"$temporary_root/fail-bin/curl" <<EOF
+#!/bin/sh
+: > "$marker"
+exit 99
+EOF
+	chmod 755 "$temporary_root/fail-bin/curl"
+	for tool in uname sleep; do
+		cp "$temporary_root/fake-bin/$tool" "$temporary_root/fail-bin/$tool"
+	done
+	fail_path="$temporary_root/fail-bin:$PATH"
+	rm -rf -- "$cache_root" "$curl_count"
+	rm -f -- "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-no-lock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino has no pin at rhino.lock' "$temporary_root/pin-no-lock"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	printf 'version=%s\n' "$test_version" >>"$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-dup"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-dup"
+	[ ! -e "$marker" ]
+	grep -v '^version=' "$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+	mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-missing"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-missing"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	for bad_commit in 0123456789abcdef short ZZ0123456789abcdef0123456789abcdef01234567; do
+		awk -v bad="$bad_commit" '{ if ($0 ~ /^commit=/) print "commit=" bad; else print }' \
+			"$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+		mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+		set +e
+		PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-commit"
+		status=$?
+		set -e
+		[ "$status" -eq 125 ]
+		grep -Fq 'invalid commit' "$temporary_root/pin-commit"
+		[ ! -e "$marker" ]
+		write_lock "$test_version" "$checksum"
+	done
+	awk -v plat="$host_platform" '{ if ($0 ~ "^" plat "=") print plat "=invalid"; else print }' \
+		"$temporary_root/consumer/rhino.lock" >"$temporary_root/consumer/rhino.lock.tmp"
+	mv "$temporary_root/consumer/rhino.lock.tmp" "$temporary_root/consumer/rhino.lock"
+	set +e
+	PATH="$fail_path" RHINO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-checksum"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'invalid checksum' "$temporary_root/pin-checksum"
+	[ ! -e "$marker" ]
+	[ "$(download_count)" -eq 0 ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A bounded wait for the install guard or lock that runs out exits 124
+run_bounded_wait_124() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$cache_root" "$temporary_root/timeout-bin"
+	cat >"$temporary_root/timeout-bin/flock" <<'EOF'
+#!/bin/sh
+exit 124
+EOF
+	cat >"$temporary_root/timeout-bin/lockf" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+	chmod 755 "$temporary_root/timeout-bin/flock" "$temporary_root/timeout-bin/lockf"
+	set +e
+	PATH="$temporary_root/timeout-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Linux "$subject" probe >/dev/null 2>"$temporary_root/guard-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install guard' "$temporary_root/guard-timeout"
+	mkdir -p "$temporary_root/fast-bin"
+	cat >"$temporary_root/fast-bin/sleep" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+	chmod 755 "$temporary_root/fast-bin/sleep"
+	prepare_atomic_install_lock
+	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
+	process_digest=$(printf '%s\n' "$process_start" | hash_stream)
+	printf '%s\n%s\n' "$$" "$process_digest" >"$install_lock"
+	set +e
+	PATH="$temporary_root/fast-bin:$test_path" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		"$subject" probe >/dev/null 2>"$temporary_root/lock-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install lock' "$temporary_root/lock-timeout"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+# @scenario specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature: A host without flock or lockf exits 125
+run_missing_lock_tool_125() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$temporary_root/no-lock-bin"
+	for b in /usr/bin/* /bin/*; do
+		base=${b##*/}
+		case "$base" in
+		flock | lockf | curl | uname | sleep) continue ;;
+		esac
+		[ -e "$temporary_root/no-lock-bin/$base" ] || ln -s "$b" "$temporary_root/no-lock-bin/$base" 2>/dev/null || true
+	done
+	cp "$temporary_root/fake-bin/curl" "$temporary_root/no-lock-bin/curl"
+	cp "$temporary_root/fake-bin/uname" "$temporary_root/no-lock-bin/uname"
+	cp "$temporary_root/fake-bin/sleep" "$temporary_root/no-lock-bin/sleep"
+	rm -rf -- "$cache_root"
+	mkdir -p "$cache_root"
+	set +e
+	PATH="$temporary_root/no-lock-bin" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Linux RHINO_TEST_UNAME_M=x86_64 "$subject" probe >/dev/null 2>"$temporary_root/no-flock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino bootstrap requires flock on Linux' "$temporary_root/no-flock"
+	set +e
+	PATH="$temporary_root/no-lock-bin" RHINO_INSTALL_CACHE="$cache_root" \
+		RHINO_TEST_ARCHIVE="$temporary_root/release.tar.gz" RHINO_TEST_CURL_COUNT="$curl_count" \
+		RHINO_TEST_UNAME_S=Darwin RHINO_TEST_UNAME_M=arm64 "$subject" probe >/dev/null 2>"$temporary_root/no-lockf"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'rhino bootstrap requires lockf on Darwin' "$temporary_root/no-lockf"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
-	# silent, and a corpus that shrank would still end in a pass line.
+	# silent, and a corpus that shrank would still end in a pass line. A Scenario
+	# Outline runs each function it names, and each function covers every row of
+	# the outline's Examples table.
 	echo "  $scenario"
 	case "$scenario" in
 	'A cold cache installs once and a warm cache needs no transport') run_cold_then_warm_cache ;;
 	"The caller's argument vector reaches the release unchanged") run_argument_vector_passthrough ;;
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
-	'A downloaded archive whose digest misses the pin never executes') run_download_digest_mismatch ;;
+	'A downloaded release that fails verification is refused')
+		run_download_digest_mismatch
+		run_non_exact_identity_envelope
+		;;
 	'Non-exact stable release version is rejected') run_non_exact_stable_version ;;
-	'Exact candidate tag uses stable release identity') run_exact_candidate_tag_uses_stable_product_identity ;;
-	'Release identity envelope must match exactly') run_non_exact_identity_envelope ;;
+	'A pinned release candidate installs and runs') run_exact_candidate_tag_uses_stable_product_identity ;;
 	'Unsupported platform is refused before any transport') run_unsupported_platform_refused ;;
-	'Matching live install-lock owner remains protected') run_matching_live_owner ;;
-	'Malformed identity for a live install-lock owner fails closed') run_malformed_live_owner ;;
-	'Reused live PID with a different valid identity is reclaimed') run_reused_live_pid ;;
-	'Dead install-lock owner is reclaimed') run_dead_owner ;;
-	'Crash before install-lock metadata publication is recoverable') run_crash_before_publication ;;
-	'Concurrent cold callers install from exactly one verified download') run_concurrent_cold_callers ;;
-	'Concurrent stale reclaimers preserve a replacement live owner') run_concurrent_stale_reclaimers ;;
+	'A caller waits while another caller is installing')
+		run_matching_live_owner
+		run_malformed_live_owner
+		;;
+	'A caller takes over an install whose owner is gone')
+		run_dead_owner
+		run_reused_live_pid
+		run_crash_before_publication
+		;;
+	'Two callers starting together download once and both run the release')
+		run_concurrent_cold_callers
+		run_concurrent_stale_reclaimers
+		;;
 	'A consumer never removes an install lock it did not publish') run_never_removes_a_foreign_install_lock ;;
 	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
 	'Retention never deletes a release another consumer is using') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
-	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
-	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
-	"The two consumer bootstraps never reach each other's state") run_bootstraps_never_share_state ;;
+	'Retention reclaims releases left idle beyond its window')
+		run_retention_reclaims_idle_releases
+		run_release_ranking_reads_real_timestamps
+		;;
+	'Installing both tools on one machine keeps their caches apart') run_bootstraps_keep_caches_apart ;;
+	'Each tool honours only its own cache-root setting') run_each_tool_honours_its_own_cache_root ;;
+	'A missing, duplicated, or malformed pin exits 125 before any transport') run_pin_refusals_125 ;;
+	'A bounded wait for the install guard or lock that runs out exits 124') run_bounded_wait_124 ;;
+	'A host without flock or lockf exits 125') run_missing_lock_tool_125 ;;
 	*) exit 1 ;;
 	esac
 done <<EOF

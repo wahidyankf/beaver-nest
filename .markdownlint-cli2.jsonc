@@ -1,0 +1,38 @@
+// Encodes the repository's stated 120-column Markdown rule (AGENTS.md).
+// Only MD013 is enabled; every other rule stays off (default: false).
+{
+  "config": {
+    "default": false,
+    "MD013": {
+      "line_length": 120,
+      "heading_line_length": 120,
+      "code_block_line_length": 120,
+      "code_blocks": true,
+      "headings": true,
+      "tables": true,
+      "strict": true,
+    },
+  },
+  "ignores": [
+    "**/node_modules/**",
+    "worktrees/**",
+    ".nx/**",
+    "**/_build/**",
+    "**/deps/**",
+    "**/cover/**",
+    "**/doc/**",
+    "**/test-results/**",
+    "**/playwright-report/**",
+    "**/blob-report/**",
+    "**/.features-gen/**",
+    ".claude/**",
+    ".serena/**",
+    "data/**",
+    "local-tmp/**",
+    "generated-reports/**",
+    // Completed plans are frozen records; the 120-column rule does not reach back into them.
+    "plans/done/**",
+    // Fixture bytes are digest-verified corpus, verified against rather than authored.
+    "specs/fixtures/**",
+  ],
+}

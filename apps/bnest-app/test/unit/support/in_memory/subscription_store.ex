@@ -16,6 +16,9 @@ defmodule BnestApp.Test.InMemory.SubscriptionStore do
 
   @dispatcher "system:push-dispatcher"
 
+  # The unit layer's fixed clock, matching the in-memory room store's own stamp.
+  @default_now ~U[2026-09-18 20:00:00Z]
+
   @doc "A fresh store, on a fresh in-memory room store linked to the calling test."
   def start, do: over(RoomStore.start())
 
@@ -32,6 +35,8 @@ defmodule BnestApp.Test.InMemory.SubscriptionStore do
   Subscribes a fresh endpoint for a fresh session of `user_id` through `upsert!/5`, then
   disables that session when `active?: false` is given, and returns the subscription's ID.
   For tests whose subject only reads subscriptions, such as Family Chat's fan-out.
+  Pass `now:` to stamp the row with a test-owned time instead of the unit layer's
+  fixed clock.
   """
   def subscribe!(handle, user_id, options \\ []) do
     store = over(handle)
@@ -39,7 +44,7 @@ defmodule BnestApp.Test.InMemory.SubscriptionStore do
     # Fragmented scheme: no unit-layer source carries a URL literal.
     endpoint = "https:" <> "//push.allowed.example.com/" <> Ecto.UUID.generate()
     binding = %{endpoint: endpoint, endpoint_sha256: endpoint, p256dh: "p256dh", auth: "auth"}
-    now = DateTime.utc_now()
+    now = Keyword.get(options, :now, @default_now)
     :ok = upsert!(store, user_id, session, binding, now)
 
     unless Keyword.get(options, :active?, true),

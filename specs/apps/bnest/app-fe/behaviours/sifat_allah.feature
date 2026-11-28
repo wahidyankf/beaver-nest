@@ -47,6 +47,17 @@ Feature: Revising the 20 attributes of Allah
     And the visitor starts learning
     Then the study card shows "Qidam" and "Dahulu"
 
+  Scenario Outline: A quiz skips individual questions that are already remembered
+    Given a visitor opens "/apps/sifat-allah"
+    And the visitor has remembered the first pair by "<how>"
+    When the visitor starts a quiz
+    Then the page displays the text "Apa lawan dari Qidam?"
+
+    Examples:
+      | how              |
+      | study mark       |
+      | a correct answer |
+
   Scenario: A quiz prioritizes individual questions that are not remembered yet
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts learning
@@ -101,14 +112,6 @@ Feature: Revising the 20 attributes of Allah
     And the progress shows "1 dari 120 soal sudah hafal"
     And the progress shows "119 soal masih perlu diulang"
 
-  Scenario: A quiz skips an individual question that is already learned
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor answers "Ada"
-    And the visitor returns to the mission
-    And the visitor starts a quiz
-    Then the page displays the text "Apa lawan dari Qidam?"
-
   Scenario: A quiz locks one answer and moves on automatically
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
@@ -140,36 +143,20 @@ Feature: Revising the 20 attributes of Allah
     When the visitor swipes right on the quiz question
     Then the page displays the text "Apa arti Wujud?"
 
-  Scenario: A child practises the opposite attribute too
+  Scenario Outline: A child practises every question form of a pair
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Apa lawan dari Qidam?"
-    When the visitor answers "Hudus"
+    And the visitor reaches quiz question number <question number>
+    Then the page displays the text "<expected question>"
+    When the visitor answers "<correct answer>"
     Then the page displays the text "Betul!"
 
-  Scenario: A child practises the meaning of an opposite attribute too
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Apa arti Fana’?"
-    When the visitor answers "Binasa"
-    Then the page displays the text "Betul!"
-
-  Scenario: A child practises every relationship from the reverse direction too
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts a quiz
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    And the visitor continues to the next quiz question
-    Then the page displays the text "Sifat wajib apa yang artinya Berbeda dengan makhluk?"
-    When the visitor answers "Mukhalafatuhu lil hawaditsi"
-    Then the page displays the text "Betul!"
-    When the visitor continues to the next quiz question
-    Then the page displays the text "Apa lawan dari Qiyamuhu bighairihi?"
-    When the visitor answers "Qiyamuhu binafsihi"
-    Then the page displays the text "Betul!"
+    Examples:
+      | question number | expected question                                    | correct answer              |
+      | 2               | Apa lawan dari Qidam?                                | Hudus                       |
+      | 3               | Apa arti Fana’?                                      | Binasa                      |
+      | 4               | Sifat wajib apa yang artinya Berbeda dengan makhluk? | Mukhalafatuhu lil hawaditsi |
+      | 5               | Apa lawan dari Qiyamuhu bighairihi?                  | Qiyamuhu binafsihi          |
 
   Scenario: A difficult pair is kept for another try
     Given a visitor opens "/apps/sifat-allah"
@@ -194,16 +181,6 @@ Feature: Revising the 20 attributes of Allah
     When the visitor continues focused review
     Then the page displays the text "Ulangi yang masih bikin bingung (0)"
 
-  Scenario: A child retests a pair that is already remembered
-    Given a visitor opens "/apps/sifat-allah"
-    When the visitor starts learning
-    And the visitor marks the current pair as remembered
-    And the visitor returns to the mission
-    And the visitor starts learned review
-    Then the page displays the text "Apa arti Wujud?"
-    When the visitor answers "Lemah"
-    Then the revision list contains "Wujud"
-
   # Exemption(integration): combined browser gestures and history are not observable at the local process boundary; alternative-proof: bnest-app-fe-e2e:test:e2e / A child moves through remembered individual questions
   @integration-exempt
   Scenario: A child moves through remembered individual questions
@@ -217,24 +194,30 @@ Feature: Revising the 20 attributes of Allah
     When the visitor swipes right on the quiz question
     Then the page displays the text "Apa arti Wujud?"
 
-  Scenario: Every answered question moves between the review queues immediately
+  Scenario: Every answered question moves between the review lists immediately
     Given a visitor opens "/apps/sifat-allah"
     When the visitor starts a quiz
     And the visitor answers "Ada"
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (1)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
+    And the progress shows "1 dari 120 soal sudah hafal"
+    And the progress shows "119 soal masih perlu diulang"
     When the visitor starts learned review
     Then the page displays the text "Apa arti Wujud?"
     When the visitor answers "Lemah"
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (0)"
     And the page displays the text "Ulangi yang masih bikin bingung (1)"
+    And the progress shows "0 dari 120 soal sudah hafal"
+    And the progress shows "120 soal masih perlu diulang"
     When the visitor starts focused review
     And the visitor answers "Ada" in focused review
     And the visitor returns to the mission
     Then the page displays the text "Ulangi yang sudah hafal (1)"
     And the page displays the text "Ulangi yang masih bikin bingung (0)"
+    And the progress shows "1 dari 120 soal sudah hafal"
+    And the progress shows "119 soal masih perlu diulang"
 
   Scenario: A pair moves between remembered and difficult review
     Given a visitor opens "/apps/sifat-allah"
@@ -271,3 +254,42 @@ Feature: Revising the 20 attributes of Allah
     When the visitor answers "Fana’" in focused review
     And the visitor continues focused review
     Then the page displays the text "Apa arti Wujud?"
+
+  # Carries BN-SIFAT-15.
+  @fe-vitest-unit
+  # Exemption(integration): reach: confetti is drawn by browser JavaScript from the `sifat-celebrate` push event, which Phoenix.LiveViewTest never executes (it can assert only the event); alternative-proof: bnest-app-fe-e2e:test:e2e / A celebration plays on success and is skipped with reduced motion
+  @integration-exempt
+  Scenario Outline: A celebration plays on success and is skipped with reduced motion
+    Given a visitor opens "/apps/sifat-allah"
+    When the visitor starts a quiz
+    And the visitor answers "<answer>" with "<motion>" motion preference
+    Then the celebration layer holds <pieces> pieces
+    And the page displays the text "<feedback>"
+
+    Examples:
+      | answer | motion  | pieces | feedback                                                              |
+      | Ada    | allowed | 14     | Betul!                                                                |
+      | Ada    | reduced | 0      | Betul!                                                                |
+      | Lemah  | allowed | 0      | Belum tepat. Jawaban yang benar: Ada. Nanti kita ulang lagi, ya. |
+
+  # Carries BN-SIFAT-16.
+  # Exemption(e2e): reach: the e2e server's SQLite store is healthy and no browser action makes its write fail; alternative-proof: bnest-app:test:integration / A failed progress save says the saved progress is unchanged
+  @e2e-exempt
+  Scenario: A failed progress save says the saved progress is unchanged
+    Given a visitor with saved Sifat Allah progress studies the next pair
+    When the progress store rejects saves
+    And the visitor marks the current pair while saves fail
+    Then the page shows the failed save notice
+    When the visitor reloads the page
+    Then the progress shows the earlier saved progress
+
+  # Carries BN-SIFAT-17.
+  Scenario Outline: The page says where progress is stored for this user
+    Given <ready>
+    When the revision page opens
+    Then the page shows the storage note "<message>"
+
+    Examples:
+      | ready                      | message                       |
+      | the signed-in child is ready | Tersimpan aman untuk akun ini |
+      | the local browser is ready | Tersimpan di browser ini      |

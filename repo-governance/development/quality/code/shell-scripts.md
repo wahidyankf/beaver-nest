@@ -12,10 +12,8 @@ A shell script in a repository runs in hooks, in pipelines, and on contributors'
 its output. The shell's defaults suit an interactive prompt, where a person sees each failure as it happens. In a script
 they let one failed command pass unnoticed while everything after it runs on a broken state.
 
-This standard implements Fail Closed,
-Explicit Over Implicit, and
-Reproducibility. The severity at which a shell linter fails is owned by
-[Quality Gates](../../quality-gates.md).
+This standard implements Fail Closed, Explicit Over Implicit, and Reproducibility. The severity at which a shell linter
+fails is owned by [Quality Gates](../../quality-gates.md).
 
 ## One Declared Interpreter
 
@@ -25,10 +23,12 @@ doing something different. Declaring a single interpreter removes that whole cla
 
 Which interpreter is an adopter decision:
 
-| Option                                                      | Gains                                                                        | Costs                                                                                                   |
-| ----------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Bash, with `set -euo pipefail` (default)                    | a widely installed shell with arrays and a flag that fails a broken pipeline | missing from some minimal images and systems, where it has to be installed first                        |
-| another declared interpreter, with its strict-mode settings | fits a platform where Bash is unavailable or unwanted                        | contributors learn a second dialect's failure rules, and the strict-mode table needs its own equivalent |
+- **Bash, with `set -euo pipefail` (default)**
+  - Gains: a widely installed shell with arrays and a flag that fails a broken pipeline
+  - Costs: missing from some minimal images and systems, where it has to be installed first
+- **another declared interpreter, with its strict-mode settings**
+  - Gains: fits a platform where Bash is unavailable or unwanted
+  - Costs: contributors learn a second dialect's failure rules, and the strict-mode table needs its own equivalent
 
 ## Strict Mode
 

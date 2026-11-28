@@ -1,30 +1,32 @@
 # Q2 — Important, Not Urgent
 
-This quadrant contains valuable ideas with meaningful impact but no current deadline, active blocker, or immediate failure pressure.
+This quadrant contains valuable ideas with meaningful impact but no current deadline, active blocker, or immediate
+failure pressure.
 
 ## Ideas
 
 - [RHINO adoption across the OSE repositories](rhino-adoption-across-ose.md) extends the completed cutover to
-  `ose-public` and the private operations repository, and settles whether `ose-public`'s own `rhino-cli` merges into RHINO.
-- [Real-production-cutover GraphQL subscription continuity proof](family-chat-real-cutover-subscription-proof.md)
-  proves family chat's live subscription survives a real `release:run` Caddy promotion, descoped from v1.
+  `ose-public` and the private operations repository, and settles whether `ose-public`'s own `rhino-cli` merges into
+  RHINO.
+- [Real-production-cutover GraphQL subscription continuity proof](family-chat-real-cutover-subscription-proof.md) proves
+  family chat's live subscription survives a real `release:run` Caddy promotion, descoped from v1.
 - [Family chat reply flag retirement](family-chat-reply-flag-retirement.md) removes the reply feature flag and its
   branches once the rollback window has closed.
-- [Family chat swipe to reply](family-chat-swipe-to-reply.md) adds a one-step reply gesture without making the fast
-  path the inaccessible one.
-- [Family chat room reading on a phone](family-chat-room-reading-on-a-phone.md) addresses six usability findings
-  about density, repetition, and getting back to the newest message.
-- [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) settles what a shared-token
-  specification line promises and what a scenario's layer tag obliges.
-- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) requires a plan that introduces a
-  runtime flag to cover the release path, and a phase checkpoint to name its typecheck target.
-- [Browser suite timing reliability](browser-suite-timing-reliability.md) makes `FE_E2E` return the same result
-  twice on an unchanged tree, so a gate plans cite as proof keeps meaning something.
-- [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) keeps the storage retire contract, the
-  `fixture` task, the closure review's Low findings and the missing-backup investigation from the archived
-  hexagonal plan, plus the word-budget gap for the standard.
-- [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) keeps a second copy of the nightly backup
-  outside the Dropbox-synced folder, uncommitted, after the lost-night cause stayed unproven.
+- [Family chat swipe to reply](family-chat-swipe-to-reply.md) adds a one-step reply gesture without making the fast path
+  the inaccessible one.
+- [Family chat room reading on a phone](family-chat-room-reading-on-a-phone.md) addresses six usability findings about
+  density, repetition, and getting back to the newest message.
+- [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) settles what a shared-token specification
+  line promises and what a scenario's layer tag obliges.
+- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) requires a plan that introduces a runtime
+  flag to cover the release path, and a phase checkpoint to name its typecheck target.
+- [Browser suite timing reliability](browser-suite-timing-reliability.md) makes `FE_E2E` return the same result twice on
+  an unchanged tree, so a gate plans cite as proof keeps meaning something.
+- [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) keeps the storage retire contract, the `fixture`
+  task, the closure review's Low findings and the missing-backup investigation from the archived hexagonal plan, plus
+  the word-budget gap for the standard.
+- [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) keeps a second copy of the nightly backup outside
+  the Dropbox-synced folder, uncommitted, after the lost-night cause stayed unproven.
 - [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) keeps the restore
   root that a fault can leave behind and the backend snapshot helper that still copies a live lock lease.
 - [Linux service adapter follow-ups](linux-service-adapter-follow-ups.md) keeps six hardening and coverage gaps in the
@@ -32,29 +34,29 @@ This quadrant contains valuable ideas with meaningful impact but no current dead
 
 ## Directory Map
 
-- [RHINO adoption across the OSE repositories](rhino-adoption-across-ose.md) records the alignment evidence, the
-  three questions a merge must answer in order, and the two triggers that would promote it to a plan.
+- [RHINO adoption across the OSE repositories](rhino-adoption-across-ose.md) records the alignment evidence, the three
+  questions a merge must answer in order, and the two triggers that would promote it to a plan.
 - [Real-production-cutover GraphQL subscription continuity proof](family-chat-real-cutover-subscription-proof.md)
-  records the missing service-account auth path, probe room, and telemetry mechanism, and the two triggers that
-  would promote it to a plan.
+  records the missing service-account auth path, probe room, and telemetry mechanism, and the two triggers that would
+  promote it to a plan.
 - [Family chat reply flag retirement](family-chat-reply-flag-retirement.md) records the branches to delete, the
   scenarios that describe a posture the product would no longer have, and the one-cycle promotion signal.
 - [Family chat swipe to reply](family-chat-swipe-to-reply.md) records the accessibility constraint the gesture must
   satisfy and the two collision risks it carries.
-- [Family chat room reading on a phone](family-chat-room-reading-on-a-phone.md) records the measured 320px budget,
-  the six grouped findings, and the promotion signal.
-- [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) records the focus-ring and
-  inline-longhand evidence, the corpus-pruning obligation, and the two proposed convention lines.
-- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) records the release-path omission
-  that would have promoted a flagless revision, and the typecheck gate that stayed red across three phases.
-- [Browser suite timing reliability](browser-suite-timing-reliability.md) records the fixed press-and-hold margin
-  with the trace that settled it, the open visibility-resume failure at one run in eight, the slot-activation
-  window that took a whole rule in one run, and why a retry is rejected as the remedy.
+- [Family chat room reading on a phone](family-chat-room-reading-on-a-phone.md) records the measured 320px budget, the
+  six grouped findings, and the promotion signal.
+- [Shared token claims and layer tags](shared-token-claims-and-layer-tags.md) records the focus-ring and inline-longhand
+  evidence, the corpus-pruning obligation, and the two proposed convention lines.
+- [Plan and checkpoint contract gaps](plan-and-checkpoint-contract-gaps.md) records the release-path omission that would
+  have promoted a flagless revision, and the typecheck gate that stayed red across three phases.
+- [Browser suite timing reliability](browser-suite-timing-reliability.md) records the fixed press-and-hold margin with
+  the trace that settled it, the open visibility-resume failure at one run in eight, the slot-activation window that
+  took a whole rule in one run, and why a retry is rejected as the remedy.
 - [Bnest post-closure follow-ups](bnest-post-closure-follow-ups.md) records the five decisions the structural plan did
   not take and the owner approval one of them needs.
 - [Off-Dropbox backup second copy](off-dropbox-backup-second-copy.md) records why one Dropbox-synced destination is the
   exposure the unproven verdict leaves, a sketch, the open questions, and the promotion signal.
-- [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) records the two
-  gaps, the browser helper fix that is the model, and the two promotion signals.
+- [Restore root and backend e2e snapshot hardening](restore-root-and-be-e2e-snapshot-hardening.md) records the two gaps,
+  the browser helper fix that is the model, and the two promotion signals.
 - [Linux service adapter follow-ups](linux-service-adapter-follow-ups.md) records the six gaps, from unit quoting to
   missing launchd tests, and the three changes that would promote them to a plan.

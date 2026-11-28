@@ -5,6 +5,20 @@ import { makePng } from "../support/family-chat-markdown";
 // Codex replies are rendered as Markdown inside `data-role=assistant-message`; the newest one is the
 // reply a scenario is about. The canned replies come from `codex_fixture_replies.json`, which the
 // fixture runner sends, so the expectations below name the text the runner really sends.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply shows an image from the repository
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A half-written image address in a streaming reply is not shown as an image
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a repository image
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-out visitor cannot fetch a repository image
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: After a dropped connection, a resumed reply shows its later text and diagram without a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex replies are formatted as Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply stays readable while its Markdown is unfinished
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Raw HTML in a Codex reply is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Unsafe links in a Codex reply are not clickable
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Links in a Codex reply open in a new tab without sharing the page
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An oversized diagram stays as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An unsupported diagram type stays as source with a note
 const { Before, Then, When } = createBdd();
 
 const IMAGE_ROUTE = "/chat/images/";
@@ -23,14 +37,19 @@ Before("@remote-image", async ({ context }) => {
   );
 });
 
-// The last image response a scenario requested. A scenario runs one step after another in its worker.
+// The last image response a scenario requested, whichever image route served
+// it. A scenario runs one step after another in its worker.
 let imageResponse: APIResponse | undefined;
+
+export function setRequestedImageResponse(response: APIResponse): void {
+  imageResponse = response;
+}
 
 function latestReply(page: Page) {
   return page.locator("[data-role=assistant-message]").last();
 }
 
-function requestedImageResponse(): APIResponse {
+export function requestedImageResponse(): APIResponse {
   if (imageResponse === undefined) {
     throw new Error("The scenario has not requested a repository image.");
   }

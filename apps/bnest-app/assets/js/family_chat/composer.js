@@ -157,8 +157,7 @@ function createSubmitMethod(draftState, state, outbox, onQueued, replyTarget) {
 }
 
 /**
- * `replyTarget` is optional: a composer with none behaves exactly as it did
- * before replies existed, which is what the compatibility release ships.
+ * `replyTarget` is optional: a composer with none sends without a reply target.
  * @param {{
  *   outbox: {send: (body: string, opts?: {replyToMessageId?: string}) => Promise<string | null>},
  *   state: {remediationMessage: string | null},

@@ -116,11 +116,11 @@ defmodule BnestApp.PushNotifications do
     {:ok, %{enabled: false}}
   end
 
-  @doc "Drains every currently-due delivery via `Dispatcher.attempt/0`, one row at a time, until none remain. The real production dispatch trigger (see `BnestApp.Scheduler`'s tick, which calls this once per 60s tick alongside the daily-cadence sweep)."
-  @spec dispatch_all_due!() :: :ok
-  def dispatch_all_due! do
-    case Dispatcher.attempt() do
-      {:ok, _transition} -> dispatch_all_due!()
+  @doc "Drains every currently-due delivery via `Dispatcher.attempt/1`, one row at a time, until none remain. The real production dispatch trigger (see `BnestApp.Scheduler`'s tick, which calls this once per 60s tick alongside the daily-cadence sweep). Takes the sweep time as `now` so unit tests stamp their stores with the same test-owned time instead of the system clock; production callers omit it."
+  @spec dispatch_all_due!(DateTime.t()) :: :ok
+  def dispatch_all_due!(now \\ DateTime.utc_now()) do
+    case Dispatcher.attempt(now) do
+      {:ok, _transition} -> dispatch_all_due!(now)
       {:error, :no_due_delivery} -> :ok
     end
   end

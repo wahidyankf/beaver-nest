@@ -12,5 +12,7 @@ Read in order. Together these hold the rule the [Stack Packs](../stack-packs.md)
 
 ## Directory Map
 
-- [001 Repository Adapter](001-repository-adapter.md) defines the one local document recording adopted packs and decisions.
-- [002 Inventory Extension](002-inventory-extension.md) defines the per-project inventory shape, its owner, and when a stack is active.
+- [001 Repository Adapter](001-repository-adapter.md) defines the one local document recording adopted packs and
+  decisions.
+- [002 Inventory Extension](002-inventory-extension.md) defines the per-project inventory shape, its owner, and when a
+  stack is active.

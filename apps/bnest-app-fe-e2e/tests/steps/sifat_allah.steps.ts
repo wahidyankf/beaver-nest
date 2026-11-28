@@ -5,6 +5,24 @@ import { instanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child keeps the current quiz question after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns a pair and keeps the progress after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child moves through remembered individual questions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child opens the revision dashboard
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child practises every question form of a pair
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child sees correct answers in varied positions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through a learning session
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child swipes through quiz questions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz prioritizes individual questions that are not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Browser Back returns a child from a quiz to the mission
+
 async function waitForLiveView(page: Page) {
   await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
 }
@@ -36,6 +54,25 @@ Given("the visitor has remembered every Sifat Allah pair", async ({ page }) => {
     page.getByText("120 dari 120 soal sudah hafal", { exact: true }),
   ).toBeVisible();
 });
+
+// A pair is remembered by the study card's mark, or by a correct answer to the first quiz
+// question. The visitor is back on the mission afterwards, as the feature expects.
+Given(
+  "the visitor has remembered the first pair by {string}",
+  async ({ page }, how: string) => {
+    await waitForLiveView(page);
+    if (how === "study mark") {
+      await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
+      await page.getByRole("button", { name: "Aku sudah ingat" }).click();
+    } else if (how === "a correct answer") {
+      await page.getByRole("button", { name: "Latihan Ujian" }).click();
+      await page.getByRole("button", { name: "Ada", exact: true }).click();
+    } else {
+      throw new Error(`unknown way to remember a pair: ${how}`);
+    }
+    await page.getByRole("button", { name: "← Kembali ke misi" }).click();
+  },
+);
 
 async function swipe(
   page: Page,
@@ -214,39 +251,4 @@ When("the visitor starts focused review", async ({ page }) => {
   await page
     .getByRole("button", { name: /^Ulangi yang masih bikin bingung \(\d+\)$/u })
     .click();
-});
-
-When("the visitor continues to the next quiz question", async ({ page }) => {
-  await waitForLiveView(page);
-  const question = page.locator("[data-role=quiz-question] h2");
-  const previousQuestion = await question.innerText();
-  await page.getByRole("button", { name: "Soal berikutnya →" }).click();
-  await expect.poll(() => question.innerText()).not.toBe(previousQuestion);
-});
-
-When("the visitor answers {string}", async ({ page }, answer: string) => {
-  await waitForLiveView(page);
-  await page.getByRole("button", { name: answer, exact: true }).click();
-});
-
-When(
-  "the visitor answers {string} in focused review",
-  async ({ page }, answer: string) => {
-    await waitForLiveView(page);
-    await page
-      .locator("[data-role=review-question]")
-      .getByRole("button", { name: answer, exact: true })
-      .click();
-  },
-);
-
-When("the visitor continues focused review", async ({ page }) => {
-  await waitForLiveView(page);
-  await page.locator('button[phx-click="next-review-question"]').click();
-});
-
-Then("the revision list contains {string}", async ({ page }, name: string) => {
-  await expect(page.getByTestId("sifat-allah-revision-list")).toContainText(
-    name,
-  );
 });

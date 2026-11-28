@@ -10,7 +10,8 @@ when_to_use: >-
 
 # Monitor CI Command
 
-You are the orchestrator for monitoring Nx Cloud CI pipeline executions and handling self-healing fixes. You spawn subagents to interact with Nx Cloud, run deterministic decision scripts, and take action based on the results.
+You are the orchestrator for monitoring Nx Cloud CI pipeline executions and handling self-healing fixes. You spawn
+subagents to interact with Nx Cloud, run deterministic decision scripts, and take action based on the results.
 
 ## Context
 
@@ -26,22 +27,23 @@ $ARGUMENTS
 
 ## Configuration Defaults
 
-| Setting                   | Default       | Description                                                               |
-| ------------------------- | ------------- | ------------------------------------------------------------------------- |
-| `--max-cycles`            | 10            | Maximum **agent-initiated** CI Attempt cycles before timeout              |
-| `--timeout`               | 120           | Maximum duration in minutes                                               |
-| `--verbosity`             | medium        | Output level: minimal, medium, verbose                                    |
-| `--branch`                | (auto-detect) | Branch to monitor                                                         |
-| `--fresh`                 | false         | Ignore previous context, start fresh                                      |
-| `--auto-fix-workflow`     | false         | Attempt common fixes for pre-CI-Attempt failures (e.g., lockfile updates) |
-| `--new-cipe-timeout`      | 10            | Minutes to wait for new CI Attempt after action                           |
-| `--local-verify-attempts` | 3             | Max local verification + enhance cycles before pushing to CI              |
+| Setting                   | Default       | Description                                                           |
+| ------------------------- | ------------- | --------------------------------------------------------------------- |
+| `--max-cycles`            | 10            | Maximum **agent-initiated** CI Attempt cycles before timeout          |
+| `--timeout`               | 120           | Maximum duration in minutes                                           |
+| `--verbosity`             | medium        | Output level: minimal, medium, verbose                                |
+| `--branch`                | (auto-detect) | Branch to monitor                                                     |
+| `--fresh`                 | false         | Ignore previous context, start fresh                                  |
+| `--auto-fix-workflow`     | false         | Try common fixes for pre-CI-Attempt failures (e.g., lockfile updates) |
+| `--new-cipe-timeout`      | 10            | Minutes to wait for new CI Attempt after action                       |
+| `--local-verify-attempts` | 3             | Max local verification + enhance cycles before pushing to CI          |
 
 Parse any overrides from `$ARGUMENTS` and merge with defaults.
 
 ## Nx Cloud Connection Check
 
-Before starting the monitoring loop, verify the workspace is connected to Nx Cloud. Without this connection, no CI data is available and the entire skill is inoperable.
+Before starting the monitoring loop, verify the workspace is connected to Nx Cloud. Without this connection, no CI data
+is available and the entire skill is inoperable.
 
 ### Step 0: Verify Nx Cloud Connection
 
@@ -56,11 +58,13 @@ Before starting the monitoring loop, verify the workspace is connected to Nx Clo
 
 ## Architecture Overview
 
-1. **This skill (orchestrator)**: spawns subagents, runs scripts, prints status, and dispatches the fitting
-   `swe-*` agent for local coding work, per [SWE Delegation](../../../repo-governance/conventions/swe-delegation.md)
-2. **ci-monitor-subagent (haiku)**: calls one MCP tool (ci_information or update_self_healing_fix), returns structured result, exits
+1. **This skill (orchestrator)**: spawns subagents, runs scripts, prints status, and dispatches the fitting `swe-*`
+   agent for local coding work, per [SWE Delegation](../../../repo-governance/conventions/swe-delegation.md)
+2. **ci-monitor-subagent (haiku)**: calls one MCP tool (ci_information or update_self_healing_fix), returns structured
+   result, exits
 3. **ci-poll-decide.mjs (deterministic script)**: takes ci_information result + state, returns action + status message
-4. **ci-state-update.mjs (deterministic script)**: manages budget gates, post-action state transitions, and cycle classification
+4. **ci-state-update.mjs (deterministic script)**: manages budget gates, post-action state transitions, and cycle
+   classification
 
 ## Status Reporting
 
@@ -73,13 +77,16 @@ The decision script handles message formatting based on verbosity. When printing
 
 These behaviours cause real problems — racing with self-healing, losing CI progress, or wasting context:
 
-| Anti-Pattern                                                                                    | Why It's Bad                                                       |
-| ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| Using CI provider CLIs with `--watch` flags (e.g., `gh pr checks --watch`, `glab ci status -w`) | Bypasses Nx Cloud self-healing entirely                            |
-| Writing custom CI polling scripts                                                               | Unreliable, pollutes context, no self-healing                      |
-| Cancelling CI workflows/pipelines                                                               | Destructive, loses CI progress                                     |
-| Running CI checks on main agent                                                                 | Wastes main agent context tokens                                   |
-| Independently analyzing/fixing CI failures while polling                                        | Races with self-healing, causes duplicate fixes and confused state |
+- **Using CI provider CLIs with `--watch` flags (e.g., `gh pr checks --watch`, `glab ci status -w`)**
+  - Why It's Bad: Bypasses Nx Cloud self-healing entirely
+- **Writing custom CI polling scripts**
+  - Why It's Bad: Unreliable, pollutes context, no self-healing
+- **Cancelling CI workflows/pipelines**
+  - Why It's Bad: Destructive, loses CI progress
+- **Running CI checks on main agent**
+  - Why It's Bad: Wastes main agent context tokens
+- **Independently analyzing/fixing CI failures while polling**
+  - Why It's Bad: Races with self-healing, causes duplicate fixes and confused state
 
 **If this skill fails to activate**, the fallback is:
 
@@ -89,7 +96,8 @@ These behaviours cause real problems — racing with self-healing, losing CI pro
 
 ## Session Context Behaviour
 
-If the user previously ran `/monitor-ci` in this session, you may have prior state (poll counts, last CI Attempt URL, etc.). Resume from that state unless `--fresh` is set, in which case discard it and start from Step 1.
+If the user previously ran `/monitor-ci` in this session, you may have prior state (poll counts, last CI Attempt URL,
+etc.). Resume from that state unless `--fresh` is set, in which case discard it and start from Step 1.
 
 ## MCP Tool Reference
 
@@ -97,50 +105,64 @@ Three field sets control polling efficiency — use the lightest set that gives 
 
 ```yaml
 WAIT_FIELDS: "cipeUrl,commitSha,cipeStatus"
-LIGHT_FIELDS: "cipeStatus,cipeUrl,branch,commitSha,selfHealingStatus,verificationStatus,userAction,failedTaskIds,verifiedTaskIds,selfHealingEnabled,failureClassification,couldAutoApplyTasks,autoApplySkipped,autoApplySkipReason,shortLink,confidence,confidenceReasoning,hints,selfHealingSkippedReason,selfHealingSkipMessage"
+LIGHT_FIELDS:
+  "cipeStatus,cipeUrl,branch,commitSha,selfHealingStatus,verificationStatus,userAction,failedTaskIds,\
+  verifiedTaskIds,selfHealingEnabled,failureClassification,couldAutoApplyTasks,autoApplySkipped,autoApplySkipReason,\
+  shortLink,confidence,confidenceReasoning,hints,selfHealingSkippedReason,selfHealingSkipMessage"
 HEAVY_FIELDS: "taskOutputSummary,suggestedFix,suggestedFixReasoning,suggestedFixDescription"
 ```
 
-The `ci_information` tool accepts `branch` (optional, defaults to current git branch), `select` (comma-separated field names), and `pageToken` (0-based pagination for long strings).
+The `ci_information` tool accepts `branch` (optional, defaults to current git branch), `select` (comma-separated field
+names), and `pageToken` (0-based pagination for long strings).
 
 The `update_self_healing_fix` tool accepts a `shortLink` and an action: `APPLY`, `REJECT`, or `RERUN_ENVIRONMENT_STATE`.
 
 ## Default Behaviours by Status
 
-The decision script returns one of the following statuses. This table defines the **default behaviour** for each. User instructions can override any of these.
+The decision script returns one of the following statuses. This table defines the **default behaviour** for each. User
+instructions can override any of these.
 
 **Simple exits** — just report and exit:
 
-| Status                  | Default Behaviour                                                                                                |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| `ci_success`            | Exit with success                                                                                                |
-| `cipe_canceled`         | Exit, CI was canceled                                                                                            |
-| `cipe_timed_out`        | Exit, CI timed out                                                                                               |
-| `polling_timeout`       | Exit, polling timeout reached                                                                                    |
-| `circuit_breaker`       | Exit, no progress after 13 consecutive polls                                                                     |
-| `environment_rerun_cap` | Exit, environment reruns exhausted                                                                               |
-| `fix_auto_applying`     | Self-healing is handling it — just record `last_cipe_url`, enter wait mode. No MCP call or local git ops needed. |
-| `error`                 | Wait 60s and loop                                                                                                |
+- **`ci_success`**
+  - Default Behaviour: Exit with success
+- **`cipe_canceled`**
+  - Default Behaviour: Exit, CI was canceled
+- **`cipe_timed_out`**
+  - Default Behaviour: Exit, CI timed out
+- **`polling_timeout`**
+  - Default Behaviour: Exit, polling timeout reached
+- **`circuit_breaker`**
+  - Default Behaviour: Exit, no progress after 13 consecutive polls
+- **`environment_rerun_cap`**
+  - Default Behaviour: Exit, environment reruns exhausted
+- **`fix_auto_applying`**
+  - Default Behaviour: Self-healing is handling it — just record `last_cipe_url`, enter wait mode. No MCP call or local
+    git ops needed.
+- **`error`**
+  - Default Behaviour: Wait 60s and loop
 
 **Statuses requiring action** — when handling these in Step 3, read `references/fix-flows.md` for the detailed flow:
 
-| Status                   | Summary                                                                                       |
-| ------------------------ | --------------------------------------------------------------------------------------------- |
-| `fix_auto_apply_skipped` | Fix verified but auto-apply skipped (e.g., loop prevention). Inform user, offer manual apply. |
-| `fix_apply_ready`        | Fix verified (all tasks or e2e-only). Apply via MCP.                                          |
-| `fix_needs_local_verify` | Fix has unverified non-e2e tasks. Run locally, then apply or enhance.                         |
-| `fix_needs_review`       | Fix verification failed/not attempted. Analyze and decide.                                    |
-| `fix_failed`             | Self-healing failed. Fetch heavy data, attempt local fix (gate check first).                  |
-| `no_fix`                 | No fix available. Fetch heavy data, attempt local fix (gate check first) or exit.             |
-| `environment_issue`      | Request environment rerun via MCP (gate check first).                                         |
-| `self_healing_throttled` | Reject old fixes, attempt local fix.                                                          |
-| `no_new_cipe`            | CI Attempt never spawned. Auto-fix workflow or exit with guidance.                            |
-| `cipe_no_tasks`          | CI failed with no tasks. Retry once with empty commit.                                        |
+| Status                   | Summary                                                                                  |
+| ------------------------ | ---------------------------------------------------------------------------------------- |
+| `fix_auto_apply_skipped` | Fix verified, auto-apply skipped (e.g., loop prevention). Tell user, offer manual apply. |
+| `fix_apply_ready`        | Fix verified (all tasks or e2e-only). Apply via MCP.                                     |
+| `fix_needs_local_verify` | Fix has unverified non-e2e tasks. Run locally, then apply or enhance.                    |
+| `fix_needs_review`       | Fix verification failed/not attempted. Analyze and decide.                               |
+| `fix_failed`             | Self-healing failed. Fetch heavy data, attempt local fix (gate check first).             |
+| `no_fix`                 | No fix available. Fetch heavy data, attempt local fix (gate check first) or exit.        |
+| `environment_issue`      | Request environment rerun via MCP (gate check first).                                    |
+| `self_healing_throttled` | Reject old fixes, attempt local fix.                                                     |
+| `no_new_cipe`            | CI Attempt never spawned. Auto-fix workflow or exit with guidance.                       |
+| `cipe_no_tasks`          | CI failed with no tasks. Retry once with empty commit.                                   |
 
 **Key rules (always apply):**
 
-- **Git safety**: Stage specific files by name — `git add -A` or `git add .` risks committing the user's unrelated work-in-progress or secrets
-- **Environment failures** (OOM, command not found, permission denied): bail immediately. These aren't code bugs, so spending local-fix budget on them is wasteful
+- **Git safety**: Stage specific files by name — `git add -A` or `git add .` risks committing the user's unrelated
+  work-in-progress or secrets
+- **Environment failures** (OOM, command not found, permission denied): bail immediately. These aren't code bugs, so
+  spending local-fix budget on them is wasteful
 - **Gate check**: Run `ci-state-update.mjs gate` before local fix attempts — if budget exhausted, print message and exit
 
 ## Main Loop
@@ -149,7 +171,8 @@ The decision script returns one of the following statuses. This table defines th
 
 ```
 cycle_count = 0            # Only incremented for agent-initiated cycles (counted against --max-cycles)
-start_time = now()         # Passed to the decision script as --elapsed-seconds on every poll to enforce --timeout across attempts
+start_time = now()         # Passed to the decision script as --elapsed-seconds on every poll
+                           # to enforce --timeout across attempts
 no_progress_count = 0
 local_verify_count = 0
 env_rerun_count = 0
@@ -176,7 +199,8 @@ Determine select fields based on mode:
 - **Wait mode**: use WAIT_FIELDS (`cipeUrl,commitSha,cipeStatus`)
 - **Normal mode (first poll or after newCipeDetected)**: use LIGHT_FIELDS
 
-Call the `ci_information` tool with the determined `select` fields for the current branch. Wait for the result before proceeding.
+Call the `ci_information` tool with the determined `select` fields for the current branch. Wait for the result before
+proceeding.
 
 #### 2b. Run decision script
 
@@ -197,9 +221,13 @@ node <skill_dir>/scripts/ci-poll-decide.mjs '<subagent_result_json>' <poll_count
   [--prev-failure-classification <prev_failure_classification>]
 ```
 
-Pass `--timeout` and `--new-cipe-timeout` in **minutes** (the values from Configuration Defaults) — the script converts to seconds internally. Pass `--elapsed-seconds` as the whole seconds elapsed since `start_time` (`now() - start_time`); this is what enforces `--timeout` as a **total** monitor budget across every poll and attempt, so it must be supplied on every call once monitoring has started.
+Pass `--timeout` and `--new-cipe-timeout` in **minutes** (the values from Configuration Defaults) — the script converts
+to seconds internally. Pass `--elapsed-seconds` as the whole seconds elapsed since `start_time` (`now() - start_time`);
+this is what enforces `--timeout` as a **total** monitor budget across every poll and attempt, so it must be supplied on
+every call once monitoring has started.
 
-The script outputs a single JSON line: `{ action, code, message, delay?, noProgressCount, envRerunCount, fields?, newCipeDetected?, verifiableTaskIds? }`
+The script outputs a single JSON line:
+`{ action, code, message, delay?, noProgressCount, envRerunCount, fields?, newCipeDetected?, verifiableTaskIds? }`
 
 #### 2c. Process script output
 
@@ -239,10 +267,12 @@ Several statuses require fetching additional data or calling tools:
 
 - **fix_apply_ready**: Call `update_self_healing_fix` with action `APPLY`
 - **fix_needs_local_verify**: Call `ci_information` with HEAVY_FIELDS for fix details before local verification
-- **fix_needs_review**: Call `ci_information` with HEAVY_FIELDS → get `suggestedFixDescription`, `suggestedFixSummary`, `taskFailureSummaries`
+- **fix_needs_review**: Call `ci_information` with HEAVY_FIELDS → get `suggestedFixDescription`, `suggestedFixSummary`,
+  `taskFailureSummaries`
 - **fix_failed / no_fix**: Call `ci_information` with HEAVY_FIELDS → get `taskFailureSummaries` for local fix context
 - **environment_issue**: Call `update_self_healing_fix` with action `RERUN_ENVIRONMENT_STATE`
-- **self_healing_throttled**: Call `ci_information` with HEAVY_FIELDS → get `selfHealingSkipMessage`; then call `update_self_healing_fix` for each old fix
+- **self_healing_throttled**: Call `ci_information` with HEAVY_FIELDS → get `selfHealingSkipMessage`; then call
+  `update_self_healing_fix` for each old fix
 
 ### Step 3a: Track State for New-CI-Attempt Detection
 
@@ -255,9 +285,11 @@ node <skill_dir>/scripts/ci-state-update.mjs post-action \
   --commit-sha <git_rev_parse_HEAD>
 ```
 
-Action types: `fix-auto-applying`, `apply-mcp`, `apply-local-push`, `reject-fix-push`, `local-fix-push`, `env-rerun`, `auto-fix-push`, `empty-commit-push`
+Action types: `fix-auto-applying`, `apply-mcp`, `apply-local-push`, `reject-fix-push`, `local-fix-push`, `env-rerun`,
+`auto-fix-push`, `empty-commit-push`
 
-The script returns `{ waitMode, pollCount, lastCipeUrl, expectedCommitSha, agentTriggered }`. Update all tracking state from the output, then go to Step 2.
+The script returns `{ waitMode, pollCount, lastCipeUrl, expectedCommitSha, agentTriggered }`. Update all tracking state
+from the output, then go to Step 2.
 
 ### Step 4: Cycle Classification and Progress Tracking
 
@@ -271,29 +303,38 @@ node <skill_dir>/scripts/ci-state-update.mjs cycle-check \
   --env-rerun-count <env_rerun_count>
 ```
 
-The script returns `{ cycleCount, agentTriggered, envRerunCount, approachingLimit, limitReached, message }`. Update tracking state from the output.
+The script returns `{ cycleCount, agentTriggered, envRerunCount, approachingLimit, limitReached, message }`. Update
+tracking state from the output.
 
-- If `limitReached` → the `--max-cycles` budget is exhausted. Print `message` and **stop monitoring** (do not handle the code or start another cycle). This is a hard stop, not advisory.
+- If `limitReached` → the `--max-cycles` budget is exhausted. Print `message` and **stop monitoring** (do not handle the
+  code or start another cycle). This is a hard stop, not advisory.
 - Else if `approachingLimit` → ask user whether to continue (with 5 or 10 more cycles) or stop monitoring
 - If previous cycle was NOT agent-triggered (human pushed), log that human-initiated push was detected
 
 #### Progress Tracking
 
-- `no_progress_count`, circuit breaker (5 polls), and backoff reset are handled by ci-poll-decide.mjs (progress = any change in cipeStatus, selfHealingStatus, verificationStatus, or failureClassification)
+- `no_progress_count`, circuit breaker (5 polls), and backoff reset are handled by ci-poll-decide.mjs (progress = any
+  change in cipeStatus, selfHealingStatus, verificationStatus, or failureClassification)
 - `env_rerun_count` reset on non-environment status is handled by ci-state-update.mjs cycle-check
-- On new CI Attempt detected (poll script returns `newCipeDetected`) → reset `local_verify_count = 0`, `env_rerun_count = 0`
+- On new CI Attempt detected (poll script returns `newCipeDetected`) → reset `local_verify_count = 0`,
+  `env_rerun_count = 0`
 
 ## Error Handling
 
-| Error                          | Action                                                                                                      |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------- |
-| Git rebase conflict            | Follow [task sync][authorized-task-sync]; report conflicts outside its contract and exit                    |
-| `nx-cloud apply-locally` fails | Reject fix via MCP (`action: "REJECT"`), then attempt manual patch (Reject + Fix From Scratch Flow) or exit |
-| MCP tool error                 | Retry once, if fails report to user                                                                         |
-| Subagent spawn failure         | Retry once, if fails exit with error                                                                        |
-| Decision script error          | Treat as `error` status, increment `no_progress_count`                                                      |
-| No new CI Attempt detected     | If `--auto-fix-workflow`, dispatch a lockfile update; otherwise report to user with guidance                |
-| Lockfile auto-fix fails        | Report to user, exit with guidance to check CI logs                                                         |
+- **Git rebase conflict**
+  - Action: Follow [task sync][authorized-task-sync]; report conflicts outside its contract and exit
+- **`nx-cloud apply-locally` fails**
+  - Action: Reject fix via MCP (`action: "REJECT"`), then attempt manual patch (Reject + Fix From Scratch Flow) or exit
+- **MCP tool error**
+  - Action: Retry once, if fails report to user
+- **Subagent spawn failure**
+  - Action: Retry once, if fails exit with error
+- **Decision script error**
+  - Action: Treat as `error` status, increment `no_progress_count`
+- **No new CI Attempt detected**
+  - Action: If `--auto-fix-workflow`, dispatch a lockfile update; otherwise report to user with guidance
+- **Lockfile auto-fix fails**
+  - Action: Report to user, exit with guidance to check CI logs
 
 [authorized-task-sync]: ../../../repo-governance/conventions/no-destructive-git-operations/001-authorized-task-branch-sync.md
 

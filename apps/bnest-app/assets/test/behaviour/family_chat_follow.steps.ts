@@ -50,6 +50,8 @@ function atNewest(): boolean {
   return metrics.top === metrics.content - metrics.box;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays above the composer when the draft grows
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays in view when a diagram draws
 step("a visitor is at the bottom of the family chat conversation", () => {
   openRegion(HISTORY_CONTENT_PX, HISTORY_BOX_PX);
   followRegion({ startAtBottom: false });
@@ -80,6 +82,7 @@ step("the diagram is drawn", async () => {
   await settle();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member with nothing unread lands on the newest message
 step("the newest message is in view above the composer", () => {
   expect(atNewest(), "the newest message is below the fold").toBe(true);
 });

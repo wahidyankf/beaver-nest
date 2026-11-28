@@ -6,6 +6,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Show raw control reads on the dark visitor bubble
+
 type Channels = [number, number, number];
 
 /** `#rrggbb` or `rgb(r, g, b)` as its three channels, for the contrast check. */

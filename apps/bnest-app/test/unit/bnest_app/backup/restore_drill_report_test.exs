@@ -20,6 +20,8 @@ defmodule BnestApp.Backup.RestoreDrillReportTest do
   }
 
   describe "report/1 of a restore" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill restores a synthetic artifact and prints redacted evidence
     test "states what the restored copy holds and that its root is gone" do
       assert RestoreDrillReport.report({:restored, evidence(@facts), []}) == %{
                exit_status: 0,
@@ -34,6 +36,8 @@ defmodule BnestApp.Backup.RestoreDrillReportTest do
              }
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill prints no private value
     test "carries no identifier, name or message ID of what it read" do
       %{lines: lines} = RestoreDrillReport.report({:restored, evidence(@facts), []})
       text = Enum.join(lines, "\n")
@@ -99,6 +103,8 @@ defmodule BnestApp.Backup.RestoreDrillReportTest do
   end
 
   describe "report/1 of a failure" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The drill reports an unreadable destination as one fixed line
     test "words each as one fixed line and a non-zero exit" do
       assert RestoreDrillReport.report(:refused) == %{exit_status: 1, lines: [@refused]}
 

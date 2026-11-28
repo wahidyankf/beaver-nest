@@ -34,6 +34,8 @@ defmodule BnestApp.Storage.MigrationTest do
   end
 
   describe "a run" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task moves every recognized record and reports none blocked
     test "copies each valid record and recovery source with checksum evidence" do
       FlatSource.put_files(@flat_root, [
         {@z_theme, theme("z-test-user", "dark")},
@@ -77,6 +79,10 @@ defmodule BnestApp.Storage.MigrationTest do
       refute Migration.blocked?()
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Running the storage migration task again after an interruption finishes it without duplicates
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
     test "reuses accepted items on retry and records a changed source" do
       FlatSource.put_files(@flat_root, [{@a_theme, theme("a-test-user", "light")}])
       Migration.run(@flat_root)
@@ -96,6 +102,8 @@ defmodule BnestApp.Storage.MigrationTest do
       refute Migration.parity_ok?(@flat_root)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Invalid or changed source blocks cutover without data loss
     test "blocks a malformed record and a colliding recovery source" do
       FlatSource.put_files(@flat_root, [{@a_theme, "{malformed"}, {@recovery, "first"}])
       MigrationLedger.put_recovery_source!(recovery_row("other bytes"))
@@ -127,6 +135,31 @@ defmodule BnestApp.Storage.MigrationTest do
       assert Storage.phase() == :sqlite_primary
       assert [%{state: "verified", verified_at: verified_at}] = MigrationLedger.state().runs
       assert is_binary(verified_at)
+    end
+
+    # A restart re-reads the storage pointer the switch wrote: the phase the commit recorded
+    # must come back, with the migrated records still readable and the run verified — the
+    # persistence every survivor (chat, learning, theme, login, logout) rides on.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
+    test "migrated records stay readable after the switch commits" do
+      StoragePorts.put(:config, %{"phase" => "flat_primary"})
+      FlatSource.put_files(@flat_root, [{@a_theme, theme("a-test-user", "light")}])
+      Migration.run(@flat_root)
+
+      assert :ok = Migration.activate!()
+
+      assert Storage.phase() == :sqlite_primary
+
+      assert Storage.phase() == :sqlite_primary
+      assert Migration.parity_ok?(@flat_root)
+
+      assert [%{state: "verified"}] = MigrationLedger.state().runs
+
+      {_backend, sqlite} = Storage.record_backend()
+
+      assert {:ok, %{"theme" => "light"}} =
+               InMemoryRecordBackend.read(sqlite, :theme, "a-test-user")
     end
   end
 

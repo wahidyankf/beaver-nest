@@ -56,14 +56,32 @@ export function resetFamilyChatPhone(): void {
 
 // --- Pointer, viewport and the layout the page is laid out for --------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Text typed straight after Send stays in the Codex message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Reopening the options panel shows no stale Clear chat question
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A typical Codex phone view shows the newest message above the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer text is 16 pixels on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel keeps 12 pixels from the screen edge on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel closes on Escape and on a tap outside it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The last Codex message is not hidden behind the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat history has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message is fully above the composer on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The header and the composer leave most of a phone screen to the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat send shortcut hint follows the pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
 step("the visitor's pointer is a touch pointer", () => {
   remember("familyCoarse", true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box follows a pointer change while the page is open
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A fine-pointer Enter send keeps keyboard focus in the Family composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
 step("the visitor's pointer is a fine pointer", () => {
   remember("familyCoarse", false);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box placeholder meets the contrast target
 step("the page is laid out", () => {
   // The layout the Thens read: the viewport the scenario set and the pointer it chose.
   remember("familyLaidOut", {
@@ -85,6 +103,8 @@ step("an approved admin opens {string}", (pathname) => {
 });
 
 // The dark preference has no effect because no rule answers it (ADR 005, decision 3).
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page and Codex chat keep one light appearance and have no theme control
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Family Chat keeps one light appearance and has no theme control
 step("the visitor's system prefers a dark color scheme", () => {
   assertNoDarkPreferenceRule();
 });
@@ -218,6 +238,7 @@ function actionsControl(): HTMLElement {
 
 // The control is shown on a fine and on a coarse pointer: no coarse-pointer rule hides it (ADR 005, decision 5). Both
 // pointers are checked, so a rule that hides it only on touch fails here.
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control is visible, large enough to press, beside its bubble and inside the history
 step("the actions control of that message is visible without a hover", () => {
   for (const coarse of [false, true]) {
     const pointer = coarse ? "a touch" : "a fine";
@@ -272,6 +293,7 @@ step("the actions control of that message is inside the history", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control has an accessible name
 step("the actions control of that message has an accessible name", () => {
   const label = actionsControl().getAttribute("aria-label") ?? "";
   check(

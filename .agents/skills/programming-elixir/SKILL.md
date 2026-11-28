@@ -13,18 +13,17 @@ compatibility: Requires an Elixir project with Mix and ExUnit.
 Every Elixir rule is owned by
 [Elixir Standards](../../../repo-governance/development/quality/stacks/elixir-standards.md).
 [Test-Driven Development](../../../repo-governance/development/test-driven-development.md) and
-[Quality Gates](../../../repo-governance/development/quality-gates.md) govern
-tests and gates, [Red, Green, Refactor](../../../repo-governance/workflows/quality/red-green-refactor.md) runs each
-cycle, and [Developing Applications](../developing-applications/SKILL.md) carries the judgement on layers, errors, logs,
-and input that holds in every language. This skill adds only the procedure and judgement of applying them in Elixir.
-Where a sentence here seems to state a rule, the standard decides.
+[Quality Gates](../../../repo-governance/development/quality-gates.md) govern tests and gates,
+[Red, Green, Refactor](../../../repo-governance/workflows/quality/red-green-refactor.md) runs each cycle, and
+[Developing Applications](../developing-applications/SKILL.md) carries the judgement on layers, errors, logs, and input
+that holds in every language. This skill adds only the procedure and judgement of applying them in Elixir. Where a
+sentence here seems to state a rule, the standard decides.
 
 ## Start From What the Project Records
 
 Read `mix.exs`, `.formatter.exs`, the linter and Dialyzer configuration, the test helper's tag exclusions, and the
 choices the adopter recorded. Run the standard's gates on the untouched tree. A gate already failing before any edit is
-handled under
-Preexisting Error Resolution.
+handled under Preexisting Error Resolution.
 
 Dialyzer's first analysis is slow; run it once at the start so each later run reads the cached table.
 
@@ -48,9 +47,7 @@ from a known state is usually the handling the design wants.
 Before writing a GenServer, name its runtime reason: state that changes over time, concurrent work, or failure
 isolation. If none applies, a module of functions is the answer. When one does, write the pure function of state and
 message first, test it directly, and add the callback that delegates to it last. Keep only a few tests for the process
-itself, as
-[Functional Core, Imperative Shell](../../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell)
-intends.
+itself, as [Functional Core, Imperative Shell][functional-core-imperative-shell] intends.
 
 Choose the supervisor strategy from the dependency between children:
 
@@ -70,8 +67,8 @@ before deciding.
 
 Before marking a module `async: true`, list what it touches: application environment, named processes, shared files, or
 the database. Replace a collaborator with an in-memory implementation of its behaviour, as
-[Test Doubles](../../../repo-governance/development/quality/code/hexagonal-architecture/004-test-doubles.md) prefers. A test that passes alone
-and fails in the full run usually shares one of those.
+[Test Doubles](../../../repo-governance/development/quality/code/hexagonal-architecture/004-test-doubles.md) prefers. A
+test that passes alone and fails in the full run usually shares one of those.
 
 ## Before Handing Off
 
@@ -79,3 +76,5 @@ and fails in the full run usually shares one of those.
 - each new public function at a boundary has its `@spec` and `@doc`, with an example as a doctest where it helps;
 - no atom is created from external input, and every `async: true` module touches no global state; and
 - each recorded red failed on an assertion about the missing behaviour.
+
+[functional-core-imperative-shell]: ../../../repo-governance/development/quality/code/hexagonal-architecture/002-layers-and-the-dependency-rule.md#functional-core-imperative-shell

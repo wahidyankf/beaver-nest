@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Browser, type Page } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { restorePrimaryRoute } from "../support/routed-rollout";
 import {
@@ -6,11 +6,9 @@ import {
   type InstanceIdentities,
 } from "../support/instance-identities";
 import {
-  composerInput,
   ensureFamilyChatHasOlderPage,
   openFamilyChatRoom,
   promoteWithConcurrentTraffic,
-  seedFamilyChatScrollOverflow,
   sendAsAnotherMember,
 } from "../support/family-chat";
 import {
@@ -27,12 +25,15 @@ import {
 
 // family_chat.feature's browser-only scenarios about the live room: a Caddy
 // promotion under a connected client, the scroll anchor, and the live-region
-// announcement. Everything else in that feature is proven by its own step
-// files, by Elixir ExBdd (the two "Canonical route" scenarios, which reuse
-// the generic `a visitor opens {string}` binding), or -- where the feature
-// says so -- by the frontend Vitest+Gherkin harness alone.
+// announcement. The announcement scenarios live in
+// family-chat-announce.steps.ts. Everything else in that feature is proven by
+// its own step files, by Elixir ExBdd (the two "Canonical route" scenarios,
+// which reuse the generic `a visitor opens {string}` binding), or -- where
+// the feature says so -- by the frontend Vitest+Gherkin harness alone.
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
 
 let identity: InstanceIdentities;
 let catchUpProbeBody = "";
@@ -44,50 +45,60 @@ let anchor = { id: "", offset: 0 };
 
 const ANCHOR_TOLERANCE_PX = 4;
 
+async function openConnectedRoom(
+  { page, browser }: { page: Page; browser: Browser },
+  route: string,
+): Promise<void> {
+  // The room's catch-up asks for "everything after the newest message it
+  // knows"; an empty room has none, so it would refetch the latest page
+  // instead, and a run alone on a fresh server would not be proving the
+  // gap-fill at all. One earlier message makes the room open with a baseline.
+  await sendAsAnotherMember(
+    browser,
+    instanceIdentities(),
+    `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
+  );
+  // Watching from before the room opens its socket, so the first socket
+  // seen is the one connected to the current slot.
+  sockets = watchSockets(page);
+  const subscriptions = watchSubscriptions(page);
+  catchUps = recordCatchUps(page);
+  sends = sendAttempts(page);
+  identity = await openFamilyChatRoom(page);
+  expect(page.url()).toContain(route);
+  // The room reports itself ready once its history is shown, and only
+  // then opens the socket it subscribes on.
+  await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
+  // An opened socket is not yet a subscribed room: the room attaches its visibility handler and its reconnect
+  // sequence only after the server acknowledges the subscription. A scenario that drops or backgrounds the
+  // connection before that point would test the first connect, so wait for the acknowledgement.
+  await expect
+    .poll(() => subscriptions.acknowledged, { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  // The acknowledgement reaches the page as a task; one more task turn lets the room finish handling it.
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        setTimeout(resolve, 0);
+      }),
+  );
+  // Lives only as long as this window does: a reload would drop it.
+  await page.evaluate(() => {
+    Object.assign(window, { bnestNoReloadProbe: "held" });
+  });
+}
+
 Given(
   "a visitor opens {string} with the socket connected to the current slot",
-  async ({ page, browser }, route: string) => {
-    // The room's catch-up asks for "everything after the newest message it
-    // knows"; an empty room has none, so it would refetch the latest page
-    // instead, and a run alone on a fresh server would not be proving the
-    // gap-fill at all. One earlier message makes the room open with a baseline.
-    await sendAsAnotherMember(
-      browser,
-      instanceIdentities(),
-      `Catch-up baseline ${crypto.randomUUID().slice(0, 8)}`,
-    );
-    // Watching from before the room opens its socket, so the first socket
-    // seen is the one connected to the current slot.
-    sockets = watchSockets(page);
-    const subscriptions = watchSubscriptions(page);
-    catchUps = recordCatchUps(page);
-    sends = sendAttempts(page);
-    identity = await openFamilyChatRoom(page);
-    expect(page.url()).toContain(route);
-    // The room reports itself ready once its history is shown, and only
-    // then opens the socket it subscribes on.
-    await expect.poll(() => sockets.opened.length, { timeout: 15_000 }).toBe(1);
-    // An opened socket is not yet a subscribed room: the room attaches its visibility handler and its reconnect
-    // sequence only after the server acknowledges the subscription. A scenario that drops or backgrounds the
-    // connection before that point would test the first connect, so wait for the acknowledgement.
-    await expect
-      .poll(() => subscriptions.acknowledged, { timeout: 15_000 })
-      .toBeGreaterThan(0);
-    // The acknowledgement reaches the page as a task; one more task turn lets the room finish handling it.
-    await page.evaluate(
-      () =>
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, 0);
-        }),
-    );
-    // Lives only as long as this window does: a reload would drop it.
-    await page.evaluate(() => {
-      Object.assign(window, { bnestNoReloadProbe: "held" });
-    });
-  },
+  openConnectedRoom,
 );
-
-When("Caddy promotes a replacement slot", async ({ page, browser }) => {
+async function promoteReplacementSlot({
+  page,
+  browser,
+}: {
+  page: Page;
+  browser: Browser;
+}): Promise<void> {
   // The room is a plain controller, not a LiveView. A real
   // exact-once-catch-up proof needs a message this client never sent itself
   // and a message it tried to send but couldn't, both genuinely in flight
@@ -111,8 +122,12 @@ When("Caddy promotes a replacement slot", async ({ page, browser }) => {
         )
         .toBe(true),
   ));
-});
+}
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
+When("Caddy promotes a replacement slot", promoteReplacementSlot);
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A connected client reconnects to the promoted slot without a page refresh
 Then("the prior-slot socket closes", async ({ page }) => {
   // The socket connected to the prior slot emitted `close`, and a new one
   // was opened after it -- the room's own reconnect, not a page load.
@@ -254,43 +269,5 @@ Then(
           : Math.abs(offset - anchor.offset);
       })
       .toBeLessThanOrEqual(ANCHOR_TOLERANCE_PX);
-  },
-);
-
-// --- Announcements ----------------------------------------------------------
-
-Given(
-  "a visitor opens {string} with focus in the composer",
-  async ({ page }, _route: string) => {
-    identity = await openFamilyChatRoom(page);
-    // The following scenario needs the visitor to genuinely be scrolled away
-    // from the bottom when the remote message arrives (see
-    // `seedFamilyChatScrollOverflow`'s comment).
-    await seedFamilyChatScrollOverflow(page);
-    await composerInput(page).focus();
-  },
-);
-
-When(
-  "another member's message arrives away from the bottom of the scroll position",
-  async ({ browser }) => {
-    await sendAsAnotherMember(browser, identity, "Arrived while scrolled up");
-  },
-);
-
-Then("a live-region announcement names the new message", async ({ page }) => {
-  await expect(page.getByRole("status")).toContainText(
-    "Arrived while scrolled up",
-  );
-});
-
-Then("focus remains in the composer", async ({ page }) => {
-  await expect(composerInput(page)).toBeFocused();
-});
-
-Then(
-  "{string} is shown instead of auto-scrolling",
-  async ({ page }, label: string) => {
-    await expect(page.getByRole("button", { name: label })).toBeVisible();
   },
 );

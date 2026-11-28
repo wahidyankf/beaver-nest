@@ -6,6 +6,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Backup
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
+  alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.ArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore
@@ -13,6 +14,7 @@ defmodule BnestApp.Backup.FacadeTest do
   alias BnestApp.Test.InMemory.DatabaseSnapshot
   alias BnestApp.Test.InMemory.IgnoreCheck
   alias BnestApp.Test.InMemory.RoomStore
+  alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
   alias BnestApp.Test.InMemory.SubscriptionStore
   alias BnestApp.Test.UnreadableArtifactStore
 
@@ -35,6 +37,22 @@ defmodule BnestApp.Backup.FacadeTest do
     }
   end
 
+  # Authenticated family chat reads and sends through the facade, run beside the backup.
+  defp family_chat_probe_rounds(count) do
+    user = "test-user-backup-probe"
+    :ok = FamilyChat.ensure_ready!()
+    slug = FamilyChat.canonical_room_slug()
+
+    Enum.reduce(1..count, %{completed: 0, failures: 0}, fn _round, acc ->
+      sent = FamilyChat.send_message(user, slug, Ecto.UUID.generate(), "probe")
+      read = FamilyChat.list_messages(user, slug, [])
+
+      if match?({:ok, _}, sent) and match?({:ok, _}, read),
+        do: %{acc | completed: acc.completed + 1},
+        else: %{acc | failures: acc.failures + 1}
+    end)
+  end
+
   defp store_state(context), do: Agent.get(context.artifacts.pid, & &1)
 
   defp put_override(context, directory) do
@@ -45,6 +63,8 @@ defmodule BnestApp.Backup.FacadeTest do
   end
 
   describe "destination" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A daily backup with no saved folder is written to the repository backup folder
     test "resolves the repository's ignored default when no override is saved", context do
       root = BackupConfigStore.repository_root(context.config)
       default = root <> "/data/backup"
@@ -68,6 +88,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert {:ok, %{destination_id: ^id}} = Backup.destination()
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The test environment refuses the production backup destination
     test "refuses the default when the repository does not ignore it", context do
       :ok = IgnoreCheck.put_ignored(context.ignore, false)
 
@@ -75,6 +97,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert ArtifactStore.directories(context.artifacts) == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
     test "saves an override as one whole configuration document", context do
       assert {:ok, %{directory: @destination, destination_id: id} = location} =
                Backup.save_destination(@destination)
@@ -244,6 +268,8 @@ defmodule BnestApp.Backup.FacadeTest do
       Map.put(context, :location, location)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup is refused and retried later when the backup folder lacks free space
     test "refuses before snapshotting when the destination lacks the free space it needs",
          context do
       measurement = CapacityProbe.measurement(context.capacity)
@@ -274,6 +300,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert DatabaseSnapshot.snapshots(context.snapshot) == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A scheduled backup produces a verified snapshot of the live database
     test "promotes a proved, private, synced snapshot of the live database", context do
       assert {:ok, artifact} = Backup.run(deadline: @now, destination_directory: @destination)
       assert artifact.basename =~ ~r/\Abnest-prod-20260918T000000Z-[A-Za-z0-9_-]{20}\.sqlite3\z/
@@ -296,6 +324,12 @@ defmodule BnestApp.Backup.FacadeTest do
 
       assert schema_versions == DatabaseSnapshot.schema_versions(context.snapshot)
       assert byte_size(proof) == 64
+
+      # The copy is of the configured database: it holds the rows the live store holds, as VACUUM INTO copies them.
+      assert %{content: %{database: database}} =
+               ArtifactStore.file(context.artifacts, artifact.path)
+
+      assert database == RoomStore.contents(RoomStore.new())
       assert generation == DatabaseSnapshot.source_generation(context.snapshot)
     end
 
@@ -310,9 +344,12 @@ defmodule BnestApp.Backup.FacadeTest do
       assert Backup.run(deadline: @now) == {:error, :unavailable}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup that runs too long is cancelled, leaves no file, and is tried again
     test "a snapshot past its timeout is cancelled, leaves no partial file and stays retryable",
          context do
       Application.put_env(:bnest_app, :backup_timeout_ms, 1)
+      probes = Task.async(fn -> family_chat_probe_rounds(10) end)
 
       assert Backup.run(deadline: @now, destination_directory: @destination) ==
                {:error, {:retryable, :timeout, nil}}
@@ -320,6 +357,7 @@ defmodule BnestApp.Backup.FacadeTest do
       assert [_partial] = DatabaseSnapshot.snapshots(context.snapshot)
       assert DatabaseSnapshot.cancellations(context.snapshot) == 1
       assert backups_in(context) == []
+      assert %{completed: 10, failures: 0} = Task.await(probes)
     end
 
     test "a failed snapshot or a failed proof leaves no partial file and stays retryable",
@@ -422,6 +460,8 @@ defmodule BnestApp.Backup.FacadeTest do
       assert Backup.owned_receipts("/srv/test-user-backup/unmarked") == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
     test "keeps the newest owned pair of each of the latest seven WIB dates and nothing else",
          context do
       %{location: location, artifacts: artifacts} = context
@@ -470,6 +510,12 @@ defmodule BnestApp.Backup.FacadeTest do
   end
 
   describe "reconcile/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The reconcile task changes no backup file
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Foreign receipts and unreceipted files are never removed or counted
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Rendering the label never writes
     test "reports an intact run present and a run whose digest changed changed, writing nothing",
          context do
       dates = [~D[2030-05-14], ~D[2030-05-15], ~D[2030-05-16]]
@@ -477,6 +523,11 @@ defmodule BnestApp.Backup.FacadeTest do
       :ok = ArtifactStore.put_file(context.artifacts, artifact_path(second), "changed bytes")
       :ok = ArtifactStore.put_file(context.artifacts, @destination <> "/unknown-note.txt", "note")
       before = Agent.get(context.artifacts.pid, & &1)
+      # Seeded so the ledger holds rows to keep unchanged; the empty case would prove nothing.
+      _store = InMemoryScheduleStore.install()
+      _seeded = BackupIntegrity.prepare(context, :integrity_ledger, [3, "2030-05-14"])
+      ledger = BackupIntegrity.ledger_rows()
+      assert ledger != []
 
       assert Backup.reconcile(@destination, runs) ==
                {:ok,
@@ -488,6 +539,9 @@ defmodule BnestApp.Backup.FacadeTest do
 
       # The store's whole state, files, modes, flush marks and directories, is as it was.
       assert Agent.get(context.artifacts.pid, & &1) == before
+
+      # The ledger rows are unchanged after the report has run.
+      assert BackupIntegrity.ledger_rows() == ledger
     end
 
     test "reports a run whose artifact is absent as missing and lists no file the ledger lacks",

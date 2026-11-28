@@ -8,6 +8,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long unbroken draft keeps the Codex chat inside the screen
+
 const ADDRESS_PREFIX = "https://example.com/";
 
 async function boxOf(locator: Locator, label: string) {

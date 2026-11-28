@@ -19,6 +19,9 @@ type RecoveryClient = {
 };
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Ten synthetic visitors preserve recoverable state across three groups
+
 let recoveryClients: RecoveryClient[] = [];
 let expectedRecoveryClientCount = 0;
 let expectedRecoveryGroupCount = 0;

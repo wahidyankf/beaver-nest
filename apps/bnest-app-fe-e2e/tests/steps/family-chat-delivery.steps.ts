@@ -29,6 +29,11 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A 101st waiting message in one room is refused with a retry-or-discard hint
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message is sent as soon as the connection returns
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Each failed automatic retry waits longer than the last, up to one minute
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reopening the app resumes queued sends
+
 const BACKOFF_BASES_MS = [1_000, 2_000, 4_000, 8_000, 16_000];
 // Time between the browser's request and this process seeing it, either
 // side of a wait.
@@ -85,7 +90,7 @@ Then("no automatic retry is attempted", async ({ page }) => {
 // --- Bounded per-room outbox ----------------------------------------------
 
 Given(
-  "the visitor's outbox for this room already holds {int} queued messages",
+  "the visitor already has {int} messages waiting to send in this room",
   async ({ page }, count: number) => {
     await waitForRoomReady(page);
     await interfereWithSends(page, "abort");
@@ -155,32 +160,33 @@ Then(
   },
 );
 
-Given("a queued message is waiting on its backoff timer", async ({ page }) => {
-  await waitForRoomReady(page);
-  await interfereWithSends(page, "abort");
-  await sendThroughComposer(page, uniqueBody("Backing off"));
-  // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
-  await awaitAttempts(page, delivery.body, 4, 20_000);
-  await stopInterfering(page);
-});
-
-When(
-  "the browser reports the {string} event",
-  async ({ page }, event: string) => {
-    // The browser's own connectivity flips, so the event the room hears is
-    // the one Chromium fires, not one dispatched by the test. Coming back
-    // online is the only event this can produce.
-    expect(event).toBe("online");
-    attemptsBeforeOnline = attemptsFor(page, delivery.body).length;
-    await page.context().setOffline(true);
-    await page.context().setOffline(false);
-    onlineAt = Date.now();
+Given(
+  "a queued message shows status {string}",
+  async ({ page }, status: string) => {
+    await waitForRoomReady(page);
+    await interfereWithSends(page, "abort");
+    await sendThroughComposer(page, uniqueBody("Backing off"));
+    // Four failures: the next automatic try is 8 s (at least 6.4 s) away.
+    await awaitAttempts(page, delivery.body, 4, 20_000);
+    await stopInterfering(page);
+    await expectRowStatus(page, delivery.body, status);
   },
 );
 
+When("the device reports it is back online", async ({ page }) => {
+  // The browser's own connectivity flips, so the event the room hears is
+  // the one Chromium fires, not one dispatched by the test. Coming back
+  // online is the only event this can produce.
+  attemptsBeforeOnline = attemptsFor(page, delivery.body).length;
+  await page.context().setOffline(true);
+  await page.context().setOffline(false);
+  onlineAt = Date.now();
+});
+
 Then(
-  "the queued message becomes immediately eligible for retry",
-  async ({ page }) => {
+  "the message starts sending at once and reaches status {string} without waiting out the countdown",
+  async ({ page }, status: string) => {
+    expect(status).toBe("Sent");
     const before = attemptsBeforeOnline;
     await awaitAttempts(page, delivery.body, before + 1, 2_000);
     const retry = attemptsFor(page, delivery.body)[before];
@@ -204,7 +210,7 @@ When(
 );
 
 Then(
-  "each wait follows 1, 2, 4, 8, and 16 seconds with bounded jitter and no wait exceeding 60 seconds",
+  "the shown waits grow roughly 1, 2, 4, 8, 16 seconds and never exceed 60 seconds",
   ({ page }) => {
     const times = attemptsFor(page, delivery.body).map((attempt) => attempt.at);
     const waits = BACKOFF_BASES_MS.map(

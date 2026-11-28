@@ -27,8 +27,8 @@ new authorization decision.
 5. Resolve a conflict only when its affected paths and intended behavior are owned and already settled by the task;
    review the resolution and rerun affected checks. Abort and escalate a conflict involving foreign work, uncertain
    intent, or a new material choice. Never choose all incoming or current changes blindly.
-6. Read the incoming changes under [incoming diff review](../integration-path.md#requirements), and verify that the replay
-   preserves the task's intended change apart from recorded, reviewed conflict resolutions.
+6. Read the incoming changes under [incoming diff review](../integration-path.md#requirements), and verify that the
+   replay preserves the task's intended change apart from recorded, reviewed conflict resolutions.
 7. Publish a rewritten task branch only with `--force-with-lease=<ref>:<expected-sha>` and `--force-if-includes`, using
    the recorded actual remote tip. A rejected lease stops the push; inspect the new remote work before deciding the next
    action. Never refresh the expectation blindly to make a retry pass.

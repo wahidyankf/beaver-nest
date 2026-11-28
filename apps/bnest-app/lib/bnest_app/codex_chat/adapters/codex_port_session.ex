@@ -12,6 +12,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
   use GenServer
 
   alias BnestApp.CodexChat.Adapters.SystemCodex
+  alias BnestApp.CodexChat.Domain.RunnerEvent
 
   @impl BnestApp.CodexChat.Ports.AgentSession
   def open(owner, thread_id, model, reasoning_effort, repository_mode)
@@ -69,7 +70,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
   def handle_info({port, {:exit_status, status}}, %{port: port} = state) do
     send(
       state.owner,
-      {:codex, self(), {:error, "Codex runner exited with status #{status}."}}
+      {:codex, self(), {:error, RunnerEvent.exit_message(status)}}
     )
 
     {:noreply, %{state | port: nil}}
@@ -143,7 +144,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
         forward_runner_event(owner, event)
 
       {:error, _reason} ->
-        send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
+        send(owner, {:codex, self(), {:error, RunnerEvent.invalid_data_message()}})
     end
   end
 
@@ -193,7 +194,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
     do: send(owner, {:codex, self(), {:resume_failed, sanitize_runner_error(message)}})
 
   defp forward_runner_event(owner, _event),
-    do: send(owner, {:codex, self(), {:error, "Codex runner returned invalid data."}})
+    do: send(owner, {:codex, self(), {:error, RunnerEvent.invalid_data_message()}})
 
   # Host Codex plugin MCP servers that are not logged in print transport noise to the runner's
   # stderr, and the SDK embeds it in the turn error the runner forwards. Noise lines always
@@ -209,7 +210,7 @@ defmodule BnestApp.CodexChat.Adapters.CodexPortSession do
     end
   end
 
-  defp sanitize_runner_error(_message), do: "Codex runner returned invalid data."
+  defp sanitize_runner_error(_message), do: RunnerEvent.invalid_data_message()
 
   defp transport_noise?(line), do: String.contains?(line, "rmcp::")
 end

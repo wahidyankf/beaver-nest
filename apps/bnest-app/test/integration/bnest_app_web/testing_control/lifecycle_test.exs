@@ -149,6 +149,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert TestInstance.state().instance_id == id
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Every seeded account uses the test-user prefix and the instance short ID
     test "seed accounts for a client-chosen id carry its short id, and the answer lists exactly them",
          %{run: run} do
       id = random_id()
@@ -249,6 +251,10 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Wire.snapshot() == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
     test "a second spawn while an instance is current answers 409 instance_active and changes nothing",
          %{run: run} do
       spawn_instance(run, %{})
@@ -306,6 +312,12 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Task.await(holder) == :ok
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn refused by a running scheduler task answers 409 instance_busy
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn while a scheduler task runs answers 409 instance_busy
     test "a spawn while a scheduler task runs answers 409 instance_busy and creates nothing",
          %{run: run} do
       before = Wire.snapshot()
@@ -322,6 +334,10 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Conflicts answer 409: run mismatch, active, busy, seed key
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
     test "a run id that is not this run answers 409 run_mismatch and changes nothing", %{run: run} do
       before = Wire.snapshot()
 
@@ -357,6 +373,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
   end
 
   describe "POST /instances/:id/seed" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seed is applied once per key
     test "applies a seed to the current instance, and answers a repeated key as not applied",
          %{run: run} do
       id = spawn_instance(run, %{}) |> Wire.json() |> Map.fetch!("instanceId")
@@ -385,6 +403,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
     test "a seed key used with another body answers 409 seed_conflict and changes nothing",
          %{run: run} do
       id = spawn_instance(run, %{}) |> Wire.json() |> Map.fetch!("instanceId")
@@ -421,6 +441,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert Wire.snapshot() == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A conflicting testing-control request answers 409 with its code
     test "a seed for an id that is not the current instance answers 409 not_current", %{run: run} do
       id = spawn_instance(run, %{}) |> Wire.json() |> Map.fetch!("instanceId")
       other = if id == "0123456789abcdef", do: "fedcba9876543210", else: "0123456789abcdef"
@@ -442,6 +464,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
       assert error(conn)["code"] == "invalid_request"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A seeded username outside the test-user prefix is refused
     test "a seed with an invalid username answers 422 invalid_username and writes nothing", %{
       run: run
     } do
@@ -595,6 +619,8 @@ defmodule BnestAppWeb.TestingControl.LifecycleTest do
   end
 
   describe "DELETE /instances/:id" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes the instance from the running server
     test "deletes the current instance with 204, and a second delete answers 409 not_current",
          %{run: run} do
       id = spawn_instance(run, %{}) |> Wire.json() |> Map.fetch!("instanceId")

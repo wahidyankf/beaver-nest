@@ -29,7 +29,7 @@ The checker reports none of these properties. The entry and exit checks run thei
 | -------------------------------------------- | ------------------------------- | ------------------------------- |
 | Component and LiveView behaviour tests pin   | the unit suites                 | `bnest-app` `test:unit`         |
 | Scripted journeys pass in a browser          | the end-to-end browser suite    | `bnest-app-fe-e2e` `test:e2e`   |
-| Every browser scenario is bound and covered  | the behaviour coverage check    | `test:coverage:behaviour`       |
+| Every browser scenario is bound and covered  | the behaviour coverage check    | `test:behaviour:coverage`       |
 | Types, lint, and formatting of the UI source | type checker, linter, formatter | `bnest-app` `typecheck`, `lint` |
 
 No accessibility scanner runs here, so accessibility is judgeable. A property no tool of its own owns leaves the table

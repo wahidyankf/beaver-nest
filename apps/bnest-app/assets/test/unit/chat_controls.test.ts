@@ -343,6 +343,7 @@ describe("the conversation drawer", () => {
     expect(document.activeElement).toBe(el("[data-role='conversation-close']"));
   });
 
+  // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens and closes the conversation drawer
   it("the Chats toggle closes the drawer and returns focus to the toggle", () => {
     click("[data-role='conversations-toggle']");
     click("[data-role='conversations-toggle']");
@@ -382,6 +383,7 @@ describe("the conversation drawer", () => {
     );
   });
 
+  // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Opening a conversation from the drawer closes the drawer
   it("opening a conversation closes the drawer and returns focus to the toggle", () => {
     click("[data-role='conversations-toggle']");
     click("[data-role='select-conversation']");

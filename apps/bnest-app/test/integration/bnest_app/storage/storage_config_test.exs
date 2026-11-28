@@ -41,6 +41,8 @@ defmodule BnestApp.Storage.ConfigTest do
   end
 
   describe "pointer_path/0" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task uses the default private data folder with no browser visit
     test "falls back to the default directory when BNEST_STORAGE_CONFIG is unset" do
       System.delete_env("BNEST_STORAGE_CONFIG")
       isolated = Application.get_env(:bnest_app, :storage_config_path)
@@ -60,6 +62,8 @@ defmodule BnestApp.Storage.ConfigTest do
   end
 
   describe "ensure_default!/0" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The storage migration task uses the default private data folder with no browser visit
     test "creates the default flat_primary pointer once", %{pointer: pointer} do
       config = FileConfigStore.ensure_default!()
       assert config["phase"] == "flat_primary"
@@ -78,6 +82,8 @@ defmodule BnestApp.Storage.ConfigTest do
   end
 
   describe "persist_directory/1" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Administrator optionally selects a valid custom database folder
     test "accepts a writable absolute directory and locks after creation", %{root: root} do
       custom = Path.join(root, "custom")
       File.mkdir_p!(custom)
@@ -86,6 +92,8 @@ defmodule BnestApp.Storage.ConfigTest do
       assert Storage.persist_directory(Path.join(root, "other")) == {:error, :immutable}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Administrator optionally selects a valid custom database folder
     test "accepts a private directory beneath a sticky world-writable parent", %{root: root} do
       shared = Path.join(root, "shared")
       custom = Path.join(shared, "private")
@@ -97,6 +105,8 @@ defmodule BnestApp.Storage.ConfigTest do
       assert config["databaseDirectory"] == custom
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "rejects an existing world-writable directory", %{root: root} do
       custom = Path.join(root, "world-writable")
       File.mkdir_p!(custom)
@@ -106,6 +116,8 @@ defmodule BnestApp.Storage.ConfigTest do
       assert FileConfigStore.read() == {:error, :absent}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "rejects a relative directory without mutation" do
       assert Storage.persist_directory("relative/path") == {:error, :not_absolute}
       assert FileConfigStore.read() == {:error, :absent}
@@ -132,6 +144,8 @@ defmodule BnestApp.Storage.ConfigTest do
       assert Storage.persist_directory(custom) == {:error, :invalid}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "rejects a symlinked directory without mutation", %{root: root} do
       target = Path.join(root, "real")
       link = Path.join(root, "link")
@@ -141,12 +155,16 @@ defmodule BnestApp.Storage.ConfigTest do
       assert FileConfigStore.read() == {:error, :absent}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "rejects a directory inside the repository" do
       repository_root = Path.expand("../../../../..", __DIR__)
       assert Storage.persist_directory(repository_root) == {:error, :unsafe_location}
       assert FileConfigStore.read() == {:error, :absent}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Unsafe database folder is rejected without mutation
     test "rejects a world-writable parent directory", %{root: root} do
       parent = Path.join(root, "shared")
       File.mkdir_p!(parent)

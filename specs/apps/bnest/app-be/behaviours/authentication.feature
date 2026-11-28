@@ -2,14 +2,21 @@ Feature: Bnest authentication
 
   # Only a flat-primary instance with no seeded account keeps /setup open (ADR 001, section 2).
   @flat-primary @open-setup
-  Scenario: Initial setup creates policy-valid accounts exactly once
-    Given Bnest has no bootstrap journal
+  Scenario: Initial setup rejects a password missing a letter, number, or punctuation mark and accepts any length
+    Given Bnest has not been set up yet
     When the maintainer submits all initial accounts including an administrator
     Then Bnest accepts the passwords without a character-count rule
     And Bnest rejects a password missing a letter, number, or punctuation mark
-    And Bnest creates the accounts exactly once
 
-  Scenario: Login verifies a salted password hash without retaining plaintext
+  # Only a flat-primary instance with no seeded account keeps /setup open (ADR 001, section 2).
+  @flat-primary @open-setup
+  Scenario: Initial setup creates the accounts once and then closes
+    Given Bnest has not been set up yet
+    When the maintainer submits all initial accounts including an administrator
+    Then Bnest creates the accounts exactly once
+    And setup and public registration are unavailable afterward
+
+  Scenario: Logging in never exposes the password in storage, logs, or pages
     Given an approved user account exists with an Argon2id verifier
     When the user logs in with valid credentials
     Then no plaintext password is stored, logged, or rendered

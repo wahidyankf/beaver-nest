@@ -12,14 +12,18 @@ applies.
 
 One document, `plans/in-progress/fix-<slug>/README.md`, with these sections in this order:
 
-| Section         | Contains                                                                                                  |
-| --------------- | --------------------------------------------------------------------------------------------------------- |
-| Bug Report      | every field [Bug Reports](../bug-reports.md) requires, the version and commit included                    |
-| Duplicate Check | each search of open issues, pull requests, plans, and idea briefs, with its query and result              |
-| Root Cause      | the mechanism that produces the symptom, with evidence a reviewer can check                               |
-| Solution        | the change, why it removes the cause, and every reference consulted, cited by URL                         |
-| Delivery        | `## Execution Record`, then labelled checklist items: failing regression test, fix, verification, release |
-| Learnings       | what executing it taught, routed before archival                                                          |
+- **Bug Report**
+  - Contains: every field [Bug Reports](../bug-reports.md) requires, the version and commit included
+- **Duplicate Check**
+  - Contains: each search of open issues, pull requests, plans, and idea briefs, with its query and result
+- **Root Cause**
+  - Contains: the mechanism that produces the symptom, with evidence a reviewer can check
+- **Solution**
+  - Contains: the change, why it removes the cause, and every reference consulted, cited by URL
+- **Delivery**
+  - Contains: `## Execution Record`, then labelled checklist items: failing regression test, fix, verification, release
+- **Learnings**
+  - Contains: what executing it taught, routed before archival
 
 The slug starts with `fix-` and names the symptom, not the suspected cause: `fix-gate-skips-renamed-files`.
 
@@ -49,8 +53,8 @@ asserted. Each item carries its executor label, as the [Delivery Contract](004-d
 - **Authorization in the [plan lifecycle](../plan-lifecycle.md#authorization):** it needs no separate request when
   written under [Upstream Tool Defects](../../development/upstream-tool-defects.md), or when the owner asks. That
   standing request also directs its plan quality gate, its execution, its archival, and its release: once the plan
-  lands, run the gate on it, execute once its verdict is recorded, archive it on a permitting execution check, and release the
-  fix once its tests pass, without a further prompt.
+  lands, run the gate on it, execute once its verdict is recorded, archive it on a permitting execution check, and
+  release the fix once its tests pass, without a further prompt.
 
 Every other plan rule holds: slug rules, one root, executor labels, no time estimates, the execution record, knowledge
 capture, and archival.

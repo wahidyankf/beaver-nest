@@ -11,6 +11,7 @@
 import { describe, expect, it } from "vitest";
 import {
   anchorMenu,
+  bindReanchor,
   GAP,
   menuPlacement,
 } from "../../../js/family_chat/menu_anchor.js";
@@ -136,6 +137,37 @@ describe("anchorMenu", () => {
 
     anchorMenu(host, list, "does-not-exist");
 
+    expect(host.style.getPropertyValue("--fc-menu-top")).toBe("");
+  });
+});
+
+describe("bindReanchor", () => {
+  function openMenu() {
+    document.body.innerHTML = `
+      <ol>
+        <li data-role="family-chat-message" data-message-id="7"
+            class="family-chat-message family-chat-message--own"></li>
+      </ol>
+      <div data-role="family-chat-message-actions" data-message-id="7"></div>`;
+    const list = document.querySelector("ol") as HTMLElement;
+    const host = document.querySelector(
+      '[data-role="family-chat-message-actions"]',
+    ) as HTMLElement;
+    bindReanchor(host, list);
+    return host;
+  }
+
+  it("re-anchors the open menu when the viewport resizes", () => {
+    const host = openMenu();
+    host.hidden = false;
+    window.dispatchEvent(new Event("resize"));
+    expect(host.style.getPropertyValue("--fc-menu-top")).toMatch(/px$/u);
+  });
+
+  it("leaves a hidden menu alone on resize", () => {
+    const host = openMenu();
+    host.hidden = true;
+    window.dispatchEvent(new Event("resize"));
     expect(host.style.getPropertyValue("--fc-menu-top")).toBe("");
   });
 });

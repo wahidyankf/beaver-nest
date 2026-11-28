@@ -152,8 +152,6 @@ defmodule BnestApp.CodexChat.ModelCatalog do
     end
   end
 
-  defp normalize(_model), do: :error
-
   defp value(map, key, default \\ nil) do
     Map.get(map, key, Map.get(map, Atom.to_string(key), default))
   end

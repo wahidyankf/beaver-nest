@@ -20,6 +20,10 @@ import {
 
 const { Given, Then } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message is fully above the composer on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays above the composer when the draft grows
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays in view when a diagram draws
+
 const HISTORY = '[data-role="family-chat-history"]';
 const MESSAGE = '[data-role="family-chat-message"]';
 const COMPOSER = ".family-chat-composer";

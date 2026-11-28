@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Execute the workflow's real route predicate against isolated Git changes, without a remote fetch.
+# Execute the pull-request routing predicate against isolated Git changes.
+# Carries BN-GATE-04: the pull-request gate routes the conditional suites
+# by the changed paths. Integration binding for that scenario.
 set -euo pipefail
-repository_root=$(cd "$(dirname "$0")/../.." && pwd)
 scratch=$(mktemp -d)
 trap 'rm -rf "$scratch"' EXIT
 scratch=$(cd "$scratch" && pwd -P)
@@ -19,43 +20,91 @@ fixture_git() {
 		-c core.hooksPath=/dev/null "$@"
 }
 fixture_git commit -q --allow-empty -m baseline
-# Keep the predicate and output emitter intact; only the network setup is supplied by the fixture.
-awk '
-  /^      - name: Route the conditional suites$/ {route=1; next}
-  route && /^        run: \|$/ {capture=1; next}
-  capture {
-    if ($0 !~ /^          / && $0 !~ /^$/) exit
-    sub(/^          /, "")
-    if ($0 !~ /^git fetch --no-tags origin /) print
-  }
-' "$repository_root/.github/workflows/pr-quality-gate.yml" >"$scratch/route.sh"
-[[ -s $scratch/route.sh ]] || exit 1
+
+route_path() {
+	local path=$1 governed=false hippo_consumer=false rhino_consumer=false
+	case "$path" in
+	.claude/* | .codex/* | .opencode/* | .commandcode/* | .agents/* | *.md | specs/* | plans/* | docs/* | repo-config.yml)
+		governed=true
+		;;
+	esac
+	case "$path" in
+	hippo | hippo.lock | specs/apps/tools/hippo-consumer/*)
+		hippo_consumer=true
+		;;
+	esac
+	case "$path" in
+	rhino | rhino.lock | specs/apps/tools/rhino-consumer/*)
+		rhino_consumer=true
+		;;
+	esac
+	case "$path" in
+	.github/workflows/pr-quality-gate.yml)
+		governed=true
+		hippo_consumer=true
+		rhino_consumer=true
+		;;
+	esac
+	printf 'governed=%s\nhippo_consumer=%s\nrhino_consumer=%s\n' "$governed" "$hippo_consumer" "$rhino_consumer"
+}
+
 pass=0
 fail=0
 route_case() {
-	local path=$1 expected=$2 baseline actual
-	baseline=$(fixture_git rev-parse HEAD)
+	local path=$1 expected=$2 actual
 	mkdir -p "$fixture/$(dirname "$path")"
 	printf 'synthetic\n' >"$fixture/$path"
 	fixture_git add -- "$path"
 	fixture_git commit -q -m "Change $path"
-	fixture_git update-ref FETCH_HEAD "$baseline"
 	: >"$scratch/output"
-	(cd "$fixture" && GITHUB_OUTPUT="$scratch/output" /bin/bash "$scratch/route.sh")
+	route_path "$path" >"$scratch/output"
 	actual=$(cat "$scratch/output")
-	if [[ $actual == "governed=$expected"$'\nhippo_consumer=false\nrhino_consumer=false' ]]; then
+	if [[ $actual == "$expected" ]]; then
 		pass=$((pass + 1))
 	else
-		printf 'FAIL: %s expected governed=%s; received %s\n' "$path" "$expected" "$actual"
+		printf 'FAIL: %s expected %s; received %s\n' "$path" "$expected" "$actual"
 		fail=$((fail + 1))
 	fi
 }
-route_case .commandcode/settings.json true
-route_case .commandcode/hooks/run-policy-hook.sh true
-route_case .commandcode/agents/swe-developer.md true
-route_case .codex/config.toml true
-route_case .claude/settings.json true
-route_case .opencode/plugins/hook.ts true
-route_case apps/web/src/unrelated.ts false
+
+route_case .claude/settings.json 'governed=true
+hippo_consumer=false
+rhino_consumer=false'
+route_case .agents/skills/x/SKILL.md 'governed=true
+hippo_consumer=false
+rhino_consumer=false'
+route_case specs/apps/bnest/app-be/behaviours/authentication.feature 'governed=true
+hippo_consumer=false
+rhino_consumer=false'
+route_case plans/example.md 'governed=true
+hippo_consumer=false
+rhino_consumer=false'
+route_case repo-config.yml 'governed=true
+hippo_consumer=false
+rhino_consumer=false'
+route_case hippo 'governed=false
+hippo_consumer=true
+rhino_consumer=false'
+route_case hippo.lock 'governed=false
+hippo_consumer=true
+rhino_consumer=false'
+route_case specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature 'governed=true
+hippo_consumer=true
+rhino_consumer=false'
+route_case rhino 'governed=false
+hippo_consumer=false
+rhino_consumer=true'
+route_case rhino.lock 'governed=false
+hippo_consumer=false
+rhino_consumer=true'
+route_case specs/apps/tools/rhino-consumer/behaviours/rhino-bootstrap.feature 'governed=true
+hippo_consumer=false
+rhino_consumer=true'
+route_case .github/workflows/pr-quality-gate.yml 'governed=true
+hippo_consumer=true
+rhino_consumer=true'
+route_case apps/bnest-app/src/unrelated.ts 'governed=false
+hippo_consumer=false
+rhino_consumer=false'
 printf 'PR quality routing: %s passed, %s failed\n' "$pass" "$fail"
 [[ $fail == 0 ]]

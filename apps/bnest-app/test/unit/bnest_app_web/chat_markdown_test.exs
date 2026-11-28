@@ -8,6 +8,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   # `&lt;script&gt;alert(1)&lt;/script&gt;` is safe even though it contains the word "script".
   use ExUnit.Case, async: true
 
+  alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.SchemaSourceScan
   alias BnestAppWeb.ChatMarkdown
 
@@ -107,6 +109,12 @@ defmodule BnestAppWeb.ChatMarkdownTest do
     ```
     """
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message carries its body as safe HTML
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex replies are formatted as Markdown
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
     test "renders headings, emphasis, code, lists, tasks, tables, quotes, rules and strikethrough" do
       html = render(@sample)
 
@@ -134,6 +142,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert_safe(html, "task list")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Raw HTML in a Codex reply is shown as text and never runs
     test "raw HTML is shown as escaped text, never as markup" do
       for snippet <- @raw_html_snippets do
         html = render(snippet)
@@ -187,6 +197,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "links" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Links in a Codex reply open in a new tab without sharing the page
     test "a safe link opens in a new tab without sharing the page" do
       html = render("[docs](#{@https}example.com/docs)")
 
@@ -204,6 +216,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert tag =~ ~s(rel="noopener noreferrer nofollow")
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Unsafe links in a Codex reply are not clickable
     test "an unsafe link keeps its text and is not clickable" do
       html = render("[click here](javascript:alert(1))")
 
@@ -255,6 +269,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "images" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply shows an image from the repository
     test "a repository image is shown through the image route, with its alt text and safe attributes" do
       html = render("![Beaver Nest logo](#{@logo})")
 
@@ -271,6 +289,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert image_path(html) == "docs/my shot.png"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
     test "an https image is shown inline, with its alt text and the safe attributes, and no link" do
       html = render("![Remote logo](#{@https}example.com/remote-logo.png)")
 
@@ -292,6 +314,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert tags(html, "a") == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an http image is not loaded: it stays a link that says it is not shown" do
       html = render("![Remote logo](#{@http}example.com/remote-logo.png)")
 
@@ -308,6 +334,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "#{@http}example.com/remote-logo.png (image not shown)"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
     test "a small PNG, JPEG, GIF or WebP data image is shown inline with its alt text" do
       for {type, bytes} <- @raster_images do
         url = data_url(type, bytes)
@@ -320,6 +350,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml makes the same image decisions as the Codex chat
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an SVG, another data type, or a javascript image is withheld and its text says so" do
       for destination <- [
             data_url("svg+xml", @svg),
@@ -361,6 +395,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "[image not shown: Wrong]"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
     test "an image address of more than 2,048 characters is withheld" do
       html = render("![Long](#{url_of_length(2049)})")
 
@@ -551,8 +587,13 @@ defmodule BnestAppWeb.ChatMarkdownTest do
   end
 
   describe "a reply that is still streaming" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply stays readable while its Markdown is unfinished
     test "closes unfinished bold" do
-      assert render("**bol", true) =~ "<strong>bol</strong>"
+      html = render("**bol", true)
+
+      assert html =~ "<strong>bol</strong>"
+      refute html =~ "**"
     end
 
     test "leaves unfinished bold as text once the reply is complete" do
@@ -563,6 +604,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render("```elixir\nIO.puts(", true) =~ "<pre"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A half-written image address in a streaming reply is not shown as an image
     test "a half-written https image address is never an image while streaming" do
       html = render("see ![a](#{@https}exa", true)
 
@@ -629,6 +672,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
     ]
     @marker ~s(data-bnest-diagram="mermaid")
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
     test "a valid flowchart is marked, and its source is kept as escaped text" do
       html = render(fence(@flowchart))
 
@@ -639,6 +684,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       refute html =~ "language-mermaid"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml marks a valid mermaid fence for drawing
     test "every accepted diagram type is marked" do
       for header <- @accepted_headers do
         assert render(fence(header <> "\n  A --> B")) =~ @marker, header
@@ -657,10 +704,27 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       refute html =~ "Diagram not drawn"
     end
 
+    test "a fence with no language is not a diagram either" do
+      html = render("```\n#{@flowchart}\n```")
+
+      refute html =~ "data-bnest-diagram"
+      refute html =~ "Diagram not drawn"
+    end
+
+    test "the two-argument render uses the default options" do
+      html =
+        ChatMarkdown.to_html("hello", false)
+        |> Phoenix.HTML.safe_to_string()
+
+      assert html =~ "hello"
+    end
+
     test "a comment line before the diagram type is skipped, and so are leading blank lines" do
       assert render(fence("\n\n%% the sales funnel\nflowchart TD\n  A --> B")) =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A streaming Codex reply shows the diagram source until the reply is complete
     test "a diagram is not marked while its reply streams, and shows as an ordinary code block" do
       html = render(fence(@flowchart), true)
 
@@ -685,6 +749,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "<p><em>Diagram not drawn: its code block was never closed.</em></p>"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An oversized diagram stays as source with a note
     test "a diagram of the byte limit is marked, and one byte more is refused" do
       limit = ChatMarkdown.diagram_limits().max_source_bytes
 
@@ -709,6 +775,10 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert html =~ "<p><em>Diagram not drawn: it is too large.</em></p>"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml keeps an unacceptable mermaid fence as a code block with a note
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An unsupported diagram type stays as source with a note
     test "a diagram type that is not on the list is refused as unsupported" do
       for header <- [
             "architecture-beta",
@@ -829,6 +899,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render(fence("flowchart TD\n  A --> B\n  linkStyle 0 stroke:#333")) =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Diagrams beyond the first four in a message stay as source with a note
     test "only the first four diagrams of a message are marked, in document order" do
       fences = for n <- 1..5, do: fence("flowchart TD\n  A#{n} --> B#{n}")
       html = render(Enum.join(fences, "\n\n"))
@@ -857,6 +929,8 @@ defmodule BnestAppWeb.ChatMarkdownTest do
       assert render("> ```mermaid\n> flowchart TD\n>   A --> B\n> ```") =~ @marker
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: bodyHtml escapes hostile text inside a mermaid fence
     test "hostile text in a diagram label is escaped and kept as source, and the fence is marked" do
       for label <- [
             "<script>alert(1)</script>",
@@ -968,6 +1042,33 @@ defmodule BnestAppWeb.ChatMarkdownTest do
 
       assert tags(html, "img") == []
       assert html =~ "[image not shown: Generated image]"
+    end
+
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+    test "an image_generated turn event appends the reference, shown inline only with codex_images" do
+      {:ok, submitted} =
+        Transcript.new("gpt-6.1-terra", "medium")
+        |> Transcript.submit("Generate an image without a reference")
+
+      {:checkpoint, chat} =
+        submitted
+        |> Transcript.put_thread_id(@thread)
+        |> then(fn sized ->
+          CodexChat.apply_event(sized, {:image_generated, "exec-fixture-image.png"})
+        end)
+
+      content =
+        chat.messages |> Enum.find(&(&1.role == :assistant)) |> Map.fetch!(:content)
+
+      assert content =~ "![Generated image](codex-image:#{@thread}/exec-fixture-image.png)"
+
+      inline = render(content, false, codex_images: true)
+      [img] = tags(inline, "img")
+      assert img =~ ~s(src="/chat/generated-images/#{@thread}/exec-fixture-image.png")
+
+      withheld = render(content)
+      assert tags(withheld, "img") == []
+      assert withheld =~ "[image not shown: Generated image]"
     end
 
     test "a half-written generated-image reference stays text while streaming" do

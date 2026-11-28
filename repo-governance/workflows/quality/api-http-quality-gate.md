@@ -29,7 +29,7 @@ The checker reports none of these properties. The entry and exit checks run thei
 | ---------------------------------------------- | ------------------------------- | ------------------------------- |
 | Behaviour the unit and integration tests pin   | the unit and integration suites | `bnest-app` `test:unit`         |
 | Scripted API operations pass end to end        | the API end-to-end suite        | `bnest-app-be-e2e` `test:e2e`   |
-| Every API scenario is bound and covered        | the behaviour coverage check    | `test:coverage:behaviour`       |
+| Every API scenario is bound and covered        | the behaviour coverage check    | `test:behaviour:coverage`       |
 | Types, lint, and formatting of the server code | type checker, linter, formatter | `bnest-app` `typecheck`, `lint` |
 
 No contract linter or schema test runs here, so the REST and GraphQL contracts are judgeable. A property no tool of its
@@ -39,8 +39,8 @@ own owns leaves the table and becomes judgeable.
 
 Each cycle is one full audit by the judge, `swe-api-tester` under its `contract` charter, and one repair by
 [API HTTP Propagation](api-http-propagation.md), run by `swe-developer` in its Apply Findings mode, per
-[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge sends real requests against the contract and behaviour
-specifications, and judges:
+[Sequence and Termination](../../development/quality-gate-contract/002-sequence-and-termination.md). The judge sends
+real requests against the contract and behaviour specifications, and judges:
 
 - status codes, and response and error shapes, where no schema test already pins them;
 - authorization boundaries: what each role can and cannot reach;

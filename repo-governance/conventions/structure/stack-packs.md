@@ -13,40 +13,53 @@ A stack pack is the standard and the skill that together carry one language, fra
 adapter. Fixed paths and a closed set of IDs let a reader or an agent find a stack's rules from its ID alone, and let an
 adopter take one pack without the rest.
 
-This convention implements One Source Per Fact,
-Explicit Over Implicit, and
+This convention implements One Source Per Fact, Explicit Over Implicit, and
 [Progressive Disclosure](../../principles/progressive-disclosure.md).
 
 ## Canonical Paths
 
-| Artifact           | Path                                                                                                 |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| stack standard     | `repo-governance/development/quality/stacks/<id>-standards.md`                                       |
-| stack index        | [`repo-governance/development/quality/stacks/README.md`](../../development/quality/stacks/README.md) |
-| skill              | `.agents/skills/<prefix>-<id>/SKILL.md`, with the prefix set by the pack's kind below                |
-| generic agents     | `agents/swe-{developer,reviewer,debugger}.md`                                                        |
-| repository adapter | `repo-governance/development/quality/stacks/repository-adapter.md`, in an adopter                    |
-| inventory          | the `extensions.software-development` key of the repository configuration file                       |
-| human reference    | `docs/reference/software-development.md`, in an adopter with a `docs/` tree                          |
+- **stack standard**
+  - Path: `repo-governance/development/quality/stacks/<id>-standards.md`
+- **stack index**
+  - Path: [`repo-governance/development/quality/stacks/README.md`](../../development/quality/stacks/README.md)
+- **skill**
+  - Path: `.agents/skills/<prefix>-<id>/SKILL.md`, with the prefix set by the pack's kind below
+- **generic agents**
+  - Path: `agents/swe-{developer,reviewer,debugger}.md`
+- **repository adapter**
+  - Path: `repo-governance/development/quality/stacks/repository-adapter.md`, in an adopter
+- **inventory**
+  - Path: the `extensions.software-development` key of the repository configuration file
+- **human reference**
+  - Path: `docs/reference/software-development.md`, in an adopter with a `docs/` tree
 
 A standard gains a companion `<id>-standards/` directory only when its word budget requires one, named and indexed as
-File Naming requires. A standard states only what is specific to its stack and links the shared
-standard for everything else.
+File Naming requires. A standard states only what is specific to its stack and links the shared standard for everything
+else.
 
 ## Stack IDs and Kinds
 
 The IDs form a closed set. A new stack is added here before its standard or skill is written.
 
-| Kind              | Skill prefix      | IDs                                                                                                                                       |
-| ----------------- | ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| language          | `programming-`    | `typescript`, `javascript`, `fsharp`, `golang`, `rust`, `elixir`, `csharp`, `java`, `lua`, `python`, `shell`, `clojure`, `dart`, `kotlin` |
-| framework         | `framework-`      | `react`, `nextjs`, `spring-boot`, `phoenix-liveview`, `aspnet-core`                                                                       |
-| framework adapter | `framework-`      | `giraffe`, `gin`                                                                                                                          |
-| infrastructure    | `infrastructure-` | `terraform`, `ansible`                                                                                                                    |
-| tooling adapter   | `tooling-`        | `nx`                                                                                                                                      |
+- **language**
+  - Skill prefix: `programming-`
+  - IDs: `typescript`, `javascript`, `fsharp`, `golang`, `rust`, `elixir`, `csharp`, `java`, `lua`, `python`, `shell`,
+    `clojure`, `dart`, `kotlin`
+- **framework**
+  - Skill prefix: `framework-`
+  - IDs: `react`, `nextjs`, `spring-boot`, `phoenix-liveview`, `aspnet-core`
+- **framework adapter**
+  - Skill prefix: `framework-`
+  - IDs: `giraffe`, `gin`
+- **infrastructure**
+  - Skill prefix: `infrastructure-`
+  - IDs: `terraform`, `ansible`
+- **tooling adapter**
+  - Skill prefix: `tooling-`
+  - IDs: `nx`
 
-Skills sit outside the Capability Naming grammar, which already excludes them; the prefixes are
-this catalog's choice. A browser end-to-end suite has no stack ID and uses the `writing-browser-e2e-tests` skill.
+Skills sit outside the Capability Naming grammar, which already excludes them; the prefixes are this catalog's choice. A
+browser end-to-end suite has no stack ID and uses the `writing-browser-e2e-tests` skill.
 
 ## Inheritance
 
@@ -68,8 +81,8 @@ An agent working in a project reads that project's entry in the inventory. For e
 `<prefix>-<id>` skill and the local `<id>-standards.md` before its first test. A listed ID with no local copy is
 reported, never fetched from the catalog: nothing is read from the catalog at task time.
 
-A pack reaches a repository only by an explicit Adopt Artifact request,
-and only for a stack the repository actively authors, as the inventory module defines.
+A pack reaches a repository only by an explicit Adopt Artifact request, and only for a stack the repository actively
+authors, as the inventory module defines.
 
 ## Modules
 

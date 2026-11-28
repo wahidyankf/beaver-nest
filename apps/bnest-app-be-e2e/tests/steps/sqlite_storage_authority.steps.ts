@@ -15,8 +15,11 @@ import {
   type JourneyEvidence,
 } from "../support/sqlite-identity";
 
-// The headless storage authority switch (feature scenario 7), split out of
+// The headless storage authority switch and the restart after it, split out of
 // sqlite_storage_cli.steps.ts to stay under the 300-line step-file budget.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The task switches storage to SQLite only when every check passes and the app then reads from it
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Chat, learning, theme, login and logout survive a restart after the switch
 
 const { After, Given, Then, When } = createBdd();
 
@@ -26,13 +29,14 @@ const sqliteIdentity = {
   username: "test-user-sqlite-retired",
   password: "Synthetic SQLite Password 123!",
 };
-const changedTheme = "dark";
 
 let scenario: IdentityStorageScenario;
 let ownedScenario: IdentityStorageScenario | undefined;
 let journey: JourneyEvidence;
-let futureWrite: FutureWriteEvidence;
 let activation: CommandResult;
+let futureWrite: FutureWriteEvidence;
+
+const changedTheme = "dark";
 
 // The scenario's marked runtime pair is removed whether or not it reached its
 // last step.
@@ -69,9 +73,8 @@ Then("future reads use SQLite", () => {
   expect(readPointer(scenario)?.["phase"]).toBe("sqlite_primary");
 });
 
-// The session a login writes and the theme the Preferences facade writes land
-// in SQLite, leave the flat source as it was, and are accepted by the flat
-// reader a rollback falls back to.
+// After the switch, a login writes a session and the Preferences facade writes a theme, both into
+// SQLite. The flat source keeps its bytes, and a rollback reader accepts the same records.
 Then("future writes remain compatible with the rollback reader", () => {
   expect(journey.theme["theme"]).not.toBe(changedTheme);
   futureWrite = writeAfterSwitch(
@@ -87,7 +90,6 @@ Then("future writes remain compatible with the rollback reader", () => {
     "preferences",
     "theme.json",
   );
-
   expect(futureWrite.routed.theme["theme"]).toBe(changedTheme);
   expect(futureWrite.routed.session["userId"]).toBe(journey.userId);
   expect(futureWrite.sqlite).toEqual(futureWrite.routed);
@@ -101,7 +103,8 @@ Then("future writes remain compatible with the rollback reader", () => {
   expect(futureWrite.rollback).toEqual(futureWrite.routed);
 });
 
-Then("verified flat-file identity sources are retired", () => {
+// Runs after the switch and before the restart, so the restart reads only SQLite.
+When("verified flat-file identity sources are retired", () => {
   const retirement = retireFlatIdentitySources(scenario);
   const pointer = readPointer(scenario);
   expect(retirement.presentBefore).toHaveLength(3);
@@ -121,7 +124,7 @@ Then(
     expect(restarted.userId).toBe(journey.userId);
     expect(restarted.chat).toEqual(journey.chat);
     expect(restarted.learning).toEqual(journey.learning);
-    expect(restarted.theme).toBe(futureWrite.routed.theme["theme"]);
+    expect(restarted.theme).toBe(journey.theme["theme"]);
     expect(restarted.afterLogout).toBe("{:error, :unauthenticated}");
   },
 );

@@ -2,8 +2,8 @@ import { createHash } from "node:crypto";
 import {
   mkdirSync,
   readFileSync,
-  realpathSync,
   readdirSync,
+  realpathSync,
   rmSync,
   statSync,
 } from "node:fs";
@@ -15,11 +15,10 @@ import { backupConfigPath, runLiveMix } from "./live-sqlite";
 import { currentIdentities, type TestIdentity } from "./instance-identities";
 
 // Trimmed from bnest-app-e2e's scheduled-backups.ts to this project's
-// "Save a safe override" scenario; "Use the Dropbox-synced default" lives in
-// default-backup-destination.ts, and the contextual schedule/deny/discover
-// scenarios moved to bnest-app-fe-e2e.
+// "Saving a backup folder confirms the save ..." scenario; "A daily backup with
+// no saved folder ..." lives in default-backup-destination.ts, and the
+// contextual schedule/deny/discover scenarios moved to bnest-app-fe-e2e.
 export type ScheduledBackupWorld = {
-  backupConfig?: Record<string, unknown>;
   backupConfigPath?: string;
   backupDirectory?: string;
   backupMarker?: Record<string, unknown>;
@@ -89,8 +88,6 @@ async function saveBackupOverride(
   await save.click();
   await expect(page.getByText(/first verification was queued/u)).toBeVisible();
 
-  const configPath = required(world.backupConfigPath, "backup config path");
-  world.backupConfig = readJson(configPath);
   world.backupMarker = readJson(
     path.join(directory, ".bnest-backup-root.json"),
   );
@@ -108,9 +105,11 @@ export function expectOneSetupClaim(world: ScheduledBackupWorld): void {
   expect(world.setupClaimCount).toBe(1);
 }
 
+// The configuration file is complete JSON naming the destination, written private (mode 0600),
+// with no partial temporary file left beside it.
 export function expectAtomicBackupConfig(world: ScheduledBackupWorld): void {
   const configPath = required(world.backupConfigPath, "backup config path");
-  expect(world.backupConfig).toEqual({
+  expect(readJson(configPath)).toEqual({
     destinationDirectory: world.backupDirectory,
     schemaVersion: 1,
   });
@@ -120,6 +119,20 @@ export function expectAtomicBackupConfig(world: ScheduledBackupWorld): void {
       entry.startsWith(`${path.basename(configPath)}.partial-`),
     ),
   ).toEqual([]);
+}
+
+// The confirmation is still on the page after the double submit. After a reload the page
+// shows the saved folder, and the double submit queued exactly one first verification.
+export async function expectSavedFolderAndOneCheck(
+  page: Page,
+  world: ScheduledBackupWorld,
+): Promise<void> {
+  await expect(page.getByText(/first verification was queued/u)).toBeVisible();
+  await page.reload();
+  await connected(page);
+  await expect(page.getByLabel("Private destination override")).toHaveValue(
+    required(world.backupDirectory, "backup directory"),
+  );
 }
 
 function connected(page: Page): Promise<void> {

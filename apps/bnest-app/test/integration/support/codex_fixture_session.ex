@@ -14,7 +14,17 @@ defmodule BnestApp.Test.CodexFixtureSession do
   def open(owner, thread_id, model, reasoning_effort, repository_mode) do
     report({:open, owner, {thread_id, model, reasoning_effort, repository_mode}})
 
-    if thread_id == "unavailable-thread", do: {:error, :not_found}, else: {:ok, owner}
+    cond do
+      thread_id == "unavailable-thread" ->
+        {:error, :not_found}
+
+      repository_mode == :workspace_write and
+          Application.get_env(:bnest_app, :refuse_workspace_write, false) ->
+        {:error, :write_unavailable}
+
+      true ->
+        {:ok, owner}
+    end
   end
 
   @impl true

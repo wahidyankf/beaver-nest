@@ -9,6 +9,11 @@ import {
   recordSnapshot,
   setSources,
 } from "../support/centralized-data";
+import { currentInstanceEnvironment } from "../support/active-instance.mts";
+import {
+  envelopeDigest,
+  interruptedImportId,
+} from "../support/interrupted-import-check.mts";
 import { currentIdentities, userIdFor } from "../support/instance-identities";
 import { importCount, instanceRecord } from "../support/instance-records";
 import { putTheme } from "../support/theme-preference";
@@ -17,12 +22,18 @@ import { putTheme } from "../support/theme-preference";
 // idempotency/staleness, and the server-persistence halves of the accepted-import and Codex-resume scenarios); the
 // browser-key-clearing and fresh-conversation-report halves moved to bnest-app-fe-e2e. Every record is read from the
 // current test instance's database through production's record read, never from a file. The interrupted-import
-// scenario's bindings live in centralized_data_import.steps.ts.
+// scenario's bindings live in centralized_data_import.steps.ts; the theme scenario's live in
+// centralized_data_theme.steps.ts.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Confirming the recognized browser imports reports each source accepted and serves the imported data back to the user
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Unknown, malformed, or oversized browser input is rejected without source deletion
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: After an accepted import, later changes are kept on the server and the browser keeps no copy
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: A stale browser cannot overwrite a newer centralized record
 
 const { Given, Then, When } = createBdd();
 
 let beforeRecordSnapshot = "";
-let beforeThemeSnapshot = "";
 
 function adminId(): string {
   return userIdFor(currentIdentities().admin.username);
@@ -47,31 +58,58 @@ When("the user confirms the recognized imports", async ({ page }) => {
   await confirmImports(page);
 });
 
-Then("Bnest preserves an immutable envelope for each source", () => {
+// Each source keeps the envelope its import preserved, under the identity its payload derives. A second import of the
+// same sources must leave every envelope's bytes and the envelope count as they were.
+Then(
+  "Bnest preserves an immutable envelope for each source",
+  async ({ page }) => {
+    const owner = adminId();
+    const runtimeRoot = currentInstanceEnvironment().BNEST_RUNTIME_ROOT;
+    const sources = [
+      { area: "sessionStorage", key: "bnest.chat.v1", payload: chatPayload },
+      {
+        area: "localStorage",
+        key: "bnest.sifat-allah.v1",
+        payload: learningPayload,
+      },
+      { area: "localStorage", key: "phx:theme", payload: "dark" },
+    ];
+    const ids = sources.map((source) =>
+      interruptedImportId(owner, source.area, source.key, source.payload),
+    );
+    const digestsBefore = ids.map((id) =>
+      envelopeDigest(runtimeRoot, owner, id),
+    );
+    expect(digestsBefore).not.toContain("missing");
+    const countBefore = importCount(owner);
+
+    await setSources(page, {
+      chat: chatPayload,
+      learning: learningPayload,
+      theme: "dark",
+    });
+    await confirmImports(page);
+
+    expect(ids.map((id) => envelopeDigest(runtimeRoot, owner, id))).toEqual(
+      digestsBefore,
+    );
+    expect(importCount(owner)).toBe(countBefore);
+  },
+);
+
+Then("Bnest reports each source as accepted and verified", () => {
   expect(importCount(adminId())).toBeGreaterThanOrEqual(3);
 });
 
-Then("Bnest reads each normalized user-owned record successfully", () => {
-  const id = adminId();
-  for (const kind of ["chat", "sifat_allah", "theme"] as const) {
-    expect(instanceRecord(kind, id)).toEqual(expect.any(Object));
-  }
-});
-
-Given("the browser has no explicit theme source", async ({ page }) => {
-  await setSources(page, { chat: null, learning: null, theme: null });
-  beforeThemeSnapshot = recordSnapshot("theme", adminId());
-});
-
-Then("Bnest records the absent system theme outcome", async ({ page }) => {
-  await expect(
-    page.getByText("Theme preference: accepted and verified"),
-  ).toBeVisible();
-});
-
-Then("Bnest creates no explicit theme preference", () => {
-  expect(recordSnapshot("theme", adminId())).toBe(beforeThemeSnapshot);
-});
+Then(
+  "the user's chat, Sifat Allah progress, and theme are read back from Bnest",
+  () => {
+    const id = adminId();
+    for (const kind of ["chat", "sifat_allah", "theme"] as const) {
+      expect(instanceRecord(kind, id)).toEqual(expect.any(Object));
+    }
+  },
+);
 
 Given("the browser has an invalid Bnest source", async ({ page }) => {
   await setSources(page, { chat: chatPayload, learning: null, theme: null });
@@ -129,50 +167,56 @@ Given(
   },
 );
 
-When("Bnest accepts and reads back the normalized record", async ({ page }) => {
-  await confirmImports(page);
-});
+When(
+  "the user confirms the recognized imports and then changes the theme",
+  async ({ page }) => {
+    await confirmImports(page);
+    // The preference is written through PUT /preferences/theme, the same surface the removed control used (ADR 005).
+    expect(await putTheme(page, "dark")).toBe(204);
+  },
+);
 
 // Each write must reach the server's record, and the browser must keep none of it. A poll waits for the server's
 // write; each read is a fresh production record read, so the timeout covers a secondary process per attempt.
-Then("Bnest persists future changes only on the server", async ({ page }) => {
-  const id = adminId();
-  const beforeChat = recordSnapshot("chat", id);
-  const beforeLearning = recordSnapshot("sifat_allah", id);
+Then(
+  "the change is saved on the server and the browser is told to keep no copy",
+  async ({ page }) => {
+    const id = adminId();
+    const beforeChat = recordSnapshot("chat", id);
+    const beforeLearning = recordSnapshot("sifat_allah", id);
 
-  await page.goto("/chat");
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByLabel("Message").fill("Server-only follow-up");
-  await page.getByRole("button", { name: "Send" }).click();
-  await expect
-    .poll(() => recordSnapshot("chat", id), { timeout: 30_000 })
-    .not.toBe(beforeChat);
+    await page.goto("/chat");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Message").fill("Server-only follow-up");
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect
+      .poll(() => recordSnapshot("chat", id), { timeout: 30_000 })
+      .not.toBe(beforeChat);
 
-  expect(
-    await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
-  ).toBeNull();
+    expect(
+      await page.evaluate(() => sessionStorage.getItem("bnest.chat.v1")),
+    ).toBeNull();
 
-  await page.goto("/apps/sifat-allah");
-  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
-  await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
-  await page.getByRole("button", { name: "Aku sudah ingat" }).click();
+    await page.goto("/apps/sifat-allah");
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByRole("button", { name: "Belajar 3 Pasangan" }).click();
+    await page.getByRole("button", { name: "Aku sudah ingat" }).click();
 
-  expect(
-    await page.evaluate(() => localStorage.getItem("bnest.sifat-allah.v1")),
-  ).toBeNull();
-  await expect
-    .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
-    .not.toBe(beforeLearning);
+    expect(
+      await page.evaluate(() => localStorage.getItem("bnest.sifat-allah.v1")),
+    ).toBeNull();
+    await expect
+      .poll(() => recordSnapshot("sifat_allah", id), { timeout: 30_000 })
+      .not.toBe(beforeLearning);
 
-  // The preference is written through PUT /preferences/theme, the same surface the removed control used (ADR 005).
-  expect(await putTheme(page, "dark")).toBe(204);
-  // The theme is not kept in the browser: no localStorage theme key is written, only the server record changes.
-  expect(
-    await page.evaluate(() => localStorage.getItem("phx:theme")),
-  ).toBeNull();
+    // The theme is not kept in the browser: no localStorage theme key is written, only the server record changes.
+    expect(
+      await page.evaluate(() => localStorage.getItem("phx:theme")),
+    ).toBeNull();
 
-  expect(instanceRecord("theme", id)["theme"]).toBe("dark");
-});
+    expect(instanceRecord("theme", id)["theme"]).toBe("dark");
+  },
+);
 
 Given(
   "centralized chat contains a transcript and an unavailable Codex thread",
@@ -231,7 +275,24 @@ Then("Bnest preserves the transcript", async ({ page }) => {
       hasText: "Continue after resume",
     }),
   ).toBeVisible();
+  // The server saves the chat after the alert, so the step waits until the two original messages have landed.
+  await expect
+    .poll(() => readChatState(childId()).messages.length, {
+      message: "the server has not persisted the original transcript",
+      timeout: 30000,
+    })
+    .toBeGreaterThanOrEqual(2);
   const chat = readChatState(childId());
-  expect(chat.thread_id).not.toBe("unavailable-thread");
-  expect(chat.messages.slice(0, 2).map((m) => m.content)).toEqual(original);
+  expect(
+    chat.thread_id,
+    "the persisted chat must not keep the unavailable thread",
+  ).not.toBe("unavailable-thread");
+  expect(
+    chat.messages[0]?.content,
+    "the first persisted message must be the original question",
+  ).toBe(original[0]);
+  expect(
+    chat.messages[1]?.content,
+    "the second persisted message must be the original answer",
+  ).toBe(original[1]);
 });

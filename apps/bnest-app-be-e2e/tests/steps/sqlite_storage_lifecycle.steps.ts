@@ -1,4 +1,4 @@
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
@@ -21,6 +21,9 @@ let result: { status: number; stdout: string; stderr: string };
 let legacyDatabase = "";
 let generation = "";
 
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: The relocate task moves SQLite to the production data folder and keeps the old files until proof
+// @scenario specs/apps/bnest/app-be/behaviours/sqlite_storage.feature: Verified legacy flat-file storage is retired
+
 Given(
   "authoritative SQLite still uses the legacy configuration directory",
   ({ $testInfo }) => {
@@ -38,33 +41,43 @@ Given(
   },
 );
 
-When("managed storage relocation runs", () => {
+When("the operator runs `mix bnest.storage.relocate`", () => {
   result = runStorageCommand(scenario, "bnest.storage.relocate", []);
 });
 
+// The relocation's own line, the production data folder holding the new database, and the legacy
+// files kept until the new database passes routed proof.
 Then(
-  "the storage pointer resolves the production data directory atomically",
+  'it exits 0 printing "relocation verified", the database is in the production data folder, and the legacy SQLite files are still present',
   () => {
     expect(result.status, result.stderr).toBe(0);
-    const pointer = readPointer(scenario);
-    expect(pointer?.["databaseDirectory"]).toBe(
-      defaultDatabaseDirectory(scenario),
-    );
-    generation = String(pointer?.["databaseGeneration"] ?? "");
-    expect(generation).not.toBe("");
-  },
-);
-
-Then(
-  "legacy SQLite files remain until the new database passes routed proof",
-  () => {
+    expect(result.stdout).toContain("relocation verified");
     expect(existsSync(legacyDatabase)).toBe(true);
     expect(
       existsSync(
         path.join(defaultDatabaseDirectory(scenario), "bnest.sqlite3"),
       ),
     ).toBe(true);
-    expect(result.stdout).toContain("relocation verified");
+  },
+);
+
+// The pointer names the production data folder and a database generation. It is written whole, with
+// private mode and no temporary file left beside it.
+Then(
+  "the storage pointer resolves the production data directory atomically",
+  () => {
+    const pointer = readPointer(scenario);
+    expect(pointer?.["databaseDirectory"]).toBe(
+      defaultDatabaseDirectory(scenario),
+    );
+    generation = String(pointer?.["databaseGeneration"] ?? "");
+    expect(generation).not.toBe("");
+    expect(statSync(scenario.pointerPath).mode & 0o777).toBe(0o600);
+    expect(
+      readdirSync(path.dirname(scenario.pointerPath)).filter((name) =>
+        name.includes(".tmp-"),
+      ),
+    ).toEqual([]);
     cleanupStorageScenario(scenario);
   },
 );

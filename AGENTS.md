@@ -26,8 +26,13 @@ Use clear, simple, natural English that non-native speakers can understand, incl
 
 ## Version Control
 
-- Only `main` persists. Use `{repository location}/worktrees/<task>`, never sibling `*-worktrees/` paths. [Integrate by PR](repo-governance/conventions/integration-path.md), never direct push. [Leak-review](repo-governance/workflows/quality/pr-leak-review.md) outgoing ranges and exact merge head (harness verdict); delete worktree and branch afterward.
-- Make [thematic commits](repo-governance/conventions/thematic-commits.md). Inspect for prohibited data before committing under [data safety](repo-governance/conventions/public-repository-data-safety.md), including secret-access rules.
+- Only `main` persists. Use `{repository location}/worktrees/<task>`, never sibling `*-worktrees/` paths.
+  [Integrate by PR](repo-governance/conventions/integration-path.md), never direct push.
+  [Leak-review](repo-governance/workflows/quality/pr-leak-review.md) outgoing ranges and exact merge head (harness
+  verdict); delete worktree and branch afterward.
+- Make [thematic commits](repo-governance/conventions/thematic-commits.md). Inspect for prohibited data before
+  committing under [data safety](repo-governance/conventions/public-repository-data-safety.md), including secret-access
+  rules.
 - Follow [runtime-data](repo-governance/conventions/runtime-flat-file-data.md).
 - [Commit/push](repo-governance/conventions/commit-authorization.md) only when authorized or plan-approved.
 - Fix root [push hooks](repo-governance/conventions/push-hook-verification.md); never use unauthorized `--no-verify`.
@@ -36,14 +41,24 @@ Use clear, simple, natural English that non-native speakers can understand, incl
 ## Governance
 
 - Align harnesses under [contract](repo-governance/conventions/coding-harness-contract.md).
-- [Propagate rules](repo-governance/workflows/quality/rules-propagation.md) and [docs](repo-governance/workflows/quality/docs-propagation.md); gates start only as their Entry lists.
+- [Propagate rules](repo-governance/workflows/quality/rules-propagation.md) and
+  [docs](repo-governance/workflows/quality/docs-propagation.md); gates start only as their Entry lists.
 - Apply [Diátaxis](repo-governance/conventions/documentation-architecture.md).
-- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md), [track tasks](repo-governance/conventions/task-tracking.md), and retain others' changes under `plans/` and `repo-governance/`.
-- Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan reports; neither is authoritative.
-- Write under `plans/` only on explicit user request or for HIPPO, RHINO, or FERRET [defects](repo-governance/development/upstream-tool-defects.md); Plan mode alone does not authorize it. Follow the [plans convention](repo-governance/conventions/plans.md) (six documents, no estimates), [lifecycle](repo-governance/conventions/plan-lifecycle.md), and [planning capabilities](repo-governance/development/planning-capabilities.md).
+- Preserve rules through [compaction](repo-governance/principles/governance-continuity.md),
+  [track tasks](repo-governance/conventions/task-tracking.md), and retain others' changes under `plans/` and
+  `repo-governance/`.
+- Use ignored `local-tmp/` for scratch and `generated-reports/` for requested pre-plan reports; neither is
+  authoritative.
+- Write under `plans/` only on explicit user request or for HIPPO, RHINO, or FERRET
+  [defects](repo-governance/development/upstream-tool-defects.md); Plan mode alone does not authorize it. Follow the
+  [plans convention](repo-governance/conventions/plans.md) (six documents, no estimates),
+  [lifecycle](repo-governance/conventions/plan-lifecycle.md), and
+  [planning capabilities](repo-governance/development/planning-capabilities.md).
 - Bnest active-service plans carry Caddy, drain, reconnect, and revision-proof clauses; never assume refresh.
-- Maintain [maps](repo-governance/conventions/directory-maps.md) and [links](repo-governance/conventions/markdown-links.md).
-- Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles under executor labels and checkpoints.
+- Maintain [maps](repo-governance/conventions/directory-maps.md) and
+  [links](repo-governance/conventions/markdown-links.md).
+- Delivery items carry evidenced [TDD](repo-governance/development/test-driven-development.md) RED/GREEN/REFACTOR cycles
+  under executor labels and checkpoints.
 - [Ask last](repo-governance/conventions/last-resort-questions.md); stop after the minimal verified change.
 
 ## Development
@@ -51,18 +66,37 @@ Use clear, simple, natural English that non-native speakers can understand, incl
 - Prefix shell commands with `rtk`; preserve required forms and safety rules.
 - Dispatch every create, modify, update, or delete of code or declarative configuration to the fitting `swe-*` agent,
   except as [SWE delegation](repo-governance/conventions/swe-delegation.md) allows.
-- Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md) and [dependency selection](repo-governance/development/dependency-selection.md).
+- Follow [minimal sufficiency](repo-governance/principles/minimal-sufficiency.md) and
+  [dependency selection](repo-governance/development/dependency-selection.md).
 - Comment non-obvious shell safety invariants and lifecycle boundaries; avoid line-by-line narration.
-- New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are exempt.
+- New tables need [audit columns](repo-governance/conventions/database-audit-columns.md); event logs and projections are
+  exempt.
 - Bnest is 24/7; obey [continuity](repo-governance/development/live-service-continuity.md); failed health stops work.
-- Commit/push is not deployment; before reporting active-service completion, follow [live-service continuity](repo-governance/development/live-service-continuity.md).
-- Stop unused non-production servers, watchers, candidates, and proxies before completion; retain the active route and bounded drain.
-- Separate server/proxy lifecycles; follow [start/restart](repo-governance/workflows/maintenance/development-server-restart.md) and [proxy](repo-governance/workflows/maintenance/development-tailnet-proxy.md).
-- [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl` affected REST/GraphQL operations.
-- Guard compute with checksum-pinned `./hippo` per [resource-aware development](repo-governance/development/resource-aware-development.md). Overlap only after admission; preserve dependency, output, transaction, port, release, storage, and correctness ordering. Exit `75`: inspect receipt and requeue only `never-started`. Exit `73`: clean storage. Exit `78`: replan. Never bypass, duplicate-retry, weaken gates, change class, or abandon; recovery/status stay direct.
-- Keep `test:e2e` outside `test:quick`; follow [end-to-end testing](repo-governance/development/end-to-end-testing.md) for affected-only runs at exact origins, LiveView waits, isolated users, and tab cleanup.
-- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never substitute. Add exploratory and spec-blind usability [passes](repo-governance/workflows/quality/exploratory-usability-review.md).
-- **Test-data iron rule:** tests use isolated roots and synthetic `test-user-` [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas read-only.
-- **Project rule**: follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin → bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers for documented boundary mismatches. Changed Gherkin/adapters need the [manual review](repo-governance/workflows/quality/gherkin-implementation-review.md).
+- Commit/push is not deployment; before reporting active-service completion, follow
+  [live-service continuity](repo-governance/development/live-service-continuity.md).
+- Stop unused non-production servers, watchers, candidates, and proxies before completion; retain the active route and
+  bounded drain.
+- Separate server/proxy lifecycles; follow
+  [start/restart](repo-governance/workflows/maintenance/development-server-restart.md) and
+  [proxy](repo-governance/workflows/maintenance/development-tailnet-proxy.md).
+- [Software quality](repo-governance/development/software-quality-enforcement.md): pass required gates; manually `curl`
+  affected REST/GraphQL operations.
+- Guard compute with checksum-pinned `./hippo` per
+  [resource-aware development](repo-governance/development/resource-aware-development.md). Overlap only after admission;
+  preserve dependency, output, transaction, port, release, storage, and correctness ordering. Exit `75`: inspect receipt
+  and requeue only `never-started`. Exit `73`: clean storage. Exit `78`: replan. Never bypass, duplicate-retry, weaken
+  gates, change class, or abandon; recovery/status stay direct.
+- Keep `test:e2e` outside `test:quick`; follow [end-to-end testing](repo-governance/development/end-to-end-testing.md)
+  for affected-only runs at exact origins, LiveView waits, isolated users, and tab cleanup.
+- Manually inspect [UI changes](repo-governance/conventions/plan-ui-design.md) at exact origins/viewports; tests never
+  substitute. Add exploratory and spec-blind usability
+  [passes](repo-governance/workflows/quality/exploratory-usability-review.md).
+- **Test-data iron rule:** tests use isolated roots and synthetic `test-user-`
+  [identities](repo-governance/development/test-identities.md), never production users/data. Inspect production schemas
+  read-only.
+- **Project rule**: follow [specifications](repo-governance/development/specification-maintenance.md): Gherkin →
+  bindings → Nx red → code → smoke. Reject placeholders/no-ops/outcome tables; unit mandatory. Exempt either/both layers
+  for documented boundary mismatches. Changed Gherkin/adapters need the
+  [manual review](repo-governance/workflows/quality/gherkin-implementation-review.md).
 - Update project [READMEs](repo-governance/conventions/project-readmes.md).
 - Use accessible [Mermaid](repo-governance/conventions/markdown-visualizations.md); scope RHINO to changed files.

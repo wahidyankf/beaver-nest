@@ -33,6 +33,11 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued before the update still sends after it
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply commits with its link on reconnect
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply survives closing the app
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An offline reply waits for the connection and stays a reply
+
 const OFFLINE_BANNER = '[data-role="family-chat-offline-banner"]';
 
 async function goOfflineWithCommittedTarget(page: Page): Promise<void> {
@@ -77,10 +82,13 @@ Then(
   },
 );
 
-Then("the queued record carries the reply target", async ({ page }) => {
-  const row = await expectStored(page, delivery.body);
-  expect(row.replyToMessageId).toBe(scenario.targetId);
-});
+Then(
+  "the waiting message will send as a reply to the message it answers",
+  async ({ page }) => {
+    const row = await expectStored(page, delivery.body);
+    expect(row.replyToMessageId).toBe(scenario.targetId);
+  },
+);
 
 When(
   "the visitor reopens {string} while still offline",
@@ -126,7 +134,7 @@ Then("the committed message renders its quote", async ({ page }) => {
 });
 
 Given(
-  "the outbox holds a queued message stored with no reply target field",
+  "a message was left waiting to send before the app was updated",
   async ({ page }) => {
     await goOfflineWithCommittedTarget(page);
     await sendThroughComposer(page, uniqueBody("Plain offline message"));

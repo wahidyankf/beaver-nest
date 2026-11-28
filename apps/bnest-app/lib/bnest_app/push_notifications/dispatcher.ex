@@ -20,10 +20,15 @@ defmodule BnestApp.PushNotifications.Dispatcher do
 
   @lease_seconds 120
 
-  @spec attempt() :: {:ok, map()} | {:error, :no_due_delivery}
-  def attempt do
+  @doc """
+  Claims the one due delivery with the lowest ID and runs its next attempt.
+
+  Takes the sweep time as `now` so unit tests stamp their stores with the same
+  test-owned time instead of the system clock; production callers omit it.
+  """
+  @spec attempt(DateTime.t()) :: {:ok, map()} | {:error, :no_due_delivery}
+  def attempt(now \\ DateTime.utc_now()) do
     FamilyChat.ensure_ready!()
-    now = DateTime.utc_now()
     deliveries = PushNotifications.adapter(:delivery_store).new()
     subscriptions = PushNotifications.adapter(:subscription_store).new()
 

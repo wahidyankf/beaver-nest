@@ -3,8 +3,8 @@
 ## Goal
 
 The household can trust the word `verified`. The ledger is what the administrator reads on the Schedules page and what
-anyone consults after a failure. If it says a backup was verified and the backup is gone, the household learns that
-only on the day it needs the backup.
+anyone consults after a failure. If it says a backup was verified and the backup is gone, the household learns that only
+on the day it needs the backup.
 
 ## Roles Served
 
@@ -16,8 +16,7 @@ only on the day it needs the backup.
 
 Two nightly production backups (the slots of 2026-09-30 and 2026-10-01 UTC) are recorded as verified while neither
 artifact nor receipt exists on disk. Neighbouring nights are intact. Nothing in Bnest reported the gap; it was found
-only by an incidental read-only inspection. The cause is unknown, so it may recur, and a recurrence would be as
-silent.
+only by an incidental read-only inspection. The cause is unknown, so it may recur, and a recurrence would be as silent.
 
 ## Outcomes
 
@@ -39,12 +38,24 @@ silent.
 
 ## Business Risks
 
-| Risk                                                | Consequence                                 | Mitigation                                                                        |
-| --------------------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
-| The investigation touches production data           | Breach of the read-only and test-data rules | Every production step is read-only, owner-approved, and sanitized                 |
-| A fix ships before the cause is known and masks it  | The loss recurs under a different mechanism | The detector is built first and is independent of the cause                       |
-| The release disturbs the 24/7 service               | Household loses chat or login               | Candidate cutover with numeric responsiveness budget and drain                    |
-| The cause is the owner's Dropbox or a second device | No repository change fixes it               | The verdict has a "no code fix" branch that ships only detector, drill            |
-| The cause is Dropbox and its history is unavailable | The cause stays unproven and may recur      | Detector, page label and drill ship anyway; an idea brief records the second copy |
-| The page label slows or falsely alarms the admin    | The household stops trusting the page       | Same window rule as retention; check runs off the render path under a ceiling     |
-| The restore drill proves a backup unrestorable      | Every backup since is suspect               | That is the point of the drill; the outcome is recorded and escalated             |
+- **The investigation touches production data**
+  - Consequence: Breach of the read-only and test-data rules
+  - Mitigation: Every production step is read-only, owner-approved, and sanitized
+- **A fix ships before the cause is known and masks it**
+  - Consequence: The loss recurs under a different mechanism
+  - Mitigation: The detector is built first and is independent of the cause
+- **The release disturbs the 24/7 service**
+  - Consequence: Household loses chat or login
+  - Mitigation: Candidate cutover with numeric responsiveness budget and drain
+- **The cause is the owner's Dropbox or a second device**
+  - Consequence: No repository change fixes it
+  - Mitigation: The verdict has a "no code fix" branch that ships only detector, drill
+- **The cause is Dropbox and its history is unavailable**
+  - Consequence: The cause stays unproven and may recur
+  - Mitigation: Detector, page label and drill ship anyway; an idea brief records the second copy
+- **The page label slows or falsely alarms the admin**
+  - Consequence: The household stops trusting the page
+  - Mitigation: Same window rule as retention; check runs off the render path under a ceiling
+- **The restore drill proves a backup unrestorable**
+  - Consequence: Every backup since is suspect
+  - Mitigation: That is the point of the drill; the outcome is recorded and escalated

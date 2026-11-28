@@ -29,9 +29,47 @@ type ChatState = {
   messages: Array<{ content: string }>;
 };
 
-// The server's stored chat state for one user, read through production's record read.
+// The selected conversation's transcript, read from the server's stored chat state through production's record read.
+// The state holds every conversation under "conversations" and names the open one in "selected_id". A state with no
+// conversations, no selected entry, or no messages array fails with the user id and the missing part, so a read that
+// ran before the server's write says what it lacked; it never defaults to an empty chat, which would hide a missing save.
 export function readChatState(userId: string): ChatState {
-  return instanceRecord("chat", userId)["state"] as ChatState;
+  const state = instanceRecord("chat", userId)["state"];
+  if (!isRecord(state)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} is not an object`,
+    );
+  }
+  const conversations = state["conversations"];
+  if (!isRecord(conversations)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no conversations object`,
+    );
+  }
+  const selectedId = state["selected_id"];
+  const selected =
+    typeof selectedId === "string" ? conversations[selectedId] : undefined;
+  if (!isRecord(selected)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no selected conversation`,
+    );
+  }
+  const transcript = selected["transcript"];
+  if (!isRecord(transcript)) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no transcript for its selected conversation`,
+    );
+  }
+  if (!Array.isArray(transcript["messages"])) {
+    throw new TypeError(
+      `the stored chat state of user ${userId} has no messages array`,
+    );
+  }
+  return transcript as ChatState;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
 }
 
 // A canonical snapshot of one stored record, or of its absence, to compare before and after a step. The server's

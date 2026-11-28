@@ -33,6 +33,11 @@ import {
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply carries its quote through each arrival path
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Highlighting respects reduced motion
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is above the loaded window
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is already on screen
+
 // --- Quotes on every arrival path ----------------------------------------
 
 Given(

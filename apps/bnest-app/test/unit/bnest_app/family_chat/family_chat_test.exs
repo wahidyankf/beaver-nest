@@ -19,20 +19,28 @@ defmodule BnestApp.FamilyChatTest do
   end
 
   describe "unauthenticated callers" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unauthenticated visitor is denied family chat data
     test "get_room_for/2 rejects a nil user id without touching storage" do
       assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
                FamilyChat.get_room_for(nil, FamilyChat.canonical_room_slug())
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unauthenticated visitor is denied family chat data
     test "list_messages/3 rejects a nil user id without touching storage" do
       assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
                FamilyChat.list_messages(nil, FamilyChat.canonical_room_slug(), [])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unauthenticated visitor is denied family chat data
     test "list_rooms_for/1 rejects a nil user id" do
       assert {:error, %{code: "UNAUTHENTICATED", details: nil}} = FamilyChat.list_rooms_for(nil)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An unauthenticated visitor is denied family chat data
     test "send_message/4 rejects a nil user id without touching storage" do
       assert {:error, %{code: "UNAUTHENTICATED", details: nil}} =
                FamilyChat.send_message(
@@ -53,6 +61,33 @@ defmodule BnestApp.FamilyChatTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member queries the authorized room list
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A fresh installation lists Ruang Keluarga ready for posting
+    test "a fresh installation lists Ruang Keluarga ready and accepts a message" do
+      assert FamilyChat.ensure_ready!() == :ok
+      assert {:ok, room} = FamilyChat.migrate!()
+
+      assert %{
+               id: 1,
+               slug: "ruang-keluarga",
+               name: "Ruang Keluarga",
+               member_posting_enabled: true
+             } =
+               room
+
+      assert {:ok, ^room} = FamilyChat.migrate!()
+      assert FamilyChat.list_rooms_for("test-user-family-chat-fresh") == {:ok, [room]}
+
+      sender = "test-user-family-chat-fresh"
+
+      assert {:ok, message} =
+               FamilyChat.send_message(sender, room.slug, Ecto.UUID.generate(), "first post")
+
+      assert message.body == "first post"
+    end
+
     test "ensure_ready!/0 and migrate!/0 seed the canonical room once", %{store: store} do
       assert FamilyChat.ensure_ready!() == :ok
       assert {:ok, room} = FamilyChat.migrate!()
@@ -69,6 +104,10 @@ defmodule BnestApp.FamilyChatTest do
     # The start-time convergence is the facade's own, on whatever room store is configured:
     # the seeded retention schedule becomes enabled and the backup schedule moves to 18:00
     # UTC, each once, read back through the Scheduler.
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: After an upgrade the administrator sees the daily backup at 18:00 UTC
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: After an upgrade the push retention schedule is listed as enabled
     test "converge_after_drain!/0 enables push retention and converges the backup time once" do
       schedules = InMemoryScheduleStore.install()
       now = ~U[2026-09-18 00:00:00Z]
@@ -128,6 +167,7 @@ defmodule BnestApp.FamilyChatTest do
     end
   end
 
+  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
   describe "get_room_for/2 slug validation" do
     test "rejects a slug that fails the allowed-character pattern" do
       assert {:error, %{code: "VALIDATION_FAILED", details: nil}} =
@@ -139,6 +179,8 @@ defmodule BnestApp.FamilyChatTest do
                FamilyChat.get_room_for("test-user-family-chat-message-shape", 123)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A missing room is reported safely without enumerating hidden rooms
     test "reports a well-formed but nonexistent room as not found" do
       assert {:error, %{code: "ROOM_NOT_FOUND", details: nil}} =
                FamilyChat.get_room_for(
@@ -147,15 +189,32 @@ defmodule BnestApp.FamilyChatTest do
                )
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A missing room is reported safely without enumerating hidden rooms
     test "reports an archived room as not found", %{store: store} do
       archive_room!(store)
 
       assert {:error, %{code: "ROOM_NOT_FOUND", details: nil}} =
                FamilyChat.get_room_for("test-user-family-chat-message-shape", "ruang-arsip")
     end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member queries Ruang Keluarga by its slug
+    test "reports the canonical room for its slug" do
+      assert {:ok, room} =
+               FamilyChat.get_room_for(
+                 "test-user-family-chat-slug",
+                 FamilyChat.canonical_room_slug()
+               )
+
+      assert room.slug == "ruang-keluarga"
+      assert room.name == "Ruang Keluarga"
+    end
   end
 
   describe "list_messages/3" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message page request with invalid arguments is rejected
     test "refuses both cursors at once and a limit outside 1 to 50" do
       user = "test-user-family-chat-pages"
       slug = FamilyChat.canonical_room_slug()
@@ -166,6 +225,8 @@ defmodule BnestApp.FamilyChatTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The latest page is returned without a cursor
     test "pages the room's messages ascending, each tagged with its room" do
       user = "test-user-family-chat-pages"
       slug = FamilyChat.canonical_room_slug()
@@ -187,9 +248,45 @@ defmodule BnestApp.FamilyChatTest do
       assert {:error, %{code: "ROOM_NOT_FOUND", details: nil}} =
                FamilyChat.list_messages("test-user-family-chat-pages", "no-such-room", [])
     end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A beforeId page returns older history
+    test "a beforeId page returns the messages older than its cursor" do
+      user = "test-user-family-chat-pages"
+      slug = FamilyChat.canonical_room_slug()
+      ids = for n <- 1..3, do: elem(commit(user, "page #{n}"), 1).id
+
+      assert {:ok, %{nodes: nodes, has_older: false, has_newer: true}} =
+               FamilyChat.list_messages(user, slug, before_id: List.last(ids))
+
+      assert Enum.map(nodes, & &1.id) == Enum.take(ids, 2)
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: An afterId page returns catch-up history
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber catches up a missed event through afterId
+    test "an afterId page returns the messages newer than its cursor" do
+      user = "test-user-family-chat-pages"
+      slug = FamilyChat.canonical_room_slug()
+      ids = for n <- 1..3, do: elem(commit(user, "catch-up #{n}"), 1).id
+
+      assert {:ok, %{nodes: nodes, has_older: false, has_newer: false}} =
+               FamilyChat.list_messages(user, slug, after_id: hd(ids))
+
+      assert Enum.map(nodes, & &1.id) == tl(ids)
+    end
   end
 
   describe "send_message/4" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member sends a message and gets the committed message back
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying a client message ID returns the first commit
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber receives exactly one event per committed message
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying the same client message ID returns the original commit
     test "commits, publishes once on the room's topic, and replays without a second publish" do
       user = "test-user-family-chat-sender"
       client_message_id = Ecto.UUID.generate()
@@ -218,8 +315,14 @@ defmodule BnestApp.FamilyChatTest do
       assert replayed.id == message.id
       assert replayed.body == "Dinner is ready"
       refute_received {:family_chat_published, _topic, _message}
+
+      assert {:ok, %{nodes: nodes}} = FamilyChat.list_messages(user, slug, [])
+      assert Enum.count(nodes, &(&1.id == message.id)) == 1
+      refute Enum.any?(nodes, &(&1.body == "a different body"))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Invalid message text is rejected before commit
     test "refuses an invalid client message ID and an invalid body before committing" do
       user = "test-user-family-chat-sender"
       slug = FamilyChat.canonical_room_slug()
@@ -280,6 +383,10 @@ defmodule BnestApp.FamilyChatTest do
       {:ok, sender: "test-user-family-chat-reply-" <> Ecto.UUID.generate()}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member sends a reply and the commit carries its quote
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscribed reply arrives carrying its quote
     test "a commit carries its reply target and resolves the quote", %{sender: sender} do
       {:ok, original} = commit(sender, "Nanti aku jemput jam 5")
       {:ok, reply} = reply_to(sender, original.id, "Oke, aku siapin")
@@ -290,6 +397,8 @@ defmodule BnestApp.FamilyChatTest do
       assert reply.reply_to.sender_kind == "user"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A message sent with no reply target has no quote
     test "a message sent with no target has no quote", %{sender: sender} do
       {:ok, message} = commit(sender, "Dinner is ready")
 
@@ -297,6 +406,8 @@ defmodule BnestApp.FamilyChatTest do
       assert message.reply_to == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quote is shortened to a bounded preview
     test "the preview collapses whitespace and cuts at 160 graphemes", %{sender: sender} do
       long = String.duplicate("a", 400)
       {:ok, original} = commit(sender, long)
@@ -321,6 +432,8 @@ defmodule BnestApp.FamilyChatTest do
       assert reply.reply_to.body_preview == "first line second line"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply target the server cannot honour is rejected before commit
     test "a target no message has is refused, and nothing commits", %{
       store: store,
       sender: sender
@@ -340,6 +453,8 @@ defmodule BnestApp.FamilyChatTest do
       assert RoomStore.find_message(store, 1, "user", sender, client_message_id) == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply target the server cannot honour is rejected before commit
     test "a non-integer target is refused", %{sender: sender} do
       assert {:error, %{code: "VALIDATION_FAILED"}} =
                FamilyChat.send_message(
@@ -352,6 +467,8 @@ defmodule BnestApp.FamilyChatTest do
                )
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Retrying a client message ID returns the first commit
     test "replaying a client message ID with a different target returns the first commit", %{
       sender: sender
     } do
@@ -397,6 +514,40 @@ defmodule BnestApp.FamilyChatTest do
       assert quoted == [{a.id, "target a"}, {b.id, "target b"}]
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply caught up through afterId carries its quote
+    test "a catch-up page through afterId resolves every quote its replies name", %{
+      sender: sender
+    } do
+      {:ok, a} = commit(sender, "target a")
+      {:ok, _reply_a} = reply_to(sender, a.id, "answers a")
+
+      {:ok, page} =
+        FamilyChat.list_messages(sender, FamilyChat.canonical_room_slug(), after_id: a.id)
+
+      quoted = for %{reply_to: %{id: id, body_preview: preview}} <- page.nodes, do: {id, preview}
+
+      assert quoted == [{a.id, "target a"}]
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A rejected reply target publishes no event
+    test "a refused reply target publishes no event", %{sender: sender} do
+      client_message_id = Ecto.UUID.generate()
+
+      assert {:error, %{code: "VALIDATION_FAILED"}} =
+               FamilyChat.send_message(
+                 sender,
+                 FamilyChat.canonical_room_slug(),
+                 client_message_id,
+                 "answer",
+                 "Bunda",
+                 999_999_999
+               )
+
+      refute_received {:family_chat_published, _topic, _message}
+    end
+
     # The degradation a reader can still meet: the target genuinely exists, so the
     # store accepts the reference -- it just is not in this room. A reader of this
     # room must see an ordinary message, never the other room's text. Only a
@@ -426,6 +577,18 @@ defmodule BnestApp.FamilyChatTest do
       assert rendered.reply_to == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply to a reply quotes only its immediate parent
+    test "a reply to a reply quotes only its immediate parent", %{sender: sender} do
+      {:ok, original} = commit(sender, "original")
+      {:ok, middle} = reply_to(sender, original.id, "middle")
+      {:ok, reply} = reply_to(sender, middle.id, "leaf")
+
+      assert reply.reply_to_message_id == middle.id
+      assert reply.reply_to.id == middle.id
+      assert reply.reply_to.body_preview == "middle"
+    end
+
     test "a quote resolves its sender name through the live-account seam", %{sender: sender} do
       {:ok, original} = commit(sender, "Nanti aku jemput jam 5")
       {:ok, reply} = reply_to(sender, original.id, "Oke, aku siapin")
@@ -437,6 +600,8 @@ defmodule BnestApp.FamilyChatTest do
                reply.reply_to.sender_display_name
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A reply target in a different room is rejected before commit
     test "a cross-room target is refused, and nothing commits", %{store: store, sender: sender} do
       foreign_id = archive_room!(store)
       client_message_id = Ecto.UUID.generate()

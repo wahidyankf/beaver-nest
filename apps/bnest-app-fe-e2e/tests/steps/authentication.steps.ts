@@ -1,23 +1,38 @@
-import { expect } from "@playwright/test";
+import {
+  expect,
+  type Page,
+  type Request as BrowserRequest,
+} from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
-  instanceDatabaseDigest,
   login,
   submitInitialAccountsWithSafetyChecks,
   type InitialAccount,
 } from "../support/authentication";
+import { ensureCandidate } from "../support/candidate-pool";
 import { instanceIdentities } from "../support/instance-identities";
+import { candidatePort } from "../support/routed-rollout-env";
+import { restorePrimaryRoute } from "../support/routed-rollout";
 
 // Trimmed from bnest-app-e2e's authentication.steps.ts to this project's
 // owned scenarios (unauthenticated redirect, logged-out home, the
 // recovery-warning half of initial setup, and approved login/logout); the
 // password-hashing, session-persistence, and multi-session/multi-role/
-// cross-user scenarios moved to bnest-app-be-e2e.
+// cross-user scenarios moved to bnest-app-be-e2e, and the refused-setup and
+// failed-setup-redisplay scenarios live in authentication-setup.steps.ts. The
+// setup-card scenarios live in authentication-cards.steps.ts.
 
-const { Given, Then, When } = createBdd();
+const { After, Given, Then, When } = createBdd();
+
+// E2E bindings for the phase-8 FE ADD rows about authentication hardening:
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: With identity cutover off an unsigned browser acts as the local user
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A logged-out visitor is sent to login from any protected page
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: Approved user logs in and logs out
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: First-time setup warns that accounts cannot be managed or recovered later, then closes
 
 let setupSafetyChecks = { sawIrreversibleWarning: false };
-let databaseBefore = "";
 
 Given("an approved user is logged in", async ({ page }) => {
   await login(page, instanceIdentities().admin);
@@ -40,12 +55,20 @@ Given("an approved child administrator is logged in", async ({ page }) => {
 
 Given("a visitor has no authenticated Bnest session", async ({ page }) => {
   await page.context().clearCookies();
-  databaseBefore = instanceDatabaseDigest();
 });
+
+// The requests the visitor's browser sends while it opens a protected route. Writes are any method but GET or HEAD;
+// user data is read or written through the GraphQL API, a chat or family chat page, or a chat image.
+const routeRequests = new WeakMap<Page, BrowserRequest[]>();
+const userDataPath =
+  /^\/(api\/graphql|chat\/(generated-)?images\/|family-chat\/)/u;
 
 When(
   "the visitor opens the protected route {string}",
   async ({ page }, route: string) => {
+    const requests: BrowserRequest[] = [];
+    routeRequests.set(page, requests);
+    page.on("request", (request) => requests.push(request));
     await page.goto(route);
   },
 );
@@ -63,12 +86,26 @@ Then("the login form replaces protected home actions", async ({ page }) => {
   );
 });
 
-Then("Bnest does not read or write user data", ({ page }) => {
-  void page;
-  expect(instanceDatabaseDigest()).toBe(databaseBefore);
+Then("the visitor sees no user data", async ({ page }) => {
+  await expect(page.locator("body")).not.toContainText(
+    instanceIdentities().admin.username,
+  );
 });
 
-Given("Bnest has no bootstrap journal", async ({ page }) => {
+Then("Bnest does not read or write user data", ({ page }) => {
+  const requests = routeRequests.get(page) ?? [];
+  expect(requests, "the visit was not recorded").not.toHaveLength(0);
+  const writes = requests
+    .filter((request) => !["GET", "HEAD"].includes(request.method()))
+    .map((request) => `${request.method()} ${new URL(request.url()).pathname}`);
+  expect(writes, "the visit sent a write").toEqual([]);
+  const reads = requests
+    .map((request) => new URL(request.url()).pathname)
+    .filter((pathname) => userDataPath.test(pathname));
+  expect(reads, "the visit reached user data").toEqual([]);
+});
+
+Given("Bnest has not been set up yet", async ({ page }) => {
   const response = await page.goto("/setup");
   expect(response?.status()).toBe(200);
   await expect(
@@ -142,4 +179,101 @@ When("the user logs out from that browser", async ({ page }) => {
 Then("that browser must log in again", async ({ page }) => {
   await page.goto("/chat");
   await expect(page).toHaveURL(/\/login\?return_to=/u);
+});
+
+// --- Login return paths (BN-HTTP-05) --------------------------------------------
+
+When(
+  "the user logs in with return path {string}",
+  async ({ page }, returnTo: string) => {
+    const target =
+      returnTo === "(empty)"
+        ? "/login?return_to="
+        : `/login?return_to=${encodeURIComponent(returnTo)}`;
+    await page.goto(target);
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    const { admin } = instanceIdentities();
+    await page.getByLabel("Username").fill(admin.username);
+    await page.getByLabel("Password").fill(admin.password);
+    await page.getByRole("button", { name: "Log in" }).click();
+  },
+);
+
+Then("the user lands on {string}", async ({ page }, path: string) => {
+  await page.waitForURL((url) => url.pathname === path, {
+    timeout: 15_000,
+  });
+});
+
+// --- Wrong logins (BN-HTTP-07, BN-AUTH-03) ---------------------------------------
+
+async function attemptLogin(
+  page: import("@playwright/test").Page,
+  username: string,
+  password: string,
+): Promise<void> {
+  await page.context().clearCookies();
+  await page.goto("/login");
+  await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+  await page.getByLabel("Username").fill(username);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Log in" }).click();
+}
+
+When("the user logs in with the wrong password", async ({ page }) => {
+  const { admin } = instanceIdentities();
+  await attemptLogin(page, admin.username, "Definitely the wrong password 0!");
+});
+
+When("an unknown user logs in", async ({ page }) => {
+  const { admin } = instanceIdentities();
+  await attemptLogin(page, "test-user-unknown", admin.password);
+});
+
+Then("the login page says the login is not valid", async ({ page }) => {
+  await expect(page).toHaveURL(/\/login$/u);
+  await expect(
+    page.getByText("Username or password is not valid."),
+  ).toBeVisible();
+});
+
+Then("no identity cookie is set", async ({ page }) => {
+  const cookies = await page.context().cookies();
+  expect(cookies.filter((cookie) => cookie.name === "_bnest_identity")).toEqual(
+    [],
+  );
+});
+
+// --- Identity cutover (BN-AUTH-11) ------------------------------------------------
+
+// The cutover-off candidate is opened directly instead of routed through
+// Caddy: the flag is server-rendered, so the origin only needs to be the
+// flag-off server itself.
+let cutoverOffBaseURL: string | undefined;
+
+Given("identity cutover is off", async () => {
+  await ensureCandidate(candidatePort, false);
+  // `localhost`, not `127.0.0.1`: the endpoint's `check_origin` only allows
+  // the configured `localhost` host, so the LiveView socket from a
+  // `127.0.0.1` page origin is refused and the room never connects.
+  cutoverOffBaseURL = `http://localhost:${candidatePort}`;
+});
+
+When("the visitor opens this site's home page", async ({ page }) => {
+  await page.goto(`${cutoverOffBaseURL ?? ""}/`);
+});
+
+Then("the visitor acts as the local browser user", async ({ page }) => {
+  await expect(page.locator(".home-status")).toContainText("Local browser");
+  await expect(page.getByRole("button", { name: "Log out" })).toHaveCount(0);
+  await expect(page.getByText("remain in this browser")).toBeVisible();
+});
+
+When("identity cutover is on", async ({ page }) => {
+  cutoverOffBaseURL = undefined;
+  await restorePrimaryRoute(page);
+});
+
+After(() => {
+  cutoverOffBaseURL = undefined;
 });

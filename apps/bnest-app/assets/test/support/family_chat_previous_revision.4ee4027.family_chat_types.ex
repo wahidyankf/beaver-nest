@@ -1,0 +1,75 @@
+defmodule BnestAppWeb.Schema.Types.FamilyChatTypes do
+  @moduledoc false
+
+  use Absinthe.Schema.Notation
+
+  alias BnestApp.FamilyChat.Domain.Message
+  alias BnestApp.Identity
+  alias BnestAppWeb.ChatComponents
+  alias BnestAppWeb.Schema.Complexity
+
+  object :family_chat_room do
+    field(:id, non_null(:id))
+    field(:slug, non_null(:string))
+    field(:name, non_null(:string))
+    field(:room_kind, non_null(:string))
+    field(:member_posting_enabled, non_null(:boolean))
+  end
+
+  # A distinct object rather than a recursive `:family_chat_message`. That is
+  # the flat-reply rule expressed in the type system: nothing here can carry
+  # another quote, so no client can request one and no resolver can serve one.
+  object :family_chat_message_quote do
+    field(:id, non_null(:id))
+    field(:sender_kind, non_null(:string))
+
+    field :sender_display_name, non_null(:string) do
+      resolve(fn quoted, _args, _resolution ->
+        {:ok, Message.live_sender_display_name(quoted, &Identity.display_name_for/1)}
+      end)
+    end
+
+    # Named for what it is. A field called `body` that silently returned a
+    # fraction of the original would be a trap for the next reader.
+    field(:body_preview, non_null(:string))
+  end
+
+  object :family_chat_message do
+    field(:id, non_null(:id))
+    field(:room_slug, non_null(:string))
+    field(:sender_kind, non_null(:string))
+    field(:sender_id, non_null(:id))
+
+    field :sender_display_name, non_null(:string) do
+      resolve(fn message, _args, _resolution ->
+        {:ok, Message.live_sender_display_name(message, &Identity.display_name_for/1)}
+      end)
+    end
+
+    field(:body, non_null(:string))
+
+    # The body as safe HTML, from the same renderer and markup the Codex chat uses (ADR 003, Decision 2). The
+    # one shared renderer keeps the two rooms from drifting. Only this type carries it: a quote stays plain text.
+    # Priced by the complexity budget: each request renders the body once per message, so an alias repeats that cost.
+    field :body_html, non_null(:string) do
+      complexity(fn _args, child -> Complexity.body_html(child) end)
+
+      resolve(fn message, _args, _resolution ->
+        {:ok,
+         ChatComponents.markdown_body_html(message.body,
+           hard_breaks: true,
+           attrs: %{"data-role": "family-chat-message-body", class: "family-chat-message-body"}
+         )}
+      end)
+    end
+
+    field(:committed_at, non_null(:datetime))
+    field(:reply_to, :family_chat_message_quote)
+  end
+
+  object :family_chat_message_connection do
+    field(:nodes, non_null(list_of(non_null(:family_chat_message))))
+    field(:has_older, non_null(:boolean))
+    field(:has_newer, non_null(:boolean))
+  end
+end

@@ -12,17 +12,30 @@ Feature: Bnest scheduled backups
     Then both contexts appear in separate groups with safe status
     And the backup row links to its typed settings
 
-  Scenario: Deny schedule and configuration access
-    Given an unauthenticated revoked or non-admin visitor
-    When the visitor opens an admin settings route
+  Scenario Outline: A visitor who may not administer Bnest cannot open admin settings
+    Given <visitor>
+    When the visitor opens the route "<route>"
     Then Bnest returns not found before protected reads
+    And Bnest denies the operation
     And home exposes no admin settings entry
+    And Bnest reveals no host path or migration inventory
 
-  Scenario: Discover typed admin configuration
-    Given multiple domains declare typed admin settings panels
+    Examples:
+      | visitor                                         | route                     |
+      | an unauthenticated revoked or non-admin visitor | /admin/settings           |
+      | an unauthenticated revoked or non-admin visitor | /admin/settings/schedules |
+      | an unauthenticated revoked or non-admin visitor | /storage                  |
+      | a non-admin family member is logged in          | /storage                  |
+
+  Scenario: Every settings panel Bnest offers is listed in admin settings
+    Given several areas of Bnest offer admin settings panels
     When an administrator opens admin settings from home
-    Then every declared panel is discoverable
-    And each owner validates and saves only its allowlisted fields
+    Then every settings panel is listed in admin settings
+
+  Scenario: A settings panel saves only the fields it offers and refuses any other field
+    Given several areas of Bnest offer admin settings panels
+    When an administrator opens admin settings from home
+    Then each settings panel saves only the fields it offers and refuses any other field
 
   Scenario: The page states that every retained backup is present
     Given an administrator and an isolated destination holding the artifact of every expected verified run
@@ -76,7 +89,11 @@ Feature: Bnest scheduled backups
     Given reconciliation found a missing artifact
     When the page's rendered text and attributes are read
     Then they contain no filesystem path, digest, destination identifier or run ID
-    And they name the same dates and states as the reconcile task's report
+
+  Scenario: The label names the same dates and states as the reconcile report
+    Given reconciliation found a missing artifact
+    When the page's rendered text and attributes are read
+    Then they name the same dates and states as the reconcile task's report
 
   # Exemption(e2e): a reconciliation that outlasts the ceiling and its cancellation (a monitored process exit and no further read) need a controlled store whose reads outlast the ceiling and process monitoring the browser cannot reach; alternative-proof: bnest-app:test:integration / The label does not delay the page
   @e2e-exempt
@@ -118,3 +135,34 @@ Feature: Bnest scheduled backups
     Then the label is announced with its name and its state in its place before the forms
     And the focus order of the existing controls is unchanged
     And the change from checking to the result is announced politely and does not move focus
+
+  # Carries BN-ADMIN-04.
+  # Exemption(e2e): reach: the form's `type="time" required` input yields only a valid `HH:MM` or is blocked by the browser, so a malformed value cannot be submitted from a real browser; alternative-proof: bnest-app:test:integration / A bad schedule time says "Enter a valid WIB time."
+  @e2e-exempt
+  Scenario: A bad schedule time says "Enter a valid WIB time."
+    Given an administrator with a saved daily schedule opens Schedules & backups
+    When the administrator saves the daily schedule with the time "25:00"
+    Then the schedules page shows the schedule error "Enter a valid WIB time."
+    And the saved daily schedule keeps its time
+    And the schedules page shows no schedule success message
+
+  # Carries BN-ADMIN-05.
+  Scenario: A stale schedule save says to reload and try again
+    Given an administrator with a saved daily schedule opens Schedules & backups
+    When another schedule save moves the daily schedule to "04:00"
+    And the administrator saves the daily schedule with the time "03:00"
+    Then the schedules page shows the schedule error "The schedule changed. Reload and try again."
+    And the other schedule save stays
+
+  # Carries BN-ADMIN-06.
+  Scenario Outline: A bad backup folder gets a plain refusal reason
+    Given an administrator opens Schedules & backups
+    When the administrator saves the backup folder "<folder>"
+    Then the schedules page shows the backup error "<message>"
+    And nothing is saved and no first backup is queued
+
+    Examples:
+      | folder                          | message                                             |
+      | inside the live database location | Choose a folder outside the live database location. |
+      | a symbolic link                 | Choose a folder that is not a symbolic link.        |
+      | a relative path                 | The backup folder could not be saved safely.        |

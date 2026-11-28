@@ -225,6 +225,7 @@ function nameTarget(id: string, body: string): void {
   remember("typedBody", body);
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Hostile diagram text in a message is inert
 step("{word} has sent this family chat message:", (sender, body) => {
   nameTarget(post({ body, sender: otherMember(sender) }).id, body);
 });
@@ -234,10 +235,12 @@ step("{word} has sent the diagram message {string}", (sender, kind) => {
   nameTarget(post({ body, sender: otherMember(sender) }).id, body);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram stays as source when the diagram engine cannot load
 step("the diagram engine cannot be loaded", () => {
   setDiagramEngineAvailable(false);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
 step("the diagram engine is held until the visitor releases it", () => {
   holdDiagramEngine();
 });
@@ -278,6 +281,9 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A narrow diagram is readable on the own message bubble and fits a 320 px message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram keeps a readable size and scrolls inside its own box at 320 px
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram in a message uses most of a desktop column
 step("the visitor sends this family chat message:", async (body) => {
   const id = await sendThroughComposer(body);
   if (id === null) throw new Error("the room refused to queue the message");
@@ -287,6 +293,7 @@ step("the visitor sends this family chat message:", async (body) => {
 
 // --- Then: what the room drew, showed, and offered -------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram that arrives live is drawn
 step("the message shows a diagram labelled {string}", async (label) => {
   await waitFor(
     () => {
@@ -307,6 +314,10 @@ step("the message shows the note {string}", async (note) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message with a mermaid flowchart shows a diagram
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An oversized, unsupported or surplus diagram in a message stays as source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram stays as source when the diagram engine cannot load
 step("the message keeps its diagram source as text", async () => {
   const expected = fenceSourcesOf(typedBody());
   expect(expected.length > 0, "the typed message holds no mermaid fence");
@@ -385,6 +396,7 @@ function diagramRow(): HTMLElement {
   return row;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in another message adds no tab stop to the history
 step("the diagram message shows a diagram labelled {string}", async (label) => {
   await waitFor(
     () => {
@@ -427,6 +439,7 @@ step("the clipboard holds the message as typed", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a message with a diagram quotes the typed Markdown as plain text
 step("the reply quotes the typed message as plain text", async () => {
   await settledBody();
   const row = targetRow();

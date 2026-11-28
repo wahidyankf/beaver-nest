@@ -10,7 +10,11 @@ import {
   setSources,
 } from "../support/centralized-data";
 import { currentIdentities, userIdFor } from "../support/instance-identities";
-import { importCount, instanceRecordState } from "../support/instance-records";
+import {
+  importCount,
+  instanceRecord,
+  instanceRecordState,
+} from "../support/instance-records";
 import {
   envelopeDigest,
   interruptedImportId,
@@ -19,6 +23,8 @@ import {
 
 // Bindings for the interrupted-import scenario of centralized_data.feature. Split from centralized_data.steps.ts to keep
 // each file within the lint line limit. The seed is flat-primary only, as the block below explains.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Retrying an interrupted import completes it without duplicating data
 
 const { Given, Then, When } = createBdd();
 
@@ -36,7 +42,7 @@ function adminId(): string {
 // it must be exactly the one envelope the seed wrote, so a seed that landed nowhere cannot pass the "no duplicate"
 // check. This scenario is `@flat-primary`, the only phase that takes this seed kind.
 Given(
-  "a recognized import was interrupted after source preservation",
+  "a recognized import was interrupted after source preservation and before its data was saved",
   async ({ page }) => {
     const seeded = await instanceLifecycle().seed("interrupted-import", {
       records: [
@@ -74,8 +80,15 @@ When("the user retries that import", async ({ page }) => {
   await confirmImports(page);
 });
 
+// The retry resumes the identity the seed derived, so the chat record the retry wrote names that import.
 Then("Bnest reuses its idempotent import identity", () => {
-  expect(importCount(adminId())).toBe(beforeImportCount);
+  const seededImport = interruptedImport;
+  if (seededImport === undefined) {
+    throw new Error("no interrupted import was seeded for this scenario");
+  }
+  expect(instanceRecord("chat", adminId())["sourceImportId"]).toBe(
+    seededImport.importId,
+  );
 });
 
 Then(

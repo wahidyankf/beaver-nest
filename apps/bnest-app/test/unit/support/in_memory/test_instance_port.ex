@@ -88,6 +88,50 @@ defmodule BnestApp.Test.InMemory.TestInstancePort do
     end
   end
 
+  @doc """
+  Applies `seed` to the current instance under `seed_key`, as `BnestApp.TestInstance.Seed.apply/3` does
+  for a current instance. A new key adds its accounts and answers `{:ok, port, :applied}`; the same key
+  with the same seed answers `{:ok, port, :unchanged}` and writes nothing; the same key with another seed
+  answers `{:error, port, :seed_conflict}`. An instance that is not the current one answers
+  `{:error, port, :not_current}`.
+  """
+  @spec seed_current(t(), String.t(), String.t(), map()) ::
+          {:ok, t(), :applied | :unchanged}
+          | {:error, t(), :not_current | :seed_conflict | {:seed_invalid, atom(), String.t()}}
+  def seed_current(
+        %__MODULE__{current: %{instance_id: current_id}} = port,
+        instance_id,
+        seed_key,
+        seed
+      )
+      when current_id == instance_id do
+    seeds = Map.get(port.current, :seeds, %{})
+
+    case Map.fetch(seeds, seed_key) do
+      {:ok, ^seed} -> {:ok, port, :unchanged}
+      {:ok, _other_seed} -> {:error, port, :seed_conflict}
+      :error -> add_seed(port, instance_id, seed_key, seed)
+    end
+  end
+
+  def seed_current(%__MODULE__{} = port, _instance_id, _seed_key, _seed),
+    do: {:error, port, :not_current}
+
+  defp add_seed(port, instance_id, seed_key, seed) do
+    case Seed.validate(seed, %{instance_id: instance_id}) do
+      {:ok, normalized} ->
+        with {:ok, accounts} <- hash_accounts(normalized["accounts"]) do
+          merged = Map.merge(port.current.accounts, accounts)
+          seeds = Map.put(Map.get(port.current, :seeds, %{}), seed_key, seed)
+
+          {:ok, put_current(port, %{accounts: merged, seeds: seeds}), :applied}
+        end
+
+      {:error, %{reason: reason, path: path}} ->
+        {:error, port, {:seed_invalid, reason, path}}
+    end
+  end
+
   @doc "What the current instance's database holds: its records (accounts, sessions, user records) and chat messages."
   @spec database_contents(t()) :: %{records: non_neg_integer(), chat_messages: non_neg_integer()}
   def database_contents(%__MODULE__{current: nil}), do: %{records: 0, chat_messages: 0}

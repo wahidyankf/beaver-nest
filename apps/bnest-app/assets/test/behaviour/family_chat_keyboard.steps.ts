@@ -67,6 +67,12 @@ const WIDE_CODE = `${"pickup-the-children-from-the-school-gate-".repeat(8)}`;
 const WIDE_BODIES: Readonly<Record<string, string>> = {
   table: `Dinner plan:\n\n${WIDE_TABLE}`,
   "code block": `\`\`\`text\n${WIDE_CODE}\n\`\`\``,
+  diagram: [
+    "```mermaid",
+    "flowchart LR",
+    "  A[Pick up the children from the school gate] --> B[Cook dinner together at home] --> C[Eat together at the table]",
+    "```",
+  ].join("\n"),
 };
 
 const registry: StepDefinition[] = [];
@@ -217,12 +223,16 @@ step("{word} has sent a wide {string} message", (sender, kind) => {
   post({ body, sender: otherMember(sender) });
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab and Shift+Tab pass through message content without a trap
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keys inside message content keep their own meaning
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in an older message can be reached from the keyboard on a phone
 step("the {string} in the message is wider than its box", (kind) => {
   const selector = SCROLL_SELECTORS[kind];
   if (selector === undefined) throw new Error(`${kind} is not a scroll region`);
   declareScrollRegion(selector, "wide");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A table or code block that fits is not a tab stop
 step("the {string} in the message fits its box", (kind) => {
   const selector = SCROLL_SELECTORS[kind];
   if (selector === undefined) throw new Error(`${kind} is not a scroll region`);
@@ -306,6 +316,7 @@ step("the message {string} is the keyboard stop", (text) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only the focused message's links are reachable
 step("exactly one link in the history is a tab stop", () => {
   const page = activePage();
   const reachable = [
@@ -317,6 +328,7 @@ step("exactly one link in the history is a tab stop", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab moves from a message into its links and opens one
 step("the link {string} opens its address in a new tab", (text) => {
   const press = recall<LastPress>("lastPress");
   const link = linkNamed(activePage(), text);
@@ -335,6 +347,7 @@ step("the link {string} opens its address in a new tab", (text) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The diagram source opens from the keyboard
 step("the diagram source is shown", () => {
   const page = activePage();
   const details = page.elements.list.querySelector<HTMLElement>(
@@ -351,6 +364,8 @@ step("the diagram source is shown", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A scrolled diagram can be scrolled from the keyboard
 step("the {string} is scrolled to the right", (name) => {
   const press = recall<LastPress>("lastPress");
   expect(
@@ -414,6 +429,7 @@ function focusRingDeclared(suffix: string): boolean {
 
 // --- Keyboard moves bring the focused message into view (family_chat.feature, "Keyboard reach of the message history")
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The action menu opened from the keyboard sits beside its message
 step("the history is laid out on the screen", () => {
   // The room opens at its newest message, with the history scrolled to the bottom of its modelled layout. The menu's
   // placement reads the screen size from globalThis, which in this harness is not the room's own window, so the
@@ -444,6 +460,7 @@ step("the visitor presses {string} {int} times", async (combo, count) => {
   }
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message taller than the window shows its top when focus reaches it
 step("the top of the focused message is inside the visible history", () => {
   // A message taller than the window cannot fit in it, so its top edge is what the reader must see first.
   const page = activePage();
@@ -465,21 +482,12 @@ function bodyNumberOf(element: Element): number | null {
   return match?.[1] === undefined ? null : Number(match[1]);
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The keys that move focus through the history bring the focused message into view
 step("the focused message is the message with the number {int}", (number) => {
   const actual = bodyNumberOf(focusedElement(activePage()));
   expect(
     actual === Number(number),
     `the focused message is number ${actual ?? "none"}, not ${number}`,
-  );
-});
-
-step("the focused message is the newest message", () => {
-  const page = activePage();
-  const rows = messageRows(page);
-  const newest = rows[rows.length - 1];
-  expect(
-    newest !== undefined && focusedElement(page) === newest,
-    `keyboard focus is not on the newest of ${rows.length} messages`,
   );
 });
 
@@ -513,6 +521,7 @@ step("the history's position is noted", () => {
   remember("noted history position", activePage().elements.history.scrollTop);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message already in view does not move the history
 step("the history has not moved since its position was noted", () => {
   const noted = recall<number>("noted history position");
   const now = activePage().elements.history.scrollTop;

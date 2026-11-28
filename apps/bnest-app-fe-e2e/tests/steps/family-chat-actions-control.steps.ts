@@ -8,6 +8,8 @@ import { scenario } from "../support/family-chat-reply";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control is visible, large enough to press, beside its bubble and inside the history
+
 const MORE = '[data-role="family-chat-message-more"]';
 // The bubble is marked by its class alone; it carries no data-role.
 const BUBBLE = ".family-chat-message-bubble";

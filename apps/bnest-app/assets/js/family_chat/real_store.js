@@ -31,13 +31,9 @@ import { removeKeepingFocus, replaceKeepingFocus } from "./row_focus.js";
 /** @typedef {import("./message_render.js").RenderableMessage} RenderableMessage */
 /** @typedef {import("./real_store_render.js").RealStoreState} RealStoreState */
 
-/**
- * @param {boolean} replies whether the room is served with replies (the actions control is drawn only then)
- * @returns {RealStoreState}
- */
-function createRealStoreState(replies) {
+/** @returns {RealStoreState} */
+function createRealStoreState() {
   return {
-    replies,
     rendered: new Map(),
     oldestKnownId: null,
     newestKnownId: null,
@@ -54,12 +50,11 @@ function createPendingRenderMethods(elements, state) {
   return {
     /** @param {RenderableMessage} message */
     renderPending(message) {
-      const node = messageNode(message, {
-        pending: true,
-        replies: state.replies,
-      });
+      const node = messageNode(message, { pending: true });
       elements.list.append(node);
       state.rendered.set(message.clientMessageId ?? "", node);
+      // The member's own queued message is the room's first content.
+      elements.empty.hidden = state.rendered.size > 0;
       // Always, not only when already near the bottom: this row is the
       // member's own message, and a send that leaves it off-screen -- which
       // is what happens to anyone writing from their unread marker -- reads
@@ -94,6 +89,7 @@ function createPendingRenderMethods(elements, state) {
     removePending(clientMessageId) {
       state.rendered.get(clientMessageId)?.remove();
       state.rendered.delete(clientMessageId);
+      elements.empty.hidden = state.rendered.size > 0;
     },
   };
 }
@@ -129,7 +125,6 @@ function createReconcileMethod(elements, state, currentUserId) {
       const node = messageNode(committedMessage, {
         pending: false,
         currentUserId,
-        replies: state.replies,
       });
       if (pendingNode) {
         replaceKeepingFocus(pendingNode, node);
@@ -191,7 +186,6 @@ function createReceiveRemoteMessageMethod(elements, state, currentUserId) {
       const node = messageNode(message, {
         pending: false,
         currentUserId,
-        replies: state.replies,
       });
       elements.list.append(node);
       state.rendered.set(key, node);
@@ -257,15 +251,10 @@ function createCursorReaderMethods(state) {
  *   roomSlug: string,
  *   elements: import("./elements.js").FamilyChatElements,
  *   currentUserId?: string | null,
- *   replies?: boolean,
  * }} options
  */
-export function createRealStore({
-  elements,
-  currentUserId = null,
-  replies = false,
-}) {
-  const state = createRealStoreState(replies);
+export function createRealStore({ elements, currentUserId = null }) {
+  const state = createRealStoreState();
   const roving = createRovingFocus(elements.list);
   const rendering = {
     ...createInitialRenderMethods(elements, state, currentUserId),

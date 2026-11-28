@@ -25,6 +25,9 @@ defmodule BnestAppWeb.FamilyChatRoomPageTest do
   end
 
   describe "the room shell" do
+    # Served on purpose: the frozen pre-#239 client (family_chat.js at 4ee4027) reads
+    # dataset["familyChatReplyEnabled"] === "true", and a browser still holding that bundle runs this
+    # markup after a reload into this revision. No code in the current bundle reads the attribute.
     test "always reports replies enabled at the route", %{conn: conn} do
       html = room_html(conn)
 

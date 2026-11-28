@@ -17,6 +17,7 @@ import {
 import { waitForRoomSubscribed } from "../support/family-chat-socket";
 import { instanceIdentities } from "../support/instance-identities";
 import {
+  boldWeightsOf,
   serveRemoteImages,
   setTargetMessage,
   TWO_LINES,
@@ -34,6 +35,16 @@ import {
 // so each check reads what the room rendered for the committed message.
 
 const { Given, When, Then } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message is shown as formatted Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A formatted message that arrives live is formatted
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending is shown as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide image or table fits a phone-width message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Images a message may not show stay as text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Links in a message open in a new tab
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Raw HTML in a message is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a formatted message quotes plain text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typed line breaks in a message are kept
 
 /** Waits until the target message's committed copy is rendered, then the body is what a member sees. */
 async function committedTarget(page: Page): Promise<void> {
@@ -112,8 +123,24 @@ When(
 
 Then("the message shows {string} in bold", async ({ page }, text: string) => {
   await committedTarget(page);
-  const strong = await targetBody(page).locator("strong").allTextContents();
-  expect(strong, "the bold text of the message").toContain(text);
+  const strong = targetBody(page).locator("strong");
+  expect(
+    await strong.allTextContents(),
+    "the bold text of the message",
+  ).toContain(text);
+  // The rendered weight of each strong element with this text must be heavier than normal (400), and must be the
+  // weight the stylesheet sets for it.
+  const weights = await boldWeightsOf(strong, text);
+  expect(weights.length, `the strong text "${text}"`).toBeGreaterThan(0);
+  for (const { computed, expected } of weights) {
+    expect(
+      Number(computed),
+      `the rendered weight of "${text}"`,
+    ).toBeGreaterThan(400);
+    expect(computed, `the weight the stylesheet sets for "${text}"`).toBe(
+      expected,
+    );
+  }
 });
 
 Then(

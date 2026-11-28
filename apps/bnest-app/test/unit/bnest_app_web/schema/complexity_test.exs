@@ -77,6 +77,10 @@ defmodule BnestAppWeb.Schema.ComplexityTest do
     end
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A page asks for each message's body HTML once
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A page that asks for each message's body HTML under ten aliases is refused
   test "the budget admits a normal page and refuses a page that repeats bodyHtml" do
     # The connection's children: `id` (1) and `bodyHtml` (100) of each message, `nodes` itself (1), `hasOlder` and
     # `hasNewer` (1 each). Ten aliases repeat `bodyHtml` ten times.

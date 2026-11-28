@@ -24,3 +24,15 @@ export async function putTheme(
   });
   return response.status();
 }
+
+// The status and body the server answers, for scenarios that assert the refusal text too.
+export async function putThemeAnswer(
+  page: Page,
+  theme: string,
+): Promise<{ status: number; body: string }> {
+  const response = await page.request.put("/preferences/theme", {
+    form: { theme },
+    headers: { "x-csrf-token": await csrfToken(page) },
+  });
+  return { status: response.status(), body: await response.text() };
+}

@@ -11,11 +11,15 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: perform(context, :confirm_imports)
   )
 
+  step("Bnest reports each source as accepted and verified", context,
+    do: outcome(context, :immutable_envelopes)
+  )
+
   step("Bnest preserves an immutable envelope for each source", context,
     do: outcome(context, :immutable_envelopes)
   )
 
-  step("Bnest reads each normalized user-owned record successfully", context,
+  step("the user's chat, Sifat Allah progress, and theme are read back from Bnest", context,
     do: outcome(context, :normalized_records_read)
   )
 
@@ -23,7 +27,9 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: prepare(context, :absent_theme_source)
   )
 
-  step("Bnest records the absent system theme outcome", context,
+  step(
+    "Bnest reports the theme import as accepted with nothing for the browser to clear",
+    context,
     do: outcome(context, :absent_theme_recorded)
   )
 
@@ -43,7 +49,9 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :source_and_record_unchanged)
   )
 
-  step("a recognized import was interrupted after source preservation", context,
+  step(
+    "a recognized import was interrupted after source preservation and before its data was saved",
+    context,
     do: prepare(context, :interrupted_import)
   )
 
@@ -81,7 +89,11 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :only_accepted_key_cleared)
   )
 
-  step("Bnest persists future changes only on the server", context,
+  step("the user confirms the recognized imports and then changes the theme", context,
+    do: context |> perform(:accept_and_read_back) |> perform(:change_theme)
+  )
+
+  step("the change is saved on the server and the browser is told to keep no copy", context,
     do: outcome(context, :server_only_persistence)
   )
 
@@ -97,14 +109,53 @@ defmodule BnestApp.Behaviour.CentralizedDataSteps do
     do: outcome(context, :fresh_conversation_reported)
   )
 
-  defp prepare(context, state),
-    do: context.behaviour_driver.prepare_behaviour(context, state, [])
+  # BN-DATA-01, BN-DATA-09 and BN-DATA-10: the migration page's source list,
+  # import outcomes and local-user login gate.
 
-  defp perform(context, action),
-    do: context.behaviour_driver.perform_behaviour(context, action, [])
+  step(
+    "this browser holds chat, learning, and absent theme sources plus an unknown key",
+    context,
+    do: prepare(context, :migration_mixed_sources, [])
+  )
 
-  defp outcome(context, expected) do
-    assert context.behaviour_driver.behaviour_outcome?(context, expected, [])
+  step("a browser source filed as {string}", %{args: [filed]} = context,
+    do: prepare(context, :filed_browser_source, [filed])
+  )
+
+  step(
+    "the visitor opens the migration page on the cutover-off candidate",
+    context,
+    do: perform(context, :open_migration_cutover_off, [])
+  )
+
+  step("the migration page lists {string} as {string}", %{args: [label, status]} = context,
+    do: outcome(context, :migration_source_listed, [label, status])
+  )
+
+  step("the migration page lists no unknown source", context,
+    do: outcome(context, :migration_no_unknown)
+  )
+
+  step("the migration page shows {string}", %{args: [line]} = context,
+    do: outcome(context, :migration_outcome_shown, [line])
+  )
+
+  step("the visitor lands on the home page with the login warning", context,
+    do: outcome(context, :migration_login_warning, [])
+  )
+
+  step("the visitor sees no import control", context,
+    do: outcome(context, :migration_no_import_control, [])
+  )
+
+  defp prepare(context, state, args \\ []),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
+
+  defp perform(context, action, args \\ []),
+    do: context.behaviour_driver.perform_behaviour(context, action, args)
+
+  defp outcome(context, expected, args \\ []) do
+    assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
     context
   end
 end

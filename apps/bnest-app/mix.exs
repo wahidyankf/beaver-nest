@@ -150,6 +150,49 @@ defmodule BnestApp.MixProject do
       BnestApp.Behaviour.TestIsolation.Fixtures,
       BnestApp.Behaviour.TestIsolation.IntegrationAdapter,
       BnestApp.Behaviour.TestIsolation.UnitAdapter,
+      # Scenario adapters and shared models for development_commands.feature and
+      # release_and_deploy.feature. They drive the tooling command surface, so
+      # the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.DevelopmentCommandsModel,
+      BnestApp.Behaviour.DevelopmentCommands.IntegrationAdapter,
+      BnestApp.Behaviour.DevelopmentCommands.UnitAdapter,
+      BnestApp.Behaviour.ReleaseAndDeployModel,
+      BnestApp.Behaviour.ReleaseAndDeploy.IntegrationAdapter,
+      BnestApp.Behaviour.ReleaseAndDeploy.UnitAdapter,
+      # Scenario adapters and the shared model for operator_commands.feature.
+      # They drive the operator command surface, so the unit denominator
+      # leaves them out, as it does the drivers.
+      BnestApp.Behaviour.OperatorCommandsModel,
+      BnestApp.Behaviour.OperatorCommands.IntegrationAdapter,
+      BnestApp.Behaviour.OperatorCommands.NotArgon2idHasher,
+      BnestApp.Behaviour.OperatorCommands.UnitAdapter,
+      # Scenario adapters and the shared model for the proxy scenarios in
+      # release_and_deploy.feature. They drive the tooling command surface,
+      # so the unit denominator leaves them out, as it does the drivers.
+      BnestApp.Behaviour.ProxyModel,
+      BnestApp.Behaviour.Proxy.IntegrationAdapter,
+      BnestApp.Behaviour.Proxy.UnitAdapter,
+      # Failing test double defined in the home-page driver, exercised only
+      # by integration driver paths, never by unit runs.
+      BnestApp.Behaviour.FailingProgressStore,
+      # Scenario adapters and shared models for runtime_configuration.feature
+      # and operator_configuration.feature. They drive the configuration
+      # surface, so the unit denominator leaves them out, as it does the
+      # drivers.
+      BnestApp.Behaviour.RuntimeConfigurationModel,
+      BnestApp.Behaviour.RuntimeConfiguration.IntegrationAdapter,
+      BnestApp.Behaviour.RuntimeConfiguration.UnitAdapter,
+      BnestApp.Behaviour.OperatorConfigurationModel,
+      BnestApp.Behaviour.OperatorConfiguration.IntegrationAdapter,
+      BnestApp.Behaviour.OperatorConfiguration.UnitAdapter,
+      # Scenario adapters for http_endpoints.feature. They drive the HTTP
+      # boundary surface, so the unit denominator leaves them out, as it does
+      # the other scenario adapters.
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter,
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter.InvalidRolesStore,
+      BnestApp.Behaviour.HttpEndpoints.IntegrationAdapter.RejectingStore,
+      BnestApp.Behaviour.HttpEndpoints.UnitAdapter,
+      BnestApp.Behaviour.HttpEndpoints.UnitAdapter.RejectingStore,
       BnestApp.SchemaSourceScan,
       # Spawns test instances, which only `test:integration` runs, so the unit denominator leaves it out.
       BnestApp.FreshDatabaseCase,
@@ -166,7 +209,24 @@ defmodule BnestApp.MixProject do
       BnestAppWeb.ConnCase,
       # The lifecycle answers run only through the endpoint against a spawned instance, which only
       # `test:integration` runs. The guard, request and error modules are pure and unit-tested.
-      BnestAppWeb.TestingControl.InstanceController
+      BnestAppWeb.TestingControl.InstanceController,
+      # BDD step definitions and behaviour support compiled into the test env but executed
+      # outside the unit run (ExBdd scenarios, integration drivers). Non-production code, so
+      # the unit denominator leaves them out, as it does the other scaffolding above.
+      ~r/BnestApp\.Behaviour\..*Steps$/,
+      BnestApp.Behaviour.IntegrationSupport,
+      BnestApp.Behaviour.UnitSupport,
+      BnestApp.Behaviour.FeVitestUnitScope,
+      # Test-instance schema helpers and the ExUnit case template. They run against spawned
+      # instances in `test:integration`, or are compile-time templates, so the unit run never
+      # executes them. Non-production code.
+      ~r/\.TestInstance\./,
+      BnestAppWeb.OwnMessageMarkupFixture,
+      BnestAppWeb.ScenarioCase,
+      BnestAppWeb.TestingControl.ErrorBody,
+      BnestAppWeb.TestingControl.Guard,
+      BnestAppWeb.TestingControl.Request,
+      BnestAppWeb.TestingControl.Secret
     ]
 
     # Outbound adapters, inbound adapters and infrastructure entry points: `test:integration`
@@ -174,6 +234,10 @@ defmodule BnestApp.MixProject do
     adapters_and_entry_points = [
       ~r/\.Adapters\./,
       BnestApp.Application,
+      # The release-time aggregation entry point. It starts the repository and takes the
+      # exclusive storage lock around the two migration modules above, so only
+      # `test:integration` and release tooling exercise it, as they do those modules.
+      BnestApp.Release.Migrations,
       BnestApp.Release.Migrations.FamilyChat,
       BnestApp.Release.Migrations.PersistentSchedules,
       BnestApp.SqliteRepo,

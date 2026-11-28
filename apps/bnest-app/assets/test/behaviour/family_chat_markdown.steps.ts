@@ -104,6 +104,9 @@ function quoteOf(row: HTMLElement): HTMLElement {
 
 // --- Given and When: who sent what -----------------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message keeps the focused message's content reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message is shown as formatted Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An https image in a message is shown inline
 step("{word} has sent the family chat message {string}", (sender, body) => {
   remember("markdownTarget", post({ body, sender: otherMember(sender) }).id);
 });
@@ -115,6 +118,7 @@ step("{word} has sent a message typed on two lines", (sender) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide image or table fits a phone-width message
 step("{word} has sent a wide image and a wide table", (sender) => {
   remember(
     "markdownTarget",
@@ -134,10 +138,14 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending is shown as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending shows its diagram source as typed
 step("the server holds the visitor's next message unanswered", () => {
   server().setSendOutcome(visitor().id, "hold");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a formatted message quotes plain text
 step("the visitor replies to the message with {string}", async (body) => {
   await waitFor(() => targetRow() !== null, "the message to reply to");
   const id = await replyThroughMenu(targetRow() as HTMLElement, body);
@@ -187,6 +195,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A formatted message that arrives live is formatted
 step("the message shows {string} in bold", async (text) => {
   const body = await renderedBody();
   expect(
@@ -216,6 +225,7 @@ step("the message shows the text {string}", async (text) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Raw HTML in a message is shown as text and never runs
 step("the message contains no script or image element", async () => {
   const body = await renderedBody();
   expect(
@@ -239,6 +249,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typed line breaks in a message are kept
 step("the message keeps its two lines on separate lines", async () => {
   const body = await renderedBody();
   const text = (body.textContent ?? "").replace(/\s+/gu, " ").trim();
@@ -266,6 +277,7 @@ step("the message shows no image", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Links in a message open in a new tab
 step("the links in the message open in a new tab", async () => {
   const body = await renderedBody();
   const links = linksIn(body);

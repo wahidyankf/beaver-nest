@@ -1,24 +1,37 @@
 # Test-Driven Development
 
-Develop every new or changed application and library behaviour with test-driven development (TDD), using the [red–green–refactor workflow](../workflows/quality/red-green-refactor.md).
+Develop every new or changed application and library behaviour with test-driven development (TDD), using the
+[red–green–refactor workflow](../workflows/quality/red-green-refactor.md).
 
-Treat test declarations and implementations as first-class living documentation. Before interpreting or changing production code, read the relevant tests to establish intended behaviour, constraints, and boundaries. For projects governed by [BDD](behaviour-driven-development.md), begin with the canonical Gherkin before reading or changing its test adapters.
+Treat test declarations and implementations as first-class living documentation. Before interpreting or changing
+production code, read the relevant tests to establish intended behaviour, constraints, and boundaries. For projects
+governed by [BDD](behaviour-driven-development.md), begin with the canonical Gherkin before reading or changing its test
+adapters.
 
 ## Requirements
 
 - Work in small, observable behaviour increments.
 - Write or change an automated test before writing the production implementation for each increment.
-- Confirm the test fails for the expected behavioural reason before implementing the change; a compilation, configuration, or infrastructure failure does not satisfy the red phase.
+- Confirm the test fails for the expected behavioural reason before implementing the change; a compilation,
+  configuration, or infrastructure failure does not satisfy the red phase.
 - Add only enough production code to make the test pass, then improve the design while keeping the tests green.
 - Include bug fixes: first add a test that reproduces the defect, then fix it through the same cycle.
 - Keep tests deterministic, focused on behaviour, and at the narrowest practical level that gives confidence.
-- Treat an intermittent test as a defect in the test or in the code under test, never as noise to tolerate. Reproduce it, identify what makes it nondeterministic — ordering, timing, shared state, real clocks, randomness, network or filesystem dependence, or leaked fixtures — and remove that source. Never mask one by retrying, sleeping, widening a timeout, loosening an assertion, reordering to hide it, skipping, or quarantining it. A flake that hides a genuine race in production code is a production defect and is fixed there.
-- Keep test declarations, support code, and production behaviour synchronized so the tests remain trustworthy documentation.
+- Treat an intermittent test as a defect in the test or in the code under test, never as noise to tolerate. Reproduce
+  it, identify what makes it nondeterministic — ordering, timing, shared state, real clocks, randomness, network or
+  filesystem dependence, or leaked fixtures — and remove that source. Never mask one by retrying, sleeping, widening a
+  timeout, loosening an assertion, reordering to hide it, skipping, or quarantining it. A flake that hides a genuine
+  race in production code is a production defect and is fixed there.
+- Keep test declarations, support code, and production behaviour synchronized so the tests remain trustworthy
+  documentation.
 - Run the relevant broader test targets after completing the cycles to detect regressions.
 
-Pure refactoring must begin from a green test baseline, preserve behaviour, and keep relevant tests green throughout. If existing code lacks coverage for the behaviour being refactored, add characterization tests before restructuring it.
+Pure refactoring must begin from a green test baseline, preserve behaviour, and keep relevant tests green throughout. If
+existing code lacks coverage for the behaviour being refactored, add characterization tests before restructuring it.
 
-TDD provides executable evidence for intended behaviour, catches regressions early, and encourages simpler designs. This standard is subordinate to the repository [vision](../vision/README.md), [principles](../principles/README.md), and [conventions](../conventions/README.md).
+TDD provides executable evidence for intended behaviour, catches regressions early, and encourages simpler designs. This
+standard is subordinate to the repository [vision](../vision/README.md), [principles](../principles/README.md), and
+[conventions](../conventions/README.md).
 
 ## Modules
 
@@ -33,24 +46,22 @@ REFACTOR step, expanding the selection when the change affects more code.
 Record the exact command, test path, selected case identities, positive executed case count, exit status, and observed
 result for each step. An unmatched filter, zero executed cases, or cached output that executes nothing is not proof.
 
-Pass case selection through a declared, package-manager-prefixed Nx target; never invoke a raw runner outside Nx.
-When an aggregate enforces coverage over deliberately unexecuted code, use a declared focused Nx target or
-configuration that supports the selection without whole-project coverage evaluation. Preserve complete coverage
-targets, the 99% unit floor, exclusions, and required build, code generation, resource admission, isolated synthetic
-fixtures, and cleanup. A missing focused capability must be supplied through normal target and test-first standards
-before it can serve as evidence; never invent a target in a command or weaken the complete gate.
+Pass case selection through a declared, package-manager-prefixed Nx target; never invoke a raw runner outside Nx. When
+an aggregate enforces coverage over deliberately unexecuted code, use a declared focused Nx target or configuration that
+supports the selection without whole-project coverage evaluation. Preserve complete coverage targets, the 99% unit
+floor, exclusions, and required build, code generation, resource admission, isolated synthetic fixtures, and cleanup. A
+missing focused capability must be supplied through normal target and test-first standards before it can serve as
+evidence; never invent a target in a command or weaken the complete gate.
 
 At each phase end, and before pull-request ready-for-review or session end as a safety net, run the whole automated
-suite except the full E2E suite, plus only the affected E2E flow. One recorded complete run may satisfy both
-boundaries when code, tests, configuration, and affected scope are unchanged; otherwise rerun. Focused
-runs replace no hook, CI, or delivery gate. Existing TDD scope exceptions remain unchanged. A full E2E run is never a
-completion condition for a plan phase or plan execution; full E2E stays a separately batched set on its scheduled
-workflow.
+suite except the full E2E suite, plus only the affected E2E flow. One recorded complete run may satisfy both boundaries
+when code, tests, configuration, and affected scope are unchanged; otherwise rerun. Focused runs replace no hook, CI, or
+delivery gate. Existing TDD scope exceptions remain unchanged. A full E2E run is never a completion condition for a plan
+phase or plan execution; full E2E stays a separately batched set on its scheduled workflow.
 
 Followed evidence names relevant executed cases with positive counts and the complete boundary runs. A per-item whole
 suite, an omitted affected shared boundary, nonexecuting evidence, a required full E2E as a gate, or a missing required
-complete gate violates this
-rule.
+complete gate violates this rule.
 
 **Enforcement: unenforced by decision.** Selecting the meaningful affected scope and proving its recorded evidence
 require judgement; static text checks do not establish semantic test execution.

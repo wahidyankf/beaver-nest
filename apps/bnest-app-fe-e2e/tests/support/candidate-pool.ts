@@ -17,14 +17,27 @@ import {
 
 const candidates = new Map<number, ChildProcess>();
 const candidateLogs = new Map<number, string>();
+const candidateIdentityCutoverFlags = new Map<number, boolean | undefined>();
 process.once("exit", () => terminateChildProcesses(candidates.values()));
 
-export async function ensureCandidate(port: number): Promise<void> {
+export async function ensureCandidate(
+  port: number,
+  identityCutover?: boolean,
+): Promise<void> {
   const existing = candidates.get(port);
-  if (existing !== undefined && existing.exitCode === null) return;
+  if (existing !== undefined && existing.exitCode === null) {
+    if (candidateIdentityCutoverFlags.get(port) === identityCutover) return;
+    // A prior scenario left a candidate running on this port with a
+    // different flag state than this call needs -- the flag is only set at
+    // boot (`runtime.exs`), so reusing the process would silently keep the
+    // stale value.
+    await stopChildProcesses([existing]);
+    candidates.delete(port);
+  }
 
-  const candidate = launchCandidate(port);
+  const candidate = launchCandidate(port, identityCutover);
   candidates.set(port, candidate);
+  candidateIdentityCutoverFlags.set(port, identityCutover);
   candidate.stdout?.on("data", (chunk: Buffer) =>
     appendCandidateLog(port, chunk),
   );
@@ -37,9 +50,13 @@ export async function ensureCandidate(port: number): Promise<void> {
 export async function stopAllCandidates(): Promise<void> {
   await stopChildProcesses(candidates.values());
   candidates.clear();
+  candidateIdentityCutoverFlags.clear();
 }
 
-function launchCandidate(port: number): ChildProcess {
+function launchCandidate(
+  port: number,
+  identityCutover?: boolean,
+): ChildProcess {
   const codexRunner = path.join(
     appDirectory,
     "test/support/codex_fixture_runner.mjs",
@@ -53,6 +70,14 @@ function launchCandidate(port: number): ChildProcess {
     cwd: appDirectory,
     env: {
       ...routedEnvironment(),
+      // Left unset means "inherit the suite's own true" (config/test.exs);
+      // pinned false is what makes a candidate serve the legacy local
+      // browser instead of the login gate.
+      ...(identityCutover === undefined
+        ? {}
+        : {
+            BNEST_IDENTITY_CUTOVER: identityCutover ? "true" : "false",
+          }),
       BNEST_CODEX_MODELS_RUNNER: codexModelsRunner,
       BNEST_CODEX_RUNNER: codexRunner,
       BNEST_DEPLOY_SLOT: port === candidatePort ? "green" : "yellow",

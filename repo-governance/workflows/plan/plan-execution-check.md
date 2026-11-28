@@ -19,7 +19,8 @@ produces findings that contradict each other.
 
 Where a step asks for past proof that can no longer be produced, judge the recorded observation of current behaviour
 that replaces it, per
-[Current Behaviour Over Past Proof](../../conventions/plans/007-evidence-and-quality.md#current-behaviour-over-past-proof).
+[Current Behaviour Over Past
+Proof](../../conventions/plans/007-evidence-and-quality.md#current-behaviour-over-past-proof).
 A missing past record alone is not a finding.
 
 ## Exit

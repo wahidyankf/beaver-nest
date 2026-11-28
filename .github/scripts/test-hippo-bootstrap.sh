@@ -1,11 +1,17 @@
 #!/bin/sh
-# The adapter for specs/tools/hippo-consumer/behaviours/hippo-bootstrap.feature.
+# The adapter for specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature.
 #
 # Contention is choreographed through gates rather than through timing. A
 # fixture that waits a while and then continues turns a race that never happened
 # into a test that passes, so every wait here is bounded and every bound fails
 # loudly.
 set -eu
+
+# Hermetic worker-policy proofs: the `hippo run` supervisor exports
+# HIPPO_DEFAULT_CONFIG/HIPPO_DEFAULT_IDENTITY, which would otherwise win over
+# the checkout-local resolution under test via `:-` defaults. CI runs this
+# script directly so behaviour there is unchanged.
+unset HIPPO_DEFAULT_CONFIG HIPPO_DEFAULT_IDENTITY
 
 repository_root=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
 temporary_root=$(mktemp -d)
@@ -26,11 +32,37 @@ grep -Fq '`hippo.lock`, then align' "$resource_rule"
 remote_dispatch_rule="$repository_root/repo-governance/development/resource-aware-development/003-remote-dispatch.md"
 grep -Fq '003-remote-dispatch' "$resource_rule"
 grep -Fq '429a891' "$remote_dispatch_rule"
+# Lint of the workflow and of the governance text, not behaviour. v1 owns queueing
+# inside one invocation, so the shared-root proof must not retry a reserved exit
+# code (a client-side loop can duplicate a child or misclassify a child-owned code),
+# and it must submit exactly two one-attempt owners. A protocol mismatch is exit
+# 125: HIPPO started nothing, the attempt is never retried, and the operator checks
+# status, then drains or upgrades.
+workflow="$repository_root/.github/workflows/hippo-consumer-smoke.yml"
+if grep -qE '(-ne|-eq) (75|76) \]|deferrals=' "$workflow"; then
+	echo "the shared-root proof must not retry a reserved exit code" >&2
+	exit 1
+fi
+if [ "$(grep -cE '^[[:space:]]*\./hippo run .*&$' "$workflow")" -ne 0 ]; then
+	echo "a guarded owner bypasses the one-attempt launcher" >&2
+	exit 1
+fi
+if [ "$(grep -cE '^[[:space:]]*launch_owner [a-z]+ &$' "$workflow")" -ne 2 ]; then
+	echo "the proof must submit exactly two one-attempt owners" >&2
+	exit 1
+fi
+grep -Fq 'Exit `125`' "$resource_rule"
+grep -Fqi 'never retry it' "$resource_rule"
+grep -Fq './hippo status' "$resource_rule"
+grep -Fq 'drain or' "$resource_rule"
 # Keep every tracked active example compatible with schema 3 and prevent the
 # self-contention caused by wrapping an already-guarded package script.
+# The development_commands parsing test carries a command string as data,
+# not a real invocation, so it is excluded like plans.
 tier_findings=$(git -C "$repository_root" grep -n -E \
 	'\./hippo run --class (ephemeral|service|transactional)' -- \
-	. ':(exclude)plans/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' | \
+	. ':(exclude)plans/**' ':(exclude).github/scripts/test-hippo-bootstrap.sh' \
+	':(exclude)apps/bnest-app/test/unit/behaviour/development_commands_test.exs' | \
 	grep -v -- '--resource-tier' || true)
 if [ -n "$tier_findings" ]; then
 	printf '%s\n%s\n' 'HIPPO commands missing --resource-tier:' "$tier_findings" >&2
@@ -126,6 +158,37 @@ elif [ "\${1:-}" = run ]; then
     for argument in "\$@"; do
       printf '%s\n' "\$argument" >> "\$HIPPO_TEST_ARGUMENTS"
     done
+  fi
+  if [ -n "\${HIPPO_TEST_POLICY_FILE:-}" ]; then
+    printf '%s\n' "\$HIPPO_DEFAULT_CONFIG" > "\$HIPPO_TEST_POLICY_FILE.config"
+    printf '%s\n' "\$HIPPO_DEFAULT_IDENTITY" > "\$HIPPO_TEST_POLICY_FILE.identity"
+  fi
+  if [ -n "\${HIPPO_TEST_ATTEMPTS:-}" ]; then
+    printf '%s\n' "\${HIPPO_TEST_OWNER:-owner}" >> "\$HIPPO_TEST_ATTEMPTS"
+  fi
+  if [ -n "\${HIPPO_TEST_REFUSAL:-}" ]; then
+    printf '%s\n' "\$HIPPO_TEST_REFUSAL" >&2
+    exit 125
+  fi
+  if [ -n "\${HIPPO_TEST_QUEUE_ROOT:-}" ]; then
+    queue_owner="\${HIPPO_TEST_OWNER:-owner}"
+    queue_attempt=0
+    until mkdir "\$HIPPO_TEST_QUEUE_ROOT/slot" 2>/dev/null; do
+      : > "\$HIPPO_TEST_QUEUE_ROOT/queued.\$queue_owner"
+      queue_attempt=\$((queue_attempt + 1))
+      [ "\$queue_attempt" -lt 400 ] || exit 96
+      /bin/sleep 0.05
+    done
+    : > "\$HIPPO_TEST_QUEUE_ROOT/reservation.\$queue_owner"
+    if [ -n "\${HIPPO_TEST_HOLD:-}" ]; then
+      hold_attempt=0
+      while [ ! -e "\$HIPPO_TEST_HOLD" ]; do
+        hold_attempt=\$((hold_attempt + 1))
+        [ "\$hold_attempt" -lt 400 ] || exit 96
+        /bin/sleep 0.05
+      done
+    fi
+    rmdir "\$HIPPO_TEST_QUEUE_ROOT/slot"
   fi
   printf '%s\n' 'run-ok'
 else
@@ -326,30 +389,29 @@ rm -f -- "$counter_probe" "$temporary_root/probe-one.tar.gz" "$temporary_root/pr
 # This adapter binds the canonical tool corpus by exact scenario title. The
 # exact-list comparison makes a missing, duplicate, renamed, or unknown
 # scenario fail before any fixture runs.
-feature_file="$repository_root/specs/tools/hippo-consumer/behaviours/hippo-bootstrap.feature"
+feature_file="$repository_root/specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature"
 expected_scenarios='A cold cache installs once and a warm cache needs no transport
 Repository worker settings precede the caller'"'"'s run arguments
 Tampered warm-cache payload never executes
-A downloaded archive whose digest misses the pin never executes
+A downloaded release that fails verification is refused
 Non-exact stable release version is rejected
-Release identity envelope must match exactly
 Unsupported platform is refused before any transport
-Matching live install-lock owner remains protected
-Malformed identity for a live install-lock owner fails closed
-Reused live PID with a different valid identity is reclaimed
-Dead install-lock owner is reclaimed
-Crash before install-lock metadata publication is recoverable
-Concurrent cold callers install from exactly one verified download
-Concurrent stale reclaimers preserve a replacement live owner
+A caller waits while another caller is installing
+A caller takes over an install whose owner is gone
+Two callers starting together download once and both run the release
 A consumer never removes an install lock it did not publish
 Install guard storage stays bounded across release versions
 Retention never deletes a release another consumer is using
 Retention never evicts a release another repository still uses
-Release ranking reads real timestamps on every supported platform
 Retention reclaims releases left idle beyond its window
 Concurrent owners survive queued admission without client retry
-A protocol mismatch is never retried as capacity'
-actual_scenarios=$(awk '/^[[:space:]]*Scenario: / { sub(/^[[:space:]]*Scenario: /, ""); print }' "$feature_file")
+A protocol mismatch is never retried as capacity
+A missing, duplicated, or malformed pin exits 125 before any transport
+A bounded wait for the install guard or lock that runs out exits 124
+A host without flock or lockf exits 125
+The worker policy comes from the checkout'"'"'s own hippo.local.json, else the primary checkout'"'"'s, and an explicit setting wins
+The wrapper hands the release the repository'"'"'s local resource policy'
+actual_scenarios=$(awk '/^[[:space:]]*Scenario( Outline)?: / { sub(/^[[:space:]]*Scenario( Outline)?: /, ""); print }' "$feature_file")
 [ "$actual_scenarios" = "$expected_scenarios" ]
 
 prepare_legacy_install_lock() {
@@ -393,6 +455,7 @@ assert_waits_for_live_lock() {
 	[ -f "$install_lock" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A cold cache installs once and a warm cache needs no transport
 run_cold_then_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -413,6 +476,7 @@ run_cold_then_warm_cache() {
 # presence and their position are both claims about it: every mapping must
 # arrive ahead of the caller's own arguments, and the caller's order must be
 # untouched.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Repository worker settings precede the caller's run arguments
 run_worker_settings_precede_run_arguments() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -439,6 +503,7 @@ ok'
 
 # Integrity failures are configuration errors, not transport errors, and must
 # stop before an unverified payload is published or executed.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A downloaded release that fails verification is refused
 run_download_digest_mismatch() {
 	rm -rf -- "$cache_root"
 	write_lock "$test_version" 0000000000000000000000000000000000000000000000000000000000000000
@@ -464,6 +529,7 @@ run_download_digest_mismatch() {
 # forever. The refusal is attributed by its message, because exit 125 is also
 # what an unreadable lock produces -- and the platform branch runs before the
 # lock's per-platform checksum is ever read.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Unsupported platform is refused before any transport
 run_unsupported_platform_refused() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -494,6 +560,7 @@ run_unsupported_platform_refused() {
 # record. The second starts only once the first is provably inside transport,
 # so this is contention rather than two runs that happened to overlap, and
 # exact-owner cleanup must leave neither the lock nor a prepared record behind.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Two callers starting together download once and both run the release
 run_concurrent_cold_callers() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -511,6 +578,9 @@ run_concurrent_cold_callers() {
 		HIPPO_TEST_CURL_GATE="$gate" "$subject" probe >"$second_result" &
 	second_pid=$!
 	wait_for "the second cold caller to start" claim_exists_for "$cache_root/$test_version" "$second_pid"
+	# With both callers running, the first still owns the install lock.
+	[ -f "$cache_root/$test_version/$host_platform.lock" ]
+	[ "$(sed -n '1p' "$cache_root/$test_version/$host_platform.lock")" = "$first_pid" ]
 	: >"$gate/release"
 	wait "$first_pid"
 	wait "$second_pid"
@@ -521,6 +591,7 @@ run_concurrent_cold_callers() {
 	[ -z "$(find "$cache_root/$test_version" -name '.install-owner.*' -print -quit)" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Tampered warm-cache payload never executes
 run_tampered_warm_cache() {
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
@@ -566,6 +637,7 @@ EOF
 	[ ! -e "$tamper_marker" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Non-exact stable release version is rejected
 run_non_exact_stable_version() {
 	rm -rf -- "$cache_root"
 	downloads_before=$(download_count)
@@ -595,15 +667,18 @@ run_non_exact_identity_envelope() {
 	set +e
 	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
 		HIPPO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$test_version\",\"commit\":\"$test_commit\",\"version\":\"v0.0.0\"}" \
-		"$subject" probe >/dev/null 2>&1
+		"$subject" probe >"$temporary_root/envelope-output" 2>/dev/null
 	status=$?
 	set -e
 	[ "$status" -eq 125 ]
+	# The envelope is refused before the payload runs, so the payload never spoke.
+	[ ! -s "$temporary_root/envelope-output" ]
 	[ "$(download_count)" -eq "$((downloads_before + 1))" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo" ]
 	[ ! -e "$cache_root/$test_version/$host_platform/hippo.sha256" ]
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A caller waits while another caller is installing
 run_matching_live_owner() {
 	prepare_atomic_install_lock
 	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
@@ -641,6 +716,7 @@ run_reused_live_pid() {
 	assert_pinned_release_installed "$downloads_before"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A caller takes over an install whose owner is gone
 run_dead_owner() {
 	prepare_atomic_install_lock
 	dead_pid=2147483647
@@ -792,6 +868,7 @@ run_peer_consumer() {
 		"$temporary_root/peers/$peer_name/hippo" probe
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention never deletes a release another consumer is using
 run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 	claimed_version=v9.7.2
@@ -853,6 +930,7 @@ run_retention_protects_installing_release() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention never evicts a release another repository still uses
 run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 	sharing_versions='v9.5.1 v9.5.2 v9.5.3 v9.5.4'
@@ -876,6 +954,7 @@ run_retention_keeps_releases_other_repositories_use() {
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Retention reclaims releases left idle beyond its window
 run_retention_reclaims_idle_releases() {
 	rm -rf -- "$cache_root" "$curl_count"
 	idle_version=v9.4.9
@@ -915,6 +994,7 @@ run_retention_reclaims_idle_releases() {
 # place keeps the inode and breaks only the digest, and a byte-identical copy
 # keeps the digest and breaks only the inode. Dropping either conjunct survives
 # the other two.
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A consumer never removes an install lock it did not publish
 run_never_removes_a_foreign_install_lock() {
 	for substitution in foreign-owner rewritten-in-place identical-copy; do
 		prepare_atomic_install_lock
@@ -965,6 +1045,7 @@ run_never_removes_a_foreign_install_lock() {
 	done
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Install guard storage stays bounded across release versions
 run_bounded_install_guard_storage() {
 	rm -rf -- "$cache_root"
 	for release_version in v9.8.7 v9.8.8 v9.8.9 v9.8.10; do
@@ -1002,32 +1083,6 @@ run_bounded_install_guard_storage() {
 	[ "$guard_count" -eq 1 ]
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root"
-}
-
-run_concurrent_owners_survive_queued_admission() {
-	workflow="$repository_root/.github/workflows/hippo-consumer-smoke.yml"
-	# v1 owns queueing inside one invocation. A client-side exit-code loop can
-	# duplicate a child or misclassify a child-owned reserved code.
-	if grep -qE '(-ne|-eq) (75|76) \]|deferrals=' "$workflow"; then
-		echo "the shared-root proof must not retry a reserved exit code" >&2
-		return 1
-	fi
-	if [ "$(grep -cE '^[[:space:]]*\./hippo run .*&$' "$workflow")" -ne 0 ]; then
-		echo "a guarded owner bypasses the one-attempt launcher" >&2
-		return 1
-	fi
-	if [ "$(grep -cE '^[[:space:]]*launch_owner [a-z]+ &$' "$workflow")" -ne 2 ]; then
-		echo "the proof must submit exactly two one-attempt owners" >&2
-		return 1
-	fi
-}
-
-run_protocol_mismatch_is_never_retried() {
-	resource_rule="$repository_root/repo-governance/development/resource-aware-development.md"
-	grep -Fq 'Exit `125`' "$resource_rule"
-	grep -Fqi 'never retry it' "$resource_rule"
-	grep -Fq './hippo status' "$resource_rule"
-	grep -Fq 'drain or' "$resource_rule"
 }
 
 # The BSD form `stat -f` means "filesystem status" to GNU coreutils, which writes
@@ -1079,35 +1134,427 @@ run_release_ranking_reads_real_timestamps() {
 		[ ! -d "$cache_root/v8.1.2" ]
 		[ ! -d "$cache_root/v8.1.1" ]
 	done
+	# Name order and time order must disagree, or a ranking that sorted by name would pass
+	# the fixture above. Here the newest release carries the first name.
+	for simulated_stat in bsd gnu; do
+		case "$simulated_stat" in
+		bsd)
+			simulated_uname=Darwin
+			simulated_goos=darwin
+			;;
+		*)
+			simulated_uname=Linux
+			simulated_goos=linux
+			;;
+		esac
+		simulated_platform="$simulated_goos-$host_goarch"
+		ranking_version=v9.3.9
+		rm -rf -- "$cache_root" "$curl_count"
+		install_peer_consumer "ranking-$simulated_stat" "$ranking_version"
+		idle_stamp=5
+		for idle_release in v8.1.1 v8.1.2 v8.1.3 v8.1.4 v8.1.5; do
+			mkdir -p "$cache_root/$idle_release"
+			touch -t "20000${idle_stamp}010000" "$cache_root/$idle_release"
+			idle_stamp=$((idle_stamp - 1))
+		done
+		observed=$(PATH="$temporary_root/stat-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+			HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+			HIPPO_TEST_UNAME_S="$simulated_uname" HIPPO_TEST_STAT_EMULATE="$simulated_stat" \
+			HIPPO_TEST_IDENTITY="{\"schemaVersion\":1,\"version\":\"$ranking_version\",\"commit\":\"$test_commit\"}" \
+			"$temporary_root/peers/ranking-$simulated_stat/hippo" probe)
+		[ "$observed" = probe-ok ]
+		[ -x "$cache_root/$ranking_version/$simulated_platform/hippo" ]
+		[ -d "$cache_root/v8.1.1" ]
+		[ -d "$cache_root/v8.1.2" ]
+		[ ! -d "$cache_root/v8.1.3" ]
+		[ ! -d "$cache_root/v8.1.4" ]
+		[ ! -d "$cache_root/v8.1.5" ]
+	done
 	write_lock "$test_version" "$checksum"
 	rm -rf -- "$cache_root" "$curl_count"
 }
 
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A missing, duplicated, or malformed pin exits 125 before any transport
+run_pin_refusals_125() {
+	marker="$temporary_root/curl-called"
+	rm -f -- "$marker"
+	mkdir -p "$temporary_root/fail-bin"
+	cat >"$temporary_root/fail-bin/curl" <<EOF
+#!/bin/sh
+: > "$marker"
+exit 99
+EOF
+	chmod 755 "$temporary_root/fail-bin/curl"
+	for tool in uname sleep; do
+		cp "$temporary_root/fake-bin/$tool" "$temporary_root/fail-bin/$tool"
+	done
+	fail_path="$temporary_root/fail-bin:$PATH"
+	rm -rf -- "$cache_root" "$curl_count"
+	rm -f -- "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-no-lock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo has no pin at hippo.lock' "$temporary_root/pin-no-lock"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	printf 'version=%s\n' "$test_version" >>"$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-dup"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-dup"
+	[ ! -e "$marker" ]
+	grep -v '^version=' "$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+	mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-missing"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'missing or duplicate version' "$temporary_root/pin-missing"
+	[ ! -e "$marker" ]
+	write_lock "$test_version" "$checksum"
+	for bad_commit in 0123456789abcdef short ZZ0123456789abcdef0123456789abcdef01234567; do
+		awk -v bad="$bad_commit" '{ if ($0 ~ /^commit=/) print "commit=" bad; else print }' \
+			"$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+		mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+		set +e
+		PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-commit"
+		status=$?
+		set -e
+		[ "$status" -eq 125 ]
+		grep -Fq 'invalid commit' "$temporary_root/pin-commit"
+		[ ! -e "$marker" ]
+		write_lock "$test_version" "$checksum"
+	done
+	awk -v plat="$host_platform" '{ if ($0 ~ "^" plat "=") print plat "=invalid"; else print }' \
+		"$temporary_root/consumer/hippo.lock" >"$temporary_root/consumer/hippo.lock.tmp"
+	mv "$temporary_root/consumer/hippo.lock.tmp" "$temporary_root/consumer/hippo.lock"
+	set +e
+	PATH="$fail_path" HIPPO_INSTALL_CACHE="$cache_root" "$subject" probe >/dev/null 2>"$temporary_root/pin-checksum"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'invalid checksum' "$temporary_root/pin-checksum"
+	[ ! -e "$marker" ]
+	[ "$(download_count)" -eq 0 ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A bounded wait for the install guard or lock that runs out exits 124
+run_bounded_wait_124() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$cache_root" "$temporary_root/timeout-bin"
+	cat >"$temporary_root/timeout-bin/flock" <<'EOF'
+#!/bin/sh
+exit 124
+EOF
+	cat >"$temporary_root/timeout-bin/lockf" <<'EOF'
+#!/bin/sh
+exit 1
+EOF
+	chmod 755 "$temporary_root/timeout-bin/flock" "$temporary_root/timeout-bin/lockf"
+	set +e
+	PATH="$temporary_root/timeout-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Linux "$subject" probe >/dev/null 2>"$temporary_root/guard-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install guard' "$temporary_root/guard-timeout"
+	mkdir -p "$temporary_root/fast-bin"
+	cat >"$temporary_root/fast-bin/sleep" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+	chmod 755 "$temporary_root/fast-bin/sleep"
+	prepare_atomic_install_lock
+	process_start=$(LC_ALL=C ps -o lstart= -p "$$" 2>/dev/null | awk '{$1=$1; print; exit}')
+	process_digest=$(printf '%s\n' "$process_start" | hash_stream)
+	printf '%s\n%s\n' "$$" "$process_digest" >"$install_lock"
+	set +e
+	PATH="$temporary_root/fast-bin:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		"$subject" probe >/dev/null 2>"$temporary_root/lock-timeout"
+	status=$?
+	set -e
+	[ "$status" -eq 124 ]
+	grep -Fq 'timed out waiting for its install lock' "$temporary_root/lock-timeout"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A host without flock or lockf exits 125
+run_missing_lock_tool_125() {
+	write_lock "$test_version" "$checksum"
+	mkdir -p "$temporary_root/no-lock-bin"
+	for b in /usr/bin/* /bin/*; do
+		base=${b##*/}
+		case "$base" in
+		flock | lockf | curl | uname | sleep) continue ;;
+		esac
+		[ -e "$temporary_root/no-lock-bin/$base" ] || ln -s "$b" "$temporary_root/no-lock-bin/$base" 2>/dev/null || true
+	done
+	cp "$temporary_root/fake-bin/curl" "$temporary_root/no-lock-bin/curl"
+	cp "$temporary_root/fake-bin/uname" "$temporary_root/no-lock-bin/uname"
+	cp "$temporary_root/fake-bin/sleep" "$temporary_root/no-lock-bin/sleep"
+	rm -rf -- "$cache_root"
+	mkdir -p "$cache_root"
+	set +e
+	PATH="$temporary_root/no-lock-bin" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Linux HIPPO_TEST_UNAME_M=x86_64 "$subject" probe >/dev/null 2>"$temporary_root/no-flock"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo bootstrap requires flock on Linux' "$temporary_root/no-flock"
+	set +e
+	PATH="$temporary_root/no-lock-bin" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_UNAME_S=Darwin HIPPO_TEST_UNAME_M=arm64 "$subject" probe >/dev/null 2>"$temporary_root/no-lockf"
+	status=$?
+	set -e
+	[ "$status" -eq 125 ]
+	grep -Fq 'hippo bootstrap requires lockf on Darwin' "$temporary_root/no-lockf"
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: The worker policy comes from the checkout's own hippo.local.json, else the primary checkout's, and an explicit setting wins
+run_worker_policy_resolution() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	mkdir -p "$temporary_root/policy-git"
+	cat >"$temporary_root/policy-git/git" <<EOF
+#!/bin/sh
+if [ "\$1" = -C ]; then
+	shift; shift
+fi
+printf '%s\n' "\${HIPPO_TEST_GIT_COMMON_DIR:-}"
+EOF
+	chmod 755 "$temporary_root/policy-git/git"
+	policy_path="$temporary_root/policy.out"
+	checkout_dir="$temporary_root/policy-checkout"
+	rm -rf -- "$checkout_dir"
+	mkdir -p "$checkout_dir"
+	cp "$repository_root/hippo" "$checkout_dir/hippo"
+	chmod 755 "$checkout_dir/hippo"
+	cat >"$checkout_dir/hippo.lock" <<EOF
+version=$test_version
+commit=$test_commit
+darwin-amd64=$checksum
+darwin-arm64=$checksum
+linux-amd64=$checksum
+linux-arm64=$checksum
+EOF
+	printf '{"local":true}\n' >"$checkout_dir/hippo.local.json"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	[ "$(cat "$policy_path.identity")" = "$checkout_dir/hippo.identity.json" ]
+	primary_dir="$temporary_root/policy-primary"
+	rm -rf -- "$primary_dir" "$checkout_dir/hippo.local.json"
+	mkdir -p "$primary_dir"
+	printf '{"primary":true}\n' >"$primary_dir/hippo.local.json"
+	mkdir -p "$primary_dir/.git"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$primary_dir/hippo.local.json" ]
+	rm -f -- "$primary_dir/hippo.local.json"
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	PATH="$temporary_root/policy-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_DEFAULT_CONFIG=/tmp/custom-hippo.json \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = /tmp/custom-hippo.json ]
+	[ "$(cat "$policy_path.identity")" = "$checkout_dir/hippo.identity.json" ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: The wrapper hands the release the repository's local resource policy
+run_local_resource_policy() {
+	jq -e '.coordination.tiers.light.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.standard.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.heavy.maximumCpu <= .coordination.maxCpu' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.light.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.standard.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '.coordination.tiers.heavy.maximumMemoryMiB <= .coordination.maxMemoryMiB' "$repository_root/hippo.local.json.example" >/dev/null
+	jq -e '(.coordination.tiers | keys | sort) == ["heavy","light","standard"]' "$repository_root/hippo.local.json.example" >/dev/null
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	policy_path="$temporary_root/resource.out"
+	mkdir -p "$temporary_root/resource-git"
+	cat >"$temporary_root/resource-git/git" <<EOF
+#!/bin/sh
+printf '%s\n' "\${HIPPO_TEST_GIT_COMMON_DIR:-}"
+EOF
+	chmod 755 "$temporary_root/resource-git/git"
+	checkout_dir="$temporary_root/resource-checkout"
+	rm -rf -- "$checkout_dir"
+	mkdir -p "$checkout_dir"
+	cp "$repository_root/hippo" "$checkout_dir/hippo"
+	chmod 755 "$checkout_dir/hippo"
+	cat >"$checkout_dir/hippo.lock" <<EOF
+version=$test_version
+commit=$test_commit
+darwin-amd64=$checksum
+darwin-arm64=$checksum
+linux-amd64=$checksum
+linux-arm64=$checksum
+EOF
+	cp "$repository_root/hippo.local.json.example" "$checkout_dir/hippo.local.json"
+	PATH="$temporary_root/resource-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_POLICY_FILE="$policy_path" "$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$checkout_dir/hippo.local.json" ]
+	primary_dir="$temporary_root/resource-primary"
+	rm -rf -- "$primary_dir" "$checkout_dir/hippo.local.json"
+	mkdir -p "$primary_dir/.git"
+	cp "$repository_root/hippo.local.json.example" "$primary_dir/hippo.local.json"
+	PATH="$temporary_root/resource-git:$test_path" HIPPO_INSTALL_CACHE="$cache_root" \
+		HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_GIT_COMMON_DIR="$primary_dir/.git" HIPPO_TEST_POLICY_FILE="$policy_path" \
+		"$checkout_dir/hippo" run -- true >/dev/null
+	[ "$(cat "$policy_path.config")" = "$primary_dir/hippo.local.json" ]
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root" "$curl_count" "$checkout_dir" "$primary_dir"
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: Concurrent owners survive queued admission without client retry
+run_concurrent_owners_survive_queued_admission() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root"
+	# Install once, so the two owners contend only for admission and never for transport.
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+	downloads_before=$(download_count)
+
+	queue_root="$temporary_root/shared-root"
+	rm -rf -- "$queue_root"
+	mkdir -p "$queue_root"
+	hold_owner_one="$queue_root/release-owner-one"
+	attempts_one="$temporary_root/attempts-owner-one"
+	attempts_two="$temporary_root/attempts-owner-two"
+	rm -f -- "$attempts_one" "$attempts_two"
+
+	# Owner one is admitted and holds the shared slot until the test releases it.
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_QUEUE_ROOT="$queue_root" HIPPO_TEST_OWNER=owner-one HIPPO_TEST_HOLD="$hold_owner_one" HIPPO_TEST_ATTEMPTS="$attempts_one" \
+		"$subject" run --class ephemeral --resource-tier light -- printf '%s\n' ok >"$temporary_root/owner-one.out" 2>&1 &
+	owner_one=$!
+	wait_for "the first owner to hold its reservation" [ -e "$queue_root/reservation.owner-one" ]
+
+	# Owner two arrives while owner one holds the slot, so it queues instead of admitting.
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" \
+		HIPPO_TEST_QUEUE_ROOT="$queue_root" HIPPO_TEST_OWNER=owner-two HIPPO_TEST_ATTEMPTS="$attempts_two" \
+		"$subject" run --class ephemeral --resource-tier light -- printf '%s\n' ok >"$temporary_root/owner-two.out" 2>&1 &
+	owner_two=$!
+	wait_for "the second owner to queue behind the first" [ -e "$queue_root/queued.owner-two" ]
+	[ ! -e "$queue_root/reservation.owner-two" ]
+
+	: >"$hold_owner_one"
+	set +e
+	wait "$owner_one"
+	status_one=$?
+	wait "$owner_two"
+	status_two=$?
+	set -e
+	[ "$status_one" -eq 0 ]
+	[ "$status_two" -eq 0 ]
+	[ -e "$queue_root/reservation.owner-one" ]
+	[ -e "$queue_root/reservation.owner-two" ]
+	# One attempt per owner: a client-side retry loop would run a child twice.
+	[ "$(awk 'END { print NR }' "$attempts_one")" -eq 1 ]
+	[ "$(awk 'END { print NR }' "$attempts_two")" -eq 1 ]
+	[ "$(download_count)" -eq "$downloads_before" ]
+	[ "$(cat "$temporary_root/owner-one.out")" = run-ok ]
+	[ "$(cat "$temporary_root/owner-two.out")" = run-ok ]
+}
+
+# @scenario specs/apps/tools/hippo-consumer/behaviours/hippo-bootstrap.feature: A protocol mismatch is never retried as capacity
+run_protocol_mismatch_is_never_retried() {
+	write_lock "$test_version" "$checksum"
+	rm -rf -- "$cache_root"
+	result=$(PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_ARCHIVE="$temporary_root/release.tar.gz" HIPPO_TEST_CURL_COUNT="$curl_count" "$subject" probe)
+	[ "$result" = probe-ok ]
+
+	# The release refuses before its child starts, the way a live incompatible peer does.
+	attempts="$temporary_root/mismatch-attempts"
+	rm -f -- "$attempts"
+	mismatch_message='hippo: [hippo.coordination.protocol-mismatch] live peer coordination state this client cannot safely join; inspect ./hippo status, then drain or upgrade the incompatible client before retrying'
+	set +e
+	PATH="$test_path" HIPPO_INSTALL_CACHE="$cache_root" HIPPO_TEST_CURL_FAIL=1 HIPPO_TEST_OWNER=mismatch HIPPO_TEST_ATTEMPTS="$attempts" \
+		HIPPO_TEST_REFUSAL="$mismatch_message" \
+		"$subject" run --class ephemeral --resource-tier standard -- printf '%s\n' ok >"$temporary_root/mismatch.out" 2>"$temporary_root/mismatch.err"
+	status=$?
+	set -e
+	# Exactly one attempt, the code passed through unchanged, and no child output.
+	[ "$status" -eq 125 ]
+	[ "$(awk 'END { print NR }' "$attempts")" -eq 1 ]
+	[ ! -s "$temporary_root/mismatch.out" ]
+	grep -Fq 'hippo.coordination.protocol-mismatch' "$temporary_root/mismatch.err"
+	grep -Fq './hippo status' "$temporary_root/mismatch.err"
+	grep -Fq 'drain or upgrade' "$temporary_root/mismatch.err"
+}
+
 while IFS= read -r scenario; do
 	# Name each scenario as it starts: a failure under `set -e` is otherwise
-	# silent, and a corpus that shrank would still end in a pass line.
+	# silent, and a corpus that shrank would still end in a pass line. A Scenario
+	# Outline runs each function it names, and each function covers every row of
+	# the outline's Examples table.
 	echo "  $scenario"
 	case "$scenario" in
 	'A cold cache installs once and a warm cache needs no transport') run_cold_then_warm_cache ;;
 	"Repository worker settings precede the caller's run arguments") run_worker_settings_precede_run_arguments ;;
 	'Tampered warm-cache payload never executes') run_tampered_warm_cache ;;
-	'A downloaded archive whose digest misses the pin never executes') run_download_digest_mismatch ;;
+	'A downloaded release that fails verification is refused')
+		run_download_digest_mismatch
+		run_non_exact_identity_envelope
+		;;
 	'Non-exact stable release version is rejected') run_non_exact_stable_version ;;
-	'Release identity envelope must match exactly') run_non_exact_identity_envelope ;;
 	'Unsupported platform is refused before any transport') run_unsupported_platform_refused ;;
-	'Matching live install-lock owner remains protected') run_matching_live_owner ;;
-	'Malformed identity for a live install-lock owner fails closed') run_malformed_live_owner ;;
-	'Reused live PID with a different valid identity is reclaimed') run_reused_live_pid ;;
-	'Dead install-lock owner is reclaimed') run_dead_owner ;;
-	'Crash before install-lock metadata publication is recoverable') run_crash_before_publication ;;
-	'Concurrent cold callers install from exactly one verified download') run_concurrent_cold_callers ;;
-	'Concurrent stale reclaimers preserve a replacement live owner') run_concurrent_stale_reclaimers ;;
+	'A caller waits while another caller is installing')
+		run_matching_live_owner
+		run_malformed_live_owner
+		;;
+	'A caller takes over an install whose owner is gone')
+		run_dead_owner
+		run_reused_live_pid
+		run_crash_before_publication
+		;;
+	'Two callers starting together download once and both run the release')
+		run_concurrent_cold_callers
+		run_concurrent_stale_reclaimers
+		;;
 	'A consumer never removes an install lock it did not publish') run_never_removes_a_foreign_install_lock ;;
 	'Install guard storage stays bounded across release versions') run_bounded_install_guard_storage ;;
 	'Retention never deletes a release another consumer is using') run_retention_protects_installing_release ;;
 	'Retention never evicts a release another repository still uses') run_retention_keeps_releases_other_repositories_use ;;
-	'Release ranking reads real timestamps on every supported platform') run_release_ranking_reads_real_timestamps ;;
-	'Retention reclaims releases left idle beyond its window') run_retention_reclaims_idle_releases ;;
+	'Retention reclaims releases left idle beyond its window')
+		run_retention_reclaims_idle_releases
+		run_release_ranking_reads_real_timestamps
+		;;
+	'A missing, duplicated, or malformed pin exits 125 before any transport') run_pin_refusals_125 ;;
+	'A bounded wait for the install guard or lock that runs out exits 124') run_bounded_wait_124 ;;
+	'A host without flock or lockf exits 125') run_missing_lock_tool_125 ;;
+	'The worker policy comes from the checkout'"'"'s own hippo.local.json, else the primary checkout'"'"'s, and an explicit setting wins') run_worker_policy_resolution ;;
+	'The wrapper hands the release the repository'"'"'s local resource policy') run_local_resource_policy ;;
 	'Concurrent owners survive queued admission without client retry') run_concurrent_owners_survive_queued_admission ;;
 	'A protocol mismatch is never retried as capacity') run_protocol_mismatch_is_never_retried ;;
 	*) exit 1 ;;

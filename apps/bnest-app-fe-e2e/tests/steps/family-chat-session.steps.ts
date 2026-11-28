@@ -31,6 +31,11 @@ import { instanceIdentities } from "../support/instance-identities";
 
 const { Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message stays waiting after sign-in expires and is never sent by another member
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out discards the member's waiting messages
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out turns off push notifications for this device session
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
+
 const QUIET_WINDOW_MS = 4_000;
 
 let visitorUserId = "";
@@ -66,7 +71,50 @@ When("the visitor's authentication expires", async ({ page }) => {
   attemptsAtExpiry = attemptsFor(page, delivery.body).length;
 });
 
+Then(
+  "the message still shows status {string}",
+  async ({ page }, status: string) => {
+    // Longer than the next two retry waits could be: a queue that only
+    // backed off would have tried again inside it.
+    await page.waitForTimeout(QUIET_WINDOW_MS);
+    expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+    expect(await storedRowFor(page, delivery.body)).toBeDefined();
+    await expect(
+      page
+        .locator('[data-role="family-chat-message"]')
+        .filter({ hasText: delivery.body }),
+    ).not.toHaveAttribute("data-delivery-state", "committed");
+    await expectRowStatus(page, delivery.body, status);
+  },
+);
+
+Then(
+  "another member signed in on the same device does not send it",
+  async ({ page }) => {
+    // Another member signs in on the same device and opens the same room.
+    await login(page, instanceIdentities().child);
+    await page.goto(ROOM_ROUTE);
+    await waitForRoomReady(page);
+    expect(await currentUserId(page)).not.toBe(visitorUserId);
+    await page.waitForTimeout(QUIET_WINDOW_MS);
+    expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
+    await expect(
+      page
+        .locator('[data-role="family-chat-message"]')
+        .filter({ hasText: delivery.body }),
+    ).toHaveCount(0);
+    const row = await storedRowFor(page, delivery.body);
+    expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
+  },
+);
+
+// Restored from main: the pause must hold through a device reconnect, which the browser's
+// own online and offline events and the socket's reconnect both make.
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Authentication expiry pauses the queue without cross-user drain
 Then("queue draining pauses for that namespace", async ({ page }) => {
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
   // Longer than the next two retry waits could be: a queue that only
   // backed off would have tried again inside it.
   await page.waitForTimeout(QUIET_WINDOW_MS);
@@ -80,20 +128,26 @@ Then("queue draining pauses for that namespace", async ({ page }) => {
 });
 
 Then("no other user's session drains that queued message", async ({ page }) => {
-  // Another member signs in on the same device and opens the same room.
-  await login(page, instanceIdentities().child);
-  await page.goto(ROOM_ROUTE);
-  await waitForRoomReady(page);
-  expect(await currentUserId(page)).not.toBe(visitorUserId);
+  // Another member signs in on the same device, in a second tab of this browser, and opens the same room.
+  // This tab's socket then reconnects, and the expired member's queue must still stay paused.
+  const other = await page.context().newPage();
+  await login(other, instanceIdentities().child);
+  await other.goto(ROOM_ROUTE);
+  await waitForRoomReady(other);
+  expect(await currentUserId(other)).not.toBe(visitorUserId);
+  await page.evaluate(() =>
+    document.dispatchEvent(new Event("visibilitychange")),
+  );
   await page.waitForTimeout(QUIET_WINDOW_MS);
   expect(attemptsFor(page, delivery.body)).toHaveLength(attemptsAtExpiry);
   await expect(
-    page
+    other
       .locator('[data-role="family-chat-message"]')
       .filter({ hasText: delivery.body }),
   ).toHaveCount(0);
   const row = await storedRowFor(page, delivery.body);
   expect(row?.namespace.startsWith(`${visitorUserId}:`)).toBe(true);
+  await other.close();
 });
 
 // --- Logout ----------------------------------------------------------------
@@ -119,14 +173,14 @@ When("the visitor logs out", async ({ page }) => {
   ]);
 });
 
-Then("the visitor's local outbox namespace is cleared", async ({ page }) => {
+Then("the visitor's waiting messages are gone", async ({ page }) => {
   const rows = await storedOutboxRows(page);
   expect(
     rows.filter((row) => row.namespace.startsWith(`${visitorUserId}:`)),
   ).toEqual([]);
 });
 
-Then("the current session's Web Push subscription is disabled", () => {
+Then("notifications are turned off for this device", () => {
   expect(serverPushEnabled(visitorUserId, visitorToken)).toBe(false);
 });
 

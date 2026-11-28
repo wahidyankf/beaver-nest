@@ -41,6 +41,8 @@ defmodule BnestAppWeb.UserSocketTest do
   defp absinthe_context({:ok, %Phoenix.Socket{assigns: %{absinthe: %{opts: opts}}}}),
     do: Keyword.fetch!(opts, :context)
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A socket connection acts as the signed-in member whatever identity its parameters claim
   test "the socket context is the session's own user and session digest", %{
     user: user,
     digest: digest
@@ -70,6 +72,8 @@ defmodule BnestAppWeb.UserSocketTest do
              absinthe_context(connect(%{}, %{"current_user" => user}))
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The socket rejects a connection with no valid session
   test "a connection with no session user is refused" do
     assert connect(%{"userId" => "test-user-socket-spoofed"}, %{}) == :error
     assert connect(%{}, nil) == :error

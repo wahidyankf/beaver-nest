@@ -40,12 +40,16 @@ defmodule BnestApp.CodexChat.RepositoryImageTest do
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hidden and runtime-data locations are refused
     test "dot-prefixed segments, which hide secrets such as .env and .git" do
       for path <- [".env/a.png", ".git/config.png", "docs/.hidden/a.png", "./.codex/a.png"] do
         assert RepositoryImage.reference(path) == :error, "accepted #{inspect(path)}"
       end
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hidden and runtime-data locations are refused
     test "runtime-data, tool and build directories" do
       for path <- [
             "data/a.png",

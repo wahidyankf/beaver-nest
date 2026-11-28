@@ -44,10 +44,12 @@ import {
   post,
   type PostOptions,
   pressKey,
+  previousBundleMismatches,
   reconnectSockets,
   reloadPage,
   requireRow,
   rowFor,
+  rollBackServer,
   server,
   setDeviceOnline,
   settle,
@@ -97,7 +99,7 @@ type Seed = Omit<PostOptions, "sender"> & { from?: "visitor" | "ayah" };
 /**
  * Seeds the conversation the server holds and opens the room on it,
  * remembering the newest seeded message as the one the scenario names.
- * Every room serves replies: the shell hardcodes the flag.
+ * Every room serves replies: the shell always reports them on.
  */
 async function open(seed: Seed[] = []): Promise<Page> {
   for (const { from, ...message } of seed) {
@@ -201,16 +203,7 @@ step(
   },
 );
 
-// The room always serves replies: open it once here and prove the served
-// shell says so, before the scenario opens the room it acts on.
-step("the room is served with replies turned on", async () => {
-  const page = await openRoomPage();
-  expect(
-    page.elements.room?.dataset["familyChatReplyEnabled"] === "true",
-    "the served room does not report replies enabled",
-  );
-});
-
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every message in the history has an actions control
 step("every message in the history has an actions control", () => {
   const rows = messageRows();
   expect(rows.length > 0, "the history has messages");
@@ -291,6 +284,8 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member opens the message action menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Holding a message to open its menu clears the text the browser selects during the press
 step("the message action menu opens for that message", () => {
   const host = menuHost();
   expect(!hidden(host), "the action menu did not open");
@@ -308,6 +303,7 @@ step("keyboard focus is inside the menu", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Closing the menu returns focus to the message it came from
 step("the message action menu is open for a committed message", async () => {
   await open([{ body: "Dinner is ready" }]);
   await openMenuOn(requireTarget());
@@ -342,10 +338,12 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A press that turns into a scroll does not open the menu
 step("no action menu opens", () => {
   expect(hidden(menuHost()), "a menu opened for a press that became a scroll");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only one menu is open at a time
 step("the message action menu is open for one committed message", async () => {
   await open([
     { body: "Dinner is ready" },
@@ -375,6 +373,9 @@ step("only the second message has an open menu", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message offers both actions
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a formatted message copies what was typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message with a diagram copies the typed Markdown
 step("the visitor opens the action menu on that message", async () => {
   await openMenuOn(requireTarget());
 });
@@ -397,6 +398,7 @@ step("both actions are available", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is not yet committed cannot be replied to
 step("the visitor's own message is in the {string} state", async (state) => {
   await open([{ body: "Dinner is ready" }]);
   const page = activePage();
@@ -421,6 +423,7 @@ step("the visitor's own message is in the {string} state", async (state) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A system message can be replied to like any other
 step("the visitor opens the action menu on it", async () => {
   await openMenuOn(requireTarget());
 });
@@ -493,6 +496,7 @@ step("the clipboard holds exactly {string}", async (expected) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message puts its text on the clipboard
 step("the room announces that the message was copied", async () => {
   await waitFor(
     () => announcement() === COPIED_ANNOUNCEMENT,
@@ -510,6 +514,7 @@ step("the visitor chooses {string} on a committed message", async (label) => {
   await chooseMenuItem(label);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A refused clipboard is reported, not swallowed
 step("the room states that the text could not be copied", async () => {
   await waitFor(
     () => announcement() === COPY_REFUSED_ANNOUNCEMENT,
@@ -528,6 +533,8 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The member abandons the reply
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The reply target does not survive a reload
 step("the composer shows a reply strip naming {string}", (sender) => {
   const { elements } = activePage();
   expect(!hidden(elements.replyStrip), "the reply strip is not showing");
@@ -537,6 +544,7 @@ step("the composer shows a reply strip naming {string}", (sender) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Choosing Reply puts the target above the message input
 step("the strip shows the text of that message", () => {
   const { elements } = activePage();
   expect(
@@ -572,6 +580,7 @@ step("the reply strip renders it", async () => {
   await chooseMenuItem("Reply");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long quoted message is shortened in the strip
 step("at most {int} graphemes are shown before the ellipsis", (budget) => {
   const shown = activePage().elements.replyStripPreview.textContent ?? "";
   // The graphemes kept before the one ellipsis that marks the cut, as the
@@ -691,6 +700,7 @@ step("the visitor sends the message", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending clears the reply target
 step("the next message the visitor sends carries no reply target", async () => {
   const id = await sendAndCommit("Dan satu lagi");
   const attempt = server().sendAttempts.find(
@@ -710,6 +720,7 @@ step("the next message the visitor sends carries no reply target", async () => {
 
 const ORIGINAL = "Nanti aku jemput jam 5";
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply carries its quote through each arrival path
 step("another member has replied to one of the visitor's messages", () => {
   const original = post({ body: ORIGINAL, sender: visitor() });
   remember("targetId", original.id);
@@ -837,6 +848,7 @@ step("that reply shows a quote of B", () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply to a reply shows only one level of quote
 step("that quote shows no quote of its own", () => {
   const quote = quoteIn(messageElement(recall<string>("thirdId")));
   expect(
@@ -864,6 +876,7 @@ async function openWithDistantReply(
   expect(rowFor(reply.id) !== null, "the reply is not on the first page");
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is already on screen
 step("a reply and the message it quotes are both loaded", async () => {
   await openWithDistantReply(10, "Jump");
   expect(rowFor(targetId()) !== null, "the quoted message is not loaded");
@@ -921,6 +934,7 @@ step("keyboard focus moves to it", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is above the loaded window
 step("older pages are loaded until the original is present", async () => {
   await waitFor(
     () => rowFor(targetId()) !== null,
@@ -932,6 +946,7 @@ step("the history scrolls to it", async () => {
   await expectScrolledTo(targetId());
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is beyond the jump bound
 step("no more than five older pages are requested", async () => {
   await settle();
   const requested = historyQueries() - recall<number>("queriesBeforeJump");
@@ -966,6 +981,7 @@ step("the visitor jumps to a quoted message", async () => {
   await expectScrolledTo(targetId());
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Highlighting respects reduced motion
 step("the message is marked without an animated pulse", () => {
   const target = requireTarget();
   expect(
@@ -1074,6 +1090,7 @@ step("the sent message renders a quote of the selected message", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The whole journey works from the keyboard alone
 step("focus is never left on a control the visitor cannot operate", () => {
   const page = activePage();
   const trail = recall<HTMLElement[]>("focusTrail");
@@ -1128,6 +1145,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab does not walk through every message in the room
 step("focus enters the history exactly once", async () => {
   const page = activePage();
   const inHistory = () =>
@@ -1158,6 +1176,7 @@ step("the arrow keys move between messages", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A quote exposes an accessible name naming its sender
 step("a reply quoting a message from {string} is rendered", async (sender) => {
   const original = post({ body: ORIGINAL, sender: otherMember(sender) });
   remember("targetId", original.id);
@@ -1223,6 +1242,7 @@ async function queueOfflineReply(): Promise<void> {
   expect(page === activePage(), "queueing the reply navigated away");
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An offline reply waits for the connection and stays a reply
 step("the visitor is offline with the room open", async () => {
   await open([{ body: ORIGINAL }]);
   setDeviceOnline(device(), false);
@@ -1241,13 +1261,16 @@ step("the queued message shows status {string}", async (expected) => {
   );
 });
 
-step("the queued record carries the reply target", () => {
-  const row = storedRow(recall<string>("clientMessageId"));
-  expect(
-    row?.["replyToMessageId"] === targetId(),
-    `the queued record carries ${JSON.stringify(row?.["replyToMessageId"])}`,
-  );
-});
+step(
+  "the waiting message will send as a reply to the message it answers",
+  () => {
+    const row = storedRow(recall<string>("clientMessageId"));
+    expect(
+      row?.["replyToMessageId"] === targetId(),
+      `the waiting message would send with target ${JSON.stringify(row?.["replyToMessageId"])}`,
+    );
+  },
+);
 
 step("an offline reply is queued", async () => {
   await open([{ body: ORIGINAL }]);
@@ -1261,6 +1284,7 @@ step("the visitor reopens {string} while still offline", async () => {
   await reloadPage();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply survives closing the app
 step("the queued reply is still present with its target", async () => {
   const id = recall<string>("clientMessageId");
   // A fresh runtime: the row on screen came back from the device's store.
@@ -1279,6 +1303,7 @@ step("the queued reply is still present with its target", async () => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply commits with its link on reconnect
 step("the reply reaches status {string} exactly once", async (expected) => {
   const id = recall<string>("clientMessageId");
   expect(expected === STATUS.SENT, `unexpected status ${expected}`);
@@ -1311,7 +1336,7 @@ step("the committed message renders its quote", async () => {
 });
 
 step(
-  "the outbox holds a queued message stored with no reply target field",
+  "a message was left waiting to send before the app was updated",
   async () => {
     post({ body: ORIGINAL, sender: AYAH() });
     const id = "a1b2c3d4-0000-4000-8000-000000000048";
@@ -1342,6 +1367,7 @@ step("that message reaches status {string}", async (expected) => {
   );
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued before the update still sends after it
 step("it commits as an ordinary message", () => {
   const id = recall<string>("clientMessageId");
   const attempts = server().sendAttempts.filter(
@@ -1359,7 +1385,16 @@ step("it commits as an ordinary message", () => {
 
 // --- Earlier revision and rollback ----------------------------------------
 
-step("an earlier revision is routed", () => {
+/** The held page sent the frozen previous bundle's documents and nothing else. */
+function expectPreviousBundle(): void {
+  const mismatches = previousBundleMismatches();
+  expect(
+    mismatches.length === 0,
+    `the held page did not send the previous bundle: ${mismatches.join("; ")}`,
+  );
+}
+
+step("the newer app version is live", () => {
   // The routed revision is freshly started: no page has opened the room
   // against it yet, and its wire holds no requests from a previous route.
   expect(!hasActivePage(), "a page is already open against the revision");
@@ -1367,12 +1402,12 @@ step("an earlier revision is routed", () => {
 });
 
 step(
-  "a browser loaded from the previous revision opens {string}",
+  "a browser running the previous app version opens {string}",
   async (pathname) => {
-    // The held bundle is this same bundle talking to a newer revision:
-    // every request it makes is checked against the revision's schema.
+    // The held bundle is the pre-reply bundle: every document it sends is
+    // the frozen one from before replies, judged by this revision's schema.
     post({ body: "Dinner is ready", sender: AYAH() });
-    await openRoomPage({ pathname });
+    await openRoomPage({ pathname, bundle: "previous" });
   },
 );
 
@@ -1388,8 +1423,18 @@ step("the room loads", async () => {
     server().rejectedDocuments.length === 0,
     `the server refused ${JSON.stringify(server().rejectedDocuments)}`,
   );
+  // Every message the server holds is on screen with its text, so a field
+  // the room needs cannot go missing without a failure.
+  for (const message of server().messages) {
+    expect(
+      rowFor(message.id)?.textContent?.includes(message.body) === true,
+      `message ${message.id} is not shown with its body`,
+    );
+  }
+  if (page.bundle === "previous") expectPreviousBundle();
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
 step("the visitor can send a message normally", async () => {
   const id = await sendAndCommit("Masih bisa kirim");
   const committed = committedFor(id);
@@ -1399,26 +1444,28 @@ step("the visitor can send a message normally", async () => {
     server().rejectedDocuments.length === 0,
     "the server refused the send",
   );
+  expectPreviousBundle();
 });
 
-step(
-  "a visitor holds the reply-aware bundle with a reply on screen",
-  async () => {
-    await open([{ body: "Jam berapa?" }]);
-    const id = await replyThroughMenu(requireTarget(), "Jam lima");
-    await waitFor(
-      () => committedFor(id ?? "") !== undefined,
-      "the reply to commit",
-    );
-    await settle();
-    remember("firstReplyId", committedFor(id ?? "")?.id);
-    quoteIn(messageElement(recall<string>("firstReplyId")));
-  },
-);
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
+step("a visitor on the newer version has a reply on screen", async () => {
+  await open([{ body: "Jam berapa?" }]);
+  const id = await replyThroughMenu(requireTarget(), "Jam lima");
+  await waitFor(
+    () => committedFor(id ?? "") !== undefined,
+    "the reply to commit",
+  );
+  await settle();
+  remember("firstReplyId", committedFor(id ?? "")?.id);
+  quoteIn(messageElement(recall<string>("firstReplyId")));
+});
 
-step("the routed slot is rolled back to an earlier revision", async () => {
-  // The route change ends the connections to the rolled-back slot; the
-  // page itself, and the bundle it loaded, stay.
+step("the app is rolled back to the previous version", async () => {
+  // The routed slot answers from the frozen earlier schema from here on, so
+  // the held bundle's documents and its reconnected subscription are judged
+  // by it. The route change ends the connections to the rolled-back slot;
+  // the page itself, and the bundle it loaded, stay.
+  rollBackServer();
   const page = activePage();
   dropSockets(page);
   reconnectSockets(page);
@@ -1428,6 +1475,11 @@ step("the routed slot is rolled back to an earlier revision", async () => {
 step("the visitor replies again with the bundle it still holds", async () => {
   expect(hasActivePage(), "the held page was closed");
   const id = await replyThroughMenu(requireTarget(), "Jam lima ya");
+  await settle();
+  expect(
+    server().rejectedDocuments.length === 0,
+    `the rolled-back slot refused the held bundle: ${JSON.stringify(server().rejectedDocuments)}`,
+  );
   await waitFor(
     () => committedFor(id ?? "") !== undefined,
     "the second reply to commit",

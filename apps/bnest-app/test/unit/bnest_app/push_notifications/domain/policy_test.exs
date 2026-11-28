@@ -75,10 +75,14 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
   end
 
   describe "truncate_body/1" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push notification body is collapsed and capped at 120 characters
     test "collapses whitespace without truncating a short body" do
       assert Policy.truncate_body("hello   world\n\tagain") == "hello world again"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push notification body is collapsed and capped at 120 characters
     test "truncates an overlong body to 120 graphemes plus one ellipsis" do
       body = String.duplicate("a", 200)
       truncated = Policy.truncate_body(body)
@@ -106,6 +110,8 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
   end
 
   describe "build_payload/4" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push notification body is collapsed and capped at 120 characters
     test "builds tech-doc 004's exact payload shape with a truncated body" do
       payload = Policy.build_payload(42, "Alice", String.duplicate("a", 200), "ruang-keluarga")
 
@@ -121,6 +127,8 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
   end
 
   describe "next_wait_seconds/3" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "follows the fixed backoff schedule and stops at the attempt ceiling" do
       assert Policy.next_wait_seconds(1, @now, @now) == 30
       assert Policy.next_wait_seconds(2, @now, @now) == 120
@@ -129,6 +137,8 @@ defmodule BnestApp.PushNotifications.Domain.PolicyTest do
       assert Policy.next_wait_seconds(5, @now, @now) == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A push that fails temporarily is sent again after fixed waits and given up after five attempts or one hour
     test "stops at the one-hour elapsed ceiling regardless of attempt count" do
       later = DateTime.add(@now, 3_601, :second)
       assert Policy.next_wait_seconds(2, @now, later) == nil

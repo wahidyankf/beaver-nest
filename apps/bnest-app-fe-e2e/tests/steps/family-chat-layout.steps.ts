@@ -10,6 +10,11 @@ import { composerInput } from "../support/family-chat";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message uses most of a narrow phone's width
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The conversation keeps room on a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer grows with a long draft and then stops at five lines
+
 // One composer line is 1.5 em of 16 pixels; the composer adds 0.7 rem of padding and 2 pixels of border on each side.
 const LINE_PX = 24;
 const COMPOSER_CHROME_PX = 2 * 11.2 + 2 * 2;

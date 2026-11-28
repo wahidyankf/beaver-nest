@@ -12,17 +12,17 @@
 - As the operator, I can learn which verified runs have no artifact on disk, without reading the database by hand.
 - As the administrator, I can see on the Schedules & backups page whether the retained backups are on disk, and which
   dates are not, without running a command.
-- As the operator, I can see how the two missing nights were lost, or be told plainly what could not be established
-  (the Dropbox event history is unavailable to me, so a Dropbox cause may stay unproven).
+- As the operator, I can see how the two missing nights were lost, or be told plainly what could not be established (the
+  Dropbox event history is unavailable to me, so a Dropbox cause may stay unproven).
 - As the operator, I can restore a real backup into a throwaway root and see that its contents are readable.
 - As a maintainer, I know a test can never remove or keep a production artifact.
 
 ## Scenario Identifiers
 
-Identifiers are stable. Delivery items cite them. Scenarios marked **conditional** apply only on the branch the
-Phase 3 verdict selects (or, for AC-BI-14, while its Given holds), and are otherwise recorded `Not applicable` with
-that reason. The branch table in [`tech-docs.md`](tech-docs.md#branch-selection) states which verdict selects which
-conditional criterion (AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-19).
+Identifiers are stable. Delivery items cite them. Scenarios marked **conditional** apply only on the branch the Phase 3
+verdict selects (or, for AC-BI-14, while its Given holds), and are otherwise recorded `Not applicable` with that reason.
+The branch table in [`tech-docs.md`](tech-docs.md#branch-selection) states which verdict selects which conditional
+criterion (AC-BI-08, AC-BI-09, AC-BI-10, AC-BI-19).
 
 AC-BI-21 to AC-BI-23 and the page scenario of AC-BI-19 are **UI-affecting**: the owner added an administrator-facing
 label on 2026-10-03 (OD-3). Each names its route, rendered states and supported viewport classes, as
@@ -56,10 +56,10 @@ artifact and receipt pair whose ledger row carries that slot's `scheduled_for`, 
 removed, and that slot's ledger rows. Each excluded difference must be justified by a ledger row in the window. The
 nightly slot is 19:00 UTC, so Phase 2 is started and finished between slots; the rule covers a slot that arrives anyway.
 
-**Amendment (owner decision, 2026-10-04).** The comparison also excludes the modification time of the `storage.json.lock`
-directory under the private configuration directory. The running service rewrites that directory's modification time
-about every 30 seconds as a heartbeat on its storage lock; it is a service-owned change, not a write by this
-execution, and no other entry in either directory is excluded on this ground. Phase 2 found the difference (see
+**Amendment (owner decision, 2026-10-04).** The comparison also excludes the modification time of the
+`storage.json.lock` directory under the private configuration directory. The running service rewrites that directory's
+modification time about every 30 seconds as a heartbeat on its storage lock; it is a service-owned change, not a write
+by this execution, and no other entry in either directory is excluded on this ground. Phase 2 found the difference (see
 [`learnings.md`](learnings.md), entry V0.12); the owner amended the rule on 2026-10-04. The amendment applies to every
 comparison this plan makes: Phase 2, the Phase 5 early live reconcile and the Phase 13 re-run.
 
@@ -259,8 +259,9 @@ Scenario: The task does not report an empty ledger as present
 ```
 
 **Reconciliation note (agent-proposed resolution, 2026-10-04, pending owner confirmation).** Gate pass 6 found that
-"prints each date as present" contradicted the all-present summary wording `Backup files: all N retained backups are
-present`. The first scenario now names the summary line and no per-date line; the Phase 5 RED says the same.
+"prints each date as present" contradicted the all-present summary wording
+`Backup files: all N retained backups are present`. The first scenario now names the summary line and no per-date line;
+the Phase 5 RED says the same.
 
 An empty set of expected runs is vacuously all present; the task must not let that read as healthy, so the empty ledger
 is neither an exit `0` nor a `present` line (decision D10). The same words are the label's nothing-to-check state, which
@@ -310,10 +311,10 @@ Scenario: The Schedules page labels a destination mismatch without naming either
 attention (a retained date missing or changed), could not be checked, and nothing to check yet. **Viewport classes:**
 desktop, tablet and mobile, as defined under AC-BI-23.
 
-**Production proof is partial by design.** Once the two lost nights have aged out of the seven latest retained dates, the
-production page will likely show only the all-present state. Needs attention, could not be checked, nothing to check yet
-and checking are therefore proved at the isolated exact origin (Phase 10), not on production; the owner's own look in
-Phase 13 reports whichever state the label showed and claims no other.
+**Production proof is partial by design.** Once the two lost nights have aged out of the seven latest retained dates,
+the production page will likely show only the all-present state. Needs attention, could not be checked, nothing to check
+yet and checking are therefore proved at the isolated exact origin (Phase 10), not on production; the owner's own look
+in Phase 13 reports whichever state the label showed and claims no other.
 
 ```gherkin
 Scenario: The page states that every retained backup is present
@@ -367,8 +368,8 @@ Examples:
 
 ### AC-BI-22 — The label is read-only, bounded and path-free
 
-**Route:** `/admin/settings/schedules`. **Rendered states:** checking and every result state of AC-BI-21.
-**Viewport classes:** desktop, tablet and mobile.
+**Route:** `/admin/settings/schedules`. **Rendered states:** checking and every result state of AC-BI-21. **Viewport
+classes:** desktop, tablet and mobile.
 
 ```gherkin
 Scenario: Rendering the label never writes
@@ -409,9 +410,9 @@ Scenario: A non-administrator causes no integrity check
 ### AC-BI-23 — The label is usable at every supported width, without a pointer and without colour
 
 **Route:** `/admin/settings/schedules`. **Rendered states:** checking, all present, needs attention, could not be
-checked, nothing to check yet (and destination mismatch on the C-DEST branch). **Viewport classes:** desktop, tablet
-and mobile, the three the `bnest-app-fe-e2e` projects drive; manual checks use 1440 × 900, 768 × 1024 and 393 × 851,
-with the 320 px reflow floor checked inside the mobile class.
+checked, nothing to check yet (and destination mismatch on the C-DEST branch). **Viewport classes:** desktop, tablet and
+mobile, the three the `bnest-app-fe-e2e` projects drive; manual checks use 1440 × 900, 768 × 1024 and 393 × 851, with
+the 320 px reflow floor checked inside the mobile class.
 
 ```gherkin
 Scenario Outline: No horizontal scrolling and no hidden problem appears at any supported width
@@ -430,8 +431,8 @@ Examples:
 ```
 
 The browser binding sets the viewport from each Examples row (`page.setViewportSize`), so the 320 x 568 and 1440 x 900
-rows run at their own width even though the `bnest-app-fe-e2e` projects default to 1280 x 720, 768 x 1024 and the Pixel 5
-profile; no row is exempted from the browser (decision D9). The manual matrix in Phase 10 remains the viewport-class
+rows run at their own width even though the `bnest-app-fe-e2e` projects default to 1280 x 720, 768 x 1024 and the Pixel
+5 profile; no row is exempted from the browser (decision D9). The manual matrix in Phase 10 remains the viewport-class
 proof and the executor's inspection of the exact origin.
 
 ```gherkin
@@ -451,14 +452,24 @@ integrity label; push or email notification; encrypting artifacts.
 
 ## Product Risks
 
-| Risk                                                         | Mitigation                                                                                                            |
-| ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| The detector cries wolf on legitimate retention              | AC-BI-05 pins the retained-date window to the same function retention uses                                            |
-| The report leaks a path or identifier into a public record   | AC-BI-07; evidence recorded as dates and counts only                                                                  |
-| The drill touches the live database                          | AC-BI-11 restores only into a root the task creates; AC-BI-18 refuses any other target                                |
-| The detector fails the nightly backup                        | AC-BI-16 wraps reconciliation so it can never change the run's outcome                                                |
-| The label slows or breaks the admin page                     | AC-BI-22: the check runs off the render path under a ceiling, and a failure renders the could-not-be-checked state    |
-| The label contradicts the Mix task or the log                | AC-BI-22: one wording function serves the label, the log, the telemetry metadata and the task                         |
-| The label is unreadable on a phone or without colour         | AC-BI-23 at four widths, with text cues and a polite announcement; Phase 10 inspects every state at the exact origin  |
-| An empty ledger reads as healthy                             | AC-BI-17 and AC-BI-21: the empty case prints nothing-to-check, the task exits non-zero, and no surface says `present` |
-| The label shows a stale result after the administrator saves | AC-BI-21: the check runs again after every successful save and the label reads checking meanwhile                     |
+- **The detector cries wolf on legitimate retention**
+  - Mitigation: AC-BI-05 pins the retained-date window to the same function retention uses
+- **The report leaks a path or identifier into a public record**
+  - Mitigation: AC-BI-07; evidence recorded as dates and counts only
+- **The drill touches the live database**
+  - Mitigation: AC-BI-11 restores only into a root the task creates; AC-BI-18 refuses any other target
+- **The detector fails the nightly backup**
+  - Mitigation: AC-BI-16 wraps reconciliation so it can never change the run's outcome
+- **The label slows or breaks the admin page**
+  - Mitigation: AC-BI-22: the check runs off the render path under a ceiling, and a failure renders the
+    could-not-be-checked state
+- **The label contradicts the Mix task or the log**
+  - Mitigation: AC-BI-22: one wording function serves the label, the log, the telemetry metadata and the task
+- **The label is unreadable on a phone or without colour**
+  - Mitigation: AC-BI-23 at four widths, with text cues and a polite announcement; Phase 10 inspects every state at the
+    exact origin
+- **An empty ledger reads as healthy**
+  - Mitigation: AC-BI-17 and AC-BI-21: the empty case prints nothing-to-check, the task exits non-zero, and no surface
+    says `present`
+- **The label shows a stale result after the administrator saves**
+  - Mitigation: AC-BI-21: the check runs again after every successful save and the label reads checking meanwhile

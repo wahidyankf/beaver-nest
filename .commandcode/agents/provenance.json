@@ -10,7 +10,7 @@
     {
       "id": "skill/assessing-criticality-confidence",
       "path": ".agents/skills/assessing-criticality-confidence/SKILL.md",
-      "digest": "7a94d12c6e640636163d513fe470884155150c547b6cc121e7d47889a1091191"
+      "digest": "aff10b0a534e974dc7340a1ac55bbc64a5498c9223cf55fafb61ad22f38d4d51"
     },
     {
       "id": "skill/building-command-line-interfaces",
@@ -25,7 +25,7 @@
     {
       "id": "skill/developing-applications",
       "path": ".agents/skills/developing-applications/SKILL.md",
-      "digest": "4f6976b5bd0c2eab66c7c6db61474809d571c034027ce2c0a8d9e5d254407a2b"
+      "digest": "5a8a67bc86769743c398c4167a0378d2f7939f840455726e7fdd9036fdcaaec9"
     },
     {
       "id": "skill/developing-frontend-ui",
@@ -50,7 +50,7 @@
     {
       "id": "skill/generating-validation-reports",
       "path": ".agents/skills/generating-validation-reports/SKILL.md",
-      "digest": "dd5346fbeef2dd65bca8ff0284290688c7fed52b9af6f1e7b4497e4463acaa63"
+      "digest": "70b445cef131eb078b6e4eaeb971e7d44a756e84e61cf205bc2ad7c4e0a13581"
     },
     {
       "id": "skill/grill-me",
@@ -70,17 +70,17 @@
     {
       "id": "skill/monitor-ci",
       "path": ".agents/skills/monitor-ci/SKILL.md",
-      "digest": "10668a9b856f92937db4035e6b86ad3a3ffe2868f1a515304de98e2977bb5c1e"
+      "digest": "cfb2b0c7ab092602ce1ac3b1cccd40585af247446c6f893a3ac93117638f1b17"
     },
     {
       "id": "skill/nx-generate",
       "path": ".agents/skills/nx-generate/SKILL.md",
-      "digest": "8a71ea1153bc5d0ddd6c8c2f7e8a351f62e5c1e0da6d820114c4d96913d7f63a"
+      "digest": "71697eaf84a1492b1e4da2e4091564331167c82eab9f028d04533b2e5a0883ee"
     },
     {
       "id": "skill/nx-import",
       "path": ".agents/skills/nx-import/SKILL.md",
-      "digest": "f41124d8de34619700f669497ad7e69f54f8298ff9dbe2fc088b00a5e309afe6"
+      "digest": "e0db56b736a5090e3fffea4f954bc241f65f4e5a5975909d647761118b4cac5c"
     },
     {
       "id": "skill/nx-plugins",
@@ -90,17 +90,17 @@
     {
       "id": "skill/nx-run-tasks",
       "path": ".agents/skills/nx-run-tasks/SKILL.md",
-      "digest": "30eb3d2c68110b866e3b73496f42f084d3cfff8336f9cee660c43d765fd8ec78"
+      "digest": "7569409c1b6625a864e7c44cc217f757dd536bebfb1fb445693ffd768666f158"
     },
     {
       "id": "skill/nx-workspace",
       "path": ".agents/skills/nx-workspace/SKILL.md",
-      "digest": "2551fd109101cbd8af057ca0611e4a23df9a05b65402798880103d9103390235"
+      "digest": "aad5f486e0a47bf8b5e9ffbf1aba377db261b5fcfdf05c5b7bfefd81f1a50029"
     },
     {
       "id": "skill/plan-creating-project-plans",
       "path": ".agents/skills/plan-creating-project-plans/SKILL.md",
-      "digest": "3f95acc6b4f540188bc41bfdd995ef49c832cf59e3ca3914c31f9aaa4f843413"
+      "digest": "550b6ce39dbda21f0e2852213d07a769c4fdf56f59261fb56276b197fe9604e2"
     },
     {
       "id": "skill/plan-grooming-idea-briefs",
@@ -115,7 +115,7 @@
     {
       "id": "skill/plan-verifying-execution",
       "path": ".agents/skills/plan-verifying-execution/SKILL.md",
-      "digest": "5b62b994f14536430b80cd40a6155aae7e1328609956f190f824c4510ac4bbff"
+      "digest": "23ad7f452bbf0f92d11d80d1834ae67fe8bc8398cbdb34addec683285c37e61a"
     },
     {
       "id": "skill/plan-writing-gherkin-criteria",
@@ -130,7 +130,7 @@
     {
       "id": "skill/programming-elixir",
       "path": ".agents/skills/programming-elixir/SKILL.md",
-      "digest": "e8858331b336c1063c68c7ddab4d31c1452fb31f223be7cfbb2499e076cb6940"
+      "digest": "7b887584effaf9be96e49b433dadb0eeaf9bffebc1faa4226deda41a2e1f033b"
     },
     {
       "id": "skill/programming-javascript",
@@ -165,7 +165,7 @@
     {
       "id": "instruction",
       "path": "AGENTS.md",
-      "digest": "7b83d552d4fff9bbfdbc374c87286e3707bb6e448548afc571b15a74a0f2a838"
+      "digest": "67d41f345a1ba086cc320f838b55bb1ecaa1b4efcfce8ef76dd603623d00005c"
     },
     {
       "id": "agent/ci-checker",
@@ -175,12 +175,12 @@
     {
       "id": "agent/ci-fixer",
       "path": "agents/ci-fixer.md",
-      "digest": "fcb38146d51cd9c601c57af220c35513bc85ba664686faffafce214595a7ad9f"
+      "digest": "2c22cd0357987acf536228e863afcbd988e07cd44a1d8f206f58f9638bc04603"
     },
     {
       "id": "agent/ci-monitor-subagent",
       "path": "agents/ci-monitor-subagent.md",
-      "digest": "abcc961eff43bb914b9673dadccaf7c4f8cf3412f51551a568cb117e526f65e5"
+      "digest": "9053770fb6c175506d05a44a82b13ec52683f0cee367ee78c1da333360918724"
     },
     {
       "id": "agent/docs-checker",
@@ -190,7 +190,7 @@
     {
       "id": "agent/docs-fixer",
       "path": "agents/docs-fixer.md",
-      "digest": "0cb50ca7d54bf891873837444e720c8a8ae467e30c649fdb02b99cdb258a96f2"
+      "digest": "9870727c5ee64e5a5971f68c4b22f5663d3b329e006b69facb876aa9ea4eedd6"
     },
     {
       "id": "agent/harness-checker",
@@ -200,7 +200,7 @@
     {
       "id": "agent/harness-fixer",
       "path": "agents/harness-fixer.md",
-      "digest": "9374617404de7d23ad9d38bc726d0158c9546a8e5a7c06df9f34f1dfce9761d9"
+      "digest": "ab11f99732c5adf803afb87a386a45d2de1d7ead17b09c48b0b88190cfc6bc7b"
     },
     {
       "id": "agent/leak-reviewer",
@@ -220,7 +220,7 @@
     {
       "id": "agent/plan-fixer",
       "path": "agents/plan-fixer.md",
-      "digest": "bbbd3dec5ca87a6d9d478c6c2174a633d54f7f5ad10fe9d5d0a2713fc40b0955"
+      "digest": "3df709f0de478f8f1439e4f89193f779ece9e33665c62fd55c8ab846c3c97e7f"
     },
     {
       "id": "agent/plan-maker",
@@ -230,12 +230,12 @@
     {
       "id": "agent/pr-review-checker",
       "path": "agents/pr-review-checker.md",
-      "digest": "131fcff477ec9f2c12ad7f35049a7fa2cd3828b95b27d2c56b9364dd0ef2cb06"
+      "digest": "80acab1e1c4c7703bbdf9de4cee4775ab85dcb12286ca06c391f545e639024d3"
     },
     {
       "id": "agent/pr-review-fixer",
       "path": "agents/pr-review-fixer.md",
-      "digest": "489a4e872e229e6d1ae9ca9555f7bb6339843bd972c1a211be8c705b4d417004"
+      "digest": "46086a95423069d7e33a7bedc99ce99dc71e553729708a63e92fe14444332b2d"
     },
     {
       "id": "agent/rules-checker",
@@ -245,7 +245,7 @@
     {
       "id": "agent/rules-fixer",
       "path": "agents/rules-fixer.md",
-      "digest": "d99f33175718a94236e2a94b66bfc0073d5f04944dacb687ae99e75f6c3e4ef4"
+      "digest": "d418b3addcf273bc3d031ddf46efcbc6ba3aabf3b2878f33d7ed1a42ac4c4db2"
     },
     {
       "id": "agent/specs-checker",
@@ -255,17 +255,17 @@
     {
       "id": "agent/specs-fixer",
       "path": "agents/specs-fixer.md",
-      "digest": "0f94706f67c82e9bc77e39117c3175fb4cf23d076543f2e27c8bed6805fd9756"
+      "digest": "b92d2503bb6af63d9c999d2f643b406e09d72400cdbc6598a61005cb5ef4df62"
     },
     {
       "id": "agent/swe-api-tester",
       "path": "agents/swe-api-tester.md",
-      "digest": "7b5684e80251ef0774e48b4bef948cf7e347f6beb1b3c477845705b4eee8f9a9"
+      "digest": "e972e9b1f9ef2ec586407ee4413da74a6e4a9a5f777e6356ab1ef0fcabe89fdd"
     },
     {
       "id": "agent/swe-architect",
       "path": "agents/swe-architect.md",
-      "digest": "00bc663b6a825dc728c806b549067a3bc1f1983b3291fea1abe7707041067834"
+      "digest": "8b68944b8321105254d12afd63a8d6c60830f62c86863de4f8f188d7bd161a9e"
     },
     {
       "id": "agent/swe-debugger",
@@ -275,12 +275,12 @@
     {
       "id": "agent/swe-developer",
       "path": "agents/swe-developer.md",
-      "digest": "fe963ad16cc7060808ba871fad231c377951c5656443063b2191af80e144f019"
+      "digest": "c4e27d919c817e413e99bd2f1305d739f5023cf7f45f5a148ef2f729c14ff370"
     },
     {
       "id": "agent/swe-infra-tester",
       "path": "agents/swe-infra-tester.md",
-      "digest": "46ea2fde54b426e8503105672d78c5214576e377416de13278c4cd7a66cba280"
+      "digest": "5f9f6ac5806eeb6b9674dcb966e32bf26e437163a1e01740a9deafdadef2641f"
     },
     {
       "id": "agent/swe-releaser",
@@ -290,22 +290,22 @@
     {
       "id": "agent/swe-reviewer",
       "path": "agents/swe-reviewer.md",
-      "digest": "c88286c4b464d62ff39c368b61f08ea5abd7664cdfdbb3306a09edb6ebf640de"
+      "digest": "bf5f3b822c666f99a23e4a1e2034d9e7925f6c9fe0459c7ff4ceef9e8d6b405f"
     },
     {
       "id": "agent/swe-usability-tester",
       "path": "agents/swe-usability-tester.md",
-      "digest": "bb9b08d3c60d0c429a900495b1c76e276d6d4f3a9d1862b928fd8acb6ef806b8"
+      "digest": "d4b27fc143ea34a514ae702d0555ce23284c7b8f1b8be809883f731932bc4c9f"
     },
     {
       "id": "agent/swe-web-tester",
       "path": "agents/swe-web-tester.md",
-      "digest": "cd69188c46c24b3f746c10ad8411f28ea2fbecd9b7b17e838507357aecafa407"
+      "digest": "629b5e10fa7b42b87ea7798fb79a00a1972776a0a7352c526de2a83893c2a8e7"
     },
     {
       "id": "agent/web-researcher",
       "path": "agents/web-researcher.md",
-      "digest": "569710fb26d5fa0077de0b2fe5fbc174c0e15392c624a75545c712ab5b7ad050"
+      "digest": "a0fdfb8e88330922e7c210b38a1f683e8cd0a8617d74452192f75766b1b7408b"
     }
   ]
 }

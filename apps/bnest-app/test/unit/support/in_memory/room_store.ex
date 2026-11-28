@@ -33,26 +33,38 @@ defmodule BnestApp.Test.InMemory.RoomStore do
     member_posting_enabled: true
   }
 
+  # The unit layer's fixed clock. In-memory stamps never read the system clock, so
+  # every test that installs a store without passing `now:` observes the same
+  # timestamps; a test that asserts time behaviour passes its own `now:` instead.
+  @default_now ~U[2026-09-18 20:00:00Z]
+
   @doc "A fresh store with no room seeded yet, linked to the calling test."
-  def start do
-    {:ok, pid} = Agent.start_link(&empty/0)
+  def start(options \\ []) do
+    {:ok, pid} = Agent.start_link(fn -> empty(now(options)) end)
     %{adapter: __MODULE__, pid: pid}
   end
 
   @doc """
   Starts a fresh store under the calling test's supervisor as the store `new/0` serves,
   replacing one this test installed before, and returns its handle.
+
+  Pass `now:` to stamp this store's rows with a test-owned time instead of the
+  unit layer's fixed clock.
   """
-  def install do
+  def install(options \\ []) do
     if GenServer.whereis(__MODULE__), do: ExUnit.Callbacks.stop_supervised!(__MODULE__)
+
+    now = now(options)
 
     ExUnit.Callbacks.start_supervised!(%{
       id: __MODULE__,
-      start: {Agent, :start_link, [&empty/0, [name: __MODULE__]]}
+      start: {Agent, :start_link, [fn -> empty(now) end, [name: __MODULE__]]}
     })
 
     new()
   end
+
+  defp now(options), do: Keyword.get(options, :now, @default_now)
 
   # Configured as the unit layer's `:room_store`, so the facade, the GraphQL resolvers and
   # the controller all reach the store the current test installed. Without one it fails
@@ -170,7 +182,7 @@ defmodule BnestApp.Test.InMemory.RoomStore do
           sender_display_name: sender_display_name,
           idempotency_key: idempotency_key,
           body: body,
-          committed_at: DateTime.utc_now() |> DateTime.truncate(:second),
+          committed_at: DateTime.truncate(state.now, :second),
           reply_to_message_id: reply_to_message_id
         }
 
@@ -212,7 +224,7 @@ defmodule BnestApp.Test.InMemory.RoomStore do
     end)
   end
 
-  defp empty do
+  defp empty(now) do
     %{
       rooms: %{},
       messages: [],
@@ -222,7 +234,8 @@ defmodule BnestApp.Test.InMemory.RoomStore do
       deliveries: [],
       next_delivery_id: 1,
       fail_delivery_insert: false,
-      calls: []
+      calls: [],
+      now: now
     }
   end
 
@@ -240,7 +253,7 @@ defmodule BnestApp.Test.InMemory.RoomStore do
   defp seed(%{rooms: rooms} = state) when is_map_key(rooms, 1), do: state
 
   defp seed(state) do
-    now = DateTime.utc_now() |> DateTime.truncate(:second)
+    now = DateTime.truncate(state.now, :second)
 
     room =
       Map.merge(@canonical_room, %{

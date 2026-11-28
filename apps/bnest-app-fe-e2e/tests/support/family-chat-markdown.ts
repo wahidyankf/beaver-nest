@@ -119,3 +119,43 @@ export function targetMessage(page: Page): Locator {
 export function targetBody(page: Page): Locator {
   return targetMessage(page).locator('[data-role="family-chat-message-body"]');
 }
+
+// The weight each strong element with this text renders at, next to the weight the stylesheet sets for it. The
+// stylesheet weight is the last rule that matches the element and sets one; with no such rule the browser's bold (700)
+// applies.
+export async function boldWeightsOf(
+  strong: Locator,
+  text: string,
+): Promise<{ computed: string; expected: string }[]> {
+  const found = await strong.evaluateAll((elements, label: string) => {
+    const rules = Array.from(document.styleSheets).flatMap((sheet) => {
+      try {
+        return Array.from(sheet.cssRules);
+      } catch {
+        return [];
+      }
+    });
+    const weighted = rules.filter(
+      (rule): rule is CSSStyleRule =>
+        rule instanceof CSSStyleRule && rule.style.fontWeight !== "",
+    );
+    return elements
+      .filter((element) => element.textContent?.trim() === label)
+      .map((element) => {
+        let declared: string | undefined;
+        for (const rule of weighted) {
+          try {
+            if (element.matches(rule.selectorText))
+              declared = rule.style.fontWeight;
+          } catch {
+            // A selector the element cannot be tested against is no rule for it.
+          }
+        }
+        return { computed: getComputedStyle(element).fontWeight, declared };
+      });
+  }, text);
+  return found.map(({ computed, declared }) => ({
+    computed,
+    expected: declared === undefined || declared === "bold" ? "700" : declared,
+  }));
+}

@@ -1,18 +1,15 @@
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import { LIST, MESSAGE } from "../support/family-chat-keyboard";
-import { restorePrimaryRoute } from "../support/routed-rollout";
 
 // family_chat.feature, Rule "Message actions": the room always serves replies, so every message draws an actions
-// control. The global After hook restores the primary route.
+// control.
 
-const { Given, Then } = createBdd();
+const { Then } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every message in the history has an actions control
 
 const MORE = '[data-role="family-chat-message-more"]';
-
-Given("the room is served with replies turned on", async ({ page }) => {
-  await restorePrimaryRoute(page);
-});
 
 Then(
   "every message in the history has an actions control",

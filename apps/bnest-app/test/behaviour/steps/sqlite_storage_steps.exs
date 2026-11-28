@@ -11,18 +11,38 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: prepare(context, :storage_ui_not_visited)
   )
 
-  step("managed migration starts", context, do: perform(context, :start_managed_migration))
+  step("the operator runs `mix bnest.storage.migrate`", context,
+    do: perform(context, :start_managed_migration)
+  )
+
+  step("it exits 0 and the database file is in the default data folder", context,
+    do: outcomes(context, [{:sqlite_under_production_data, []}, {:no_browser_confirmation, []}])
+  )
 
   step("Bnest keeps the storage pointer under the configuration home", context,
     do: outcome(context, :pointer_under_configuration_home)
   )
 
-  step("Bnest uses the environment-specific data directory for SQLite", context,
-    do: outcome(context, :sqlite_under_production_data)
+  step("Bnest inventories records in deterministic path order", context,
+    do: outcome(context, :deterministic_inventory)
   )
 
-  step("migration does not require a browser confirmation", context,
-    do: outcome(context, :no_browser_confirmation)
+  step("each accepted item has immutable source and target checksum evidence", context,
+    do: outcome(context, :checksum_evidence_present)
+  )
+
+  step(
+    "accepted items are not rewritten, and remaining items continue from their recorded outcomes",
+    context,
+    do: outcomes(context, [{:accepted_items_not_duplicated, []}, {:remaining_items_continue, []}])
+  )
+
+  step("future writes remain compatible with the rollback reader", context,
+    do: outcome(context, :writes_compatible_with_rollback)
+  )
+
+  step("the storage pointer resolves the production data directory atomically", context,
+    do: outcome(context, :pointer_relocated_atomically)
   )
 
   step("an authenticated user with the admin role opened storage settings", context,
@@ -63,20 +83,6 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :no_storage_created)
   )
 
-  step("an empty isolated database", context, do: prepare(context, :empty_isolated_database))
-
-  step("the committed migration set is applied twice", context,
-    do: perform(context, :apply_migration_set_twice)
-  )
-
-  step("the schema version and indexes match the declared checksum", context,
-    do: outcome(context, :schema_matches_checksum)
-  )
-
-  step("the second run makes no duplicate table, index, or migration record", context,
-    do: outcome(context, :no_duplicate_schema_objects)
-  )
-
   step("a flat-primary installation has no custom storage location", context,
     do: prepare(context, :flat_primary_default_location)
   )
@@ -85,40 +91,24 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: perform(context, :run_managed_storage_migration)
   )
 
-  step("Bnest inventories records in deterministic path order", context,
-    do: outcome(context, :deterministic_inventory)
-  )
-
-  step("Bnest writes the database under the resolved storage directory", context,
-    do: outcome(context, :database_under_resolved_directory)
-  )
-
-  step("every recognized valid item is accepted without a block", context,
-    do: outcome(context, :all_valid_items_accepted)
-  )
-
-  step("each accepted item has immutable source and target checksum evidence", context,
-    do: outcome(context, :checksum_evidence_present)
-  )
-
-  step("normal repository reads return the same validated record", context,
-    do: outcome(context, :normal_reads_match)
+  step(
+    "the task reports accepted records with blocked=0 and exits 0, and every record reads back unchanged through the app",
+    context,
+    do: outcomes(context, [{:all_valid_items_accepted, []}, {:normal_reads_match, []}])
   )
 
   step("migration stopped after at least one accepted item", context,
     do: prepare(context, :migration_stopped_after_progress)
   )
 
-  step("the administrator retries the same migration identifier", context,
+  step("the operator runs the same task again", context,
     do: perform(context, :retry_same_migration)
   )
 
-  step("accepted matching items are not rewritten or duplicated", context,
-    do: outcome(context, :accepted_items_not_duplicated)
-  )
-
-  step("remaining items continue from their recorded outcomes", context,
-    do: outcome(context, :remaining_items_continue)
+  step(
+    "it exits 0, the counts show the remaining items accepted, and no record appears twice",
+    context,
+    do: outcomes(context, [{:accepted_items_not_duplicated, []}, {:remaining_items_continue, []}])
   )
 
   step("schema, backfill, parity, integrity, and isolated restore checks pass", context,
@@ -133,10 +123,6 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   step("future reads use SQLite", context, do: outcome(context, :future_reads_use_sqlite))
 
-  step("future writes remain compatible with the rollback reader", context,
-    do: outcome(context, :writes_compatible_with_rollback)
-  )
-
   step("verified flat-file identity sources are retired", context,
     do: perform(context, :retire_flat_identity_sources)
   )
@@ -147,6 +133,20 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
 
   step("a source is malformed, unsupported, or changes after inventory", context,
     do: prepare(context, :malformed_or_changed_source)
+  )
+
+  step("an empty isolated database", context, do: prepare(context, :empty_isolated_database))
+
+  step("the committed migration set is applied twice", context,
+    do: perform(context, :apply_migration_set_twice)
+  )
+
+  step("the schema version and indexes match the declared checksum", context,
+    do: outcome(context, :schema_matches_checksum)
+  )
+
+  step("the second run makes no duplicate table, index, or migration record", context,
+    do: outcome(context, :no_duplicate_schema_objects)
   )
 
   step("Bnest verifies migration", context, do: perform(context, :verify_migration))
@@ -163,16 +163,6 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :value_free_retry_category)
   )
 
-  step("a non-admin family member is logged in", context,
-    do: prepare(context, :non_admin_family_member)
-  )
-
-  step("the user opens the storage settings route", context,
-    do: perform(context, :open_storage_settings_route)
-  )
-
-  step("Bnest denies the operation", context, do: outcome(context, :storage_access_denied))
-
   step("Bnest reveals no host path or migration inventory", context,
     do: outcome(context, :no_host_path_or_inventory_revealed)
   )
@@ -181,8 +171,12 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: prepare(context, :healthy_route_with_acknowledged_state)
   )
 
-  step("a revision-compatible candidate is promoted", context,
+  step("a compatible new release is promoted", context,
     do: perform(context, :promote_compatible_candidate)
+  )
+
+  step("the deploy report names the new release and shows SQLite ready", context,
+    do: outcome(context, :routed_revision_and_readiness_proven)
   )
 
   step("the routed revision and SQLite readiness are proven", context,
@@ -201,16 +195,19 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: prepare(context, :legacy_authoritative_sqlite)
   )
 
-  step("managed storage relocation runs", context, do: perform(context, :relocate_storage))
-
-  step("the storage pointer resolves the production data directory atomically", context,
-    do: outcome(context, :pointer_relocated_atomically)
+  step("the operator runs `mix bnest.storage.relocate`", context,
+    do: perform(context, :relocate_storage)
   )
 
+  # The printed line is checked by the browser binding, which runs the Mix task; the unit layer has no CLI output.
   step(
-    "legacy SQLite files remain until the new database passes routed proof",
+    ~s(it exits 0 printing "relocation verified", the database is in the production data folder, and the legacy SQLite files are still present),
     context,
-    do: outcome(context, :legacy_sqlite_retained_until_proof)
+    do:
+      outcomes(context, [
+        {:pointer_relocated_atomically, []},
+        {:legacy_sqlite_retained_until_proof, []}
+      ])
   )
 
   step("routed SQLite proof matches the authoritative database generation", context,
@@ -229,10 +226,78 @@ defmodule BnestApp.Behaviour.SqliteStorageSteps do
     do: outcome(context, :config_and_placeholders_preserved)
   )
 
+  # The storage status reads Not started, Blocked, or SQLite active
+  # (BN-STORAGE-05), Move data and Retry migration start or retry the
+  # migration (BN-STORAGE-06), and The folder is locked once migration has
+  # started (BN-STORAGE-07).
+
+  step("a storage installation in {string} state", %{args: [setup]} = context,
+    do: prepare(context, :storage_setup, [setup])
+  )
+
+  step("the administrator opens /storage", context, do: perform(context, :open_storage_page))
+
+  step("the page reads {string}", %{args: [text]} = context,
+    do: outcome(context, :storage_page_reads, [text])
+  )
+
+  step("a flat-primary installation with seeded family data and one malformed source", context,
+    do: prepare(context, :storage_seeded_with_malformed)
+  )
+
+  step("the storage control reads {string}", %{args: [label]} = context,
+    do: outcome(context, :storage_control_reads, [label])
+  )
+
+  step("the administrator presses {string}", %{args: [label]} = context,
+    do: perform(context, :press_storage_control, [label])
+  )
+
+  step(
+    "the page reads {string} and the control reads {string}",
+    %{args: [status, label]} = context,
+    do: outcome(context, :storage_status_and_control, [status, label])
+  )
+
+  step(
+    "the operator repairs the malformed source and the administrator presses {string}",
+    %{args: [label]} = context,
+    do: perform(context, :repair_and_retry, [label])
+  )
+
+  step("a flat-primary installation with a migration in progress", context,
+    do: prepare(context, :storage_migration_in_progress)
+  )
+
+  step(
+    "the folder input and the Check folder button are disabled and Create database is not offered",
+    context,
+    do: outcome(context, :storage_folder_locked)
+  )
+
+  defp outcomes(context, checks) do
+    Enum.each(checks, fn {expected, args} ->
+      assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
+    end)
+
+    context
+  end
+
   defp prepare(context, state), do: context.behaviour_driver.prepare_behaviour(context, state, [])
+
+  defp prepare(context, state, args),
+    do: context.behaviour_driver.prepare_behaviour(context, state, args)
 
   defp perform(context, action),
     do: context.behaviour_driver.perform_behaviour(context, action, [])
+
+  defp perform(context, action, args),
+    do: context.behaviour_driver.perform_behaviour(context, action, args)
+
+  defp outcome(context, expected, args) do
+    assert context.behaviour_driver.behaviour_outcome?(context, expected, args)
+    context
+  end
 
   defp outcome(context, expected) do
     assert context.behaviour_driver.behaviour_outcome?(context, expected, [])

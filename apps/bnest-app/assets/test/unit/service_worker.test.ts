@@ -71,6 +71,32 @@ describe("service worker install", () => {
     );
   });
 
+  // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The service worker precaches the shell and drops the old cache
+  it("precaches the shell under beaver-nest-shell-v2 and drops the old cache", async () => {
+    const worker = loadServiceWorker({
+      "beaver-nest-shell-v1": {
+        "/": `<main ${AUTHENTICATED_MARKER}="test-user-sw">Signed in</main>`,
+      },
+    });
+    await worker.install();
+
+    expect([...worker.caches.keys()]).toContain("beaver-nest-shell-v2");
+
+    await worker.activate();
+
+    expect([...worker.caches.keys()]).toEqual(["beaver-nest-shell-v2"]);
+    expect(worker.cachedPathnames().sort()).toEqual(
+      [
+        "/assets/css/app.css",
+        "/assets/js/app.js",
+        "/images/beaver-nest-192.png",
+        "/images/beaver-nest-512.png",
+        "/manifest.webmanifest",
+      ].sort(),
+    );
+    expect(worker.cachedPathnames()).not.toContain("/");
+  });
+
   it("removes a cache an earlier version left holding the signed-in home page", async () => {
     const worker = loadServiceWorker({
       "beaver-nest-shell-v1": {

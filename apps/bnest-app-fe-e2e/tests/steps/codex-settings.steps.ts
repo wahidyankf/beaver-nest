@@ -4,6 +4,13 @@ import { openOptionsIfCollapsed } from "../support/chat-ui-steps";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A model change falls back to Max from an unsupported reasoning effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A child, or a child administrator, is limited to read-only Luna at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A parent chooses Luna or Terra at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An administrator turns repository writes on and off
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Repository access returns to read-only after a reload or after clearing the chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens a fresh chat
+
 const modelIdsByName: Record<string, string> = {
   "GPT-6.1-Sol": "gpt-6.1-sol",
   "GPT-6.1 Terra": "gpt-6.1-terra",

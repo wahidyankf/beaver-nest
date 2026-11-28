@@ -5,6 +5,7 @@ defmodule BnestApp.ScheduledBackupTest do
 
   alias BnestApp.Backup
   alias BnestApp.Backup.Adapters.ScheduledBackupTask
+  alias BnestApp.Backup.Adapters.SqliteDatabaseSnapshot
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.FamilyChat
   alias BnestApp.Release.Migrations.PersistentSchedules
@@ -38,6 +39,8 @@ defmodule BnestApp.ScheduledBackupTest do
       System.delete_env("BNEST_BACKUP_CONFIG")
       System.delete_env("BNEST_STORAGE_CONFIG")
       File.rm_rf(backup_directory)
+      File.rm_rf(backup_directory <> "-second")
+      File.rm(backup_directory <> "-link")
       File.rm(config_path)
       TestRuntimeRoot.cleanup!(runtime)
     end)
@@ -45,6 +48,8 @@ defmodule BnestApp.ScheduledBackupTest do
     %{backup_directory: backup_directory, runtime: runtime}
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A daily backup with no saved folder is written to the repository backup folder
   test "resolves the ignored default from the runtime repository checkout", context do
     repository = Path.join(context.runtime.path, "release-checkout")
     File.mkdir_p!(repository)
@@ -77,6 +82,8 @@ defmodule BnestApp.ScheduledBackupTest do
     assert {:ok, %{directory: ^expected}} = Backup.destination()
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A scheduled backup produces a verified snapshot of the live database
   test "writes and independently verifies one private owned pair", context do
     assert {:ok, location} = Backup.save_destination(context.backup_directory)
 
@@ -87,6 +94,68 @@ defmodule BnestApp.ScheduledBackupTest do
     assert receipt["quickCheck"] == "ok"
     assert File.exists?(Path.join(context.backup_directory, receipt["artifactBasename"]))
     refute inspect(receipt) =~ context.backup_directory
+
+    # The artifact is the configured database's copy: an independent proof of the artifact matches the
+    # receipt, and the live database's own proof matches both.
+    artifact_path = Path.join(context.backup_directory, receipt["artifactBasename"])
+
+    assert {:ok, proof} =
+             SqliteDatabaseSnapshot.prove(SqliteDatabaseSnapshot.new(), artifact_path)
+
+    assert receipt["logicalProofSha256"] == proof.logical_sha256
+
+    assert {:ok, live} =
+             SqliteDatabaseSnapshot.prove(
+               SqliteDatabaseSnapshot.new(),
+               SqliteRepo.main_database_path()
+             )
+
+    assert proof.logical_sha256 == live.logical_sha256
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup that runs too long is cancelled, leaves no file, and is tried again
+  test "a backup that exceeds its timeout is cancelled, leaves no file, and stays retryable",
+       context do
+    previous = Application.get_env(:bnest_app, :backup_timeout_ms)
+    Application.put_env(:bnest_app, :backup_timeout_ms, 1)
+
+    on_exit(fn ->
+      if is_nil(previous),
+        do: Application.delete_env(:bnest_app, :backup_timeout_ms),
+        else: Application.put_env(:bnest_app, :backup_timeout_ms, previous)
+    end)
+
+    assert {:ok, location} = Backup.save_destination(context.backup_directory)
+
+    {:ok, claim} =
+      Scheduler.claim_setup("prod-sqlite-backup-daily", location.destination_id, @now)
+
+    probes = Task.async(fn -> family_chat_probe_rounds(10) end)
+
+    assert {:error, :timeout} = ScheduledBackupTask.execute(claim, @now)
+
+    assert context.backup_directory
+           |> File.ls!()
+           |> Enum.filter(&String.contains?(&1, ".sqlite3")) == []
+
+    assert %{completed: 10, failures: 0} = Task.await(probes)
+  end
+
+  # Authenticated family chat reads and sends through the facade, run beside the backup.
+  defp family_chat_probe_rounds(count) do
+    user = "test-user-backup-probe"
+    :ok = FamilyChat.ensure_ready!()
+    slug = FamilyChat.canonical_room_slug()
+
+    Enum.reduce(1..count, %{completed: 0, failures: 0}, fn _round, acc ->
+      sent = FamilyChat.send_message(user, slug, Ecto.UUID.generate(), "probe")
+      read = FamilyChat.list_messages(user, slug, [])
+
+      if match?({:ok, _}, sent) and match?({:ok, _}, read),
+        do: %{acc | completed: acc.completed + 1},
+        else: %{acc | failures: acc.failures + 1}
+    end)
   end
 
   test "retains one owned pair per current seven WIB dates and preserves unknown files",
@@ -165,6 +234,8 @@ defmodule BnestApp.ScheduledBackupTest do
       %{location: location}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: The report and the log line carry no private value
     test "reports the date and state of a run whose artifact was removed, once and privately",
          context do
       first = run_backup!(context.location, 1)
@@ -207,6 +278,8 @@ defmodule BnestApp.ScheduledBackupTest do
       assert_no_private_value(inspect(metadata) <> log, context, [first, second])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: A reconciliation that raises leaves the backup verified
     test "a reconciliation that raises leaves the run verified and logs one path-free error",
          context do
       first = run_backup!(context.location, 1)
@@ -270,6 +343,185 @@ defmodule BnestApp.ScheduledBackupTest do
     assert %{"room" => room} = Jason.decode!(evidence)
     assert room["slug"] == FamilyChat.canonical_room_slug()
     refute room["slug"] == "ruang-arsip"
+  end
+
+  # While the snapshot copies the live database, members keep reading and sending: the
+  # backup still completes, and the artifact restores into a self-consistent snapshot
+  # whose ordered message IDs are exactly messages members sent, earliest first.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: A backup taken while the chat is busy restores as a consistent snapshot
+  test "a backup taken while the chat is busy restores as a consistent snapshot",
+       context do
+    FamilyChat.ensure_ready!()
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+    slug = FamilyChat.canonical_room_slug()
+
+    before_ids =
+      for n <- 1..3 do
+        {:ok, message} =
+          FamilyChat.send_message(
+            "test-user-busy-quiet",
+            slug,
+            Ecto.UUID.generate(),
+            "quiet #{n}"
+          )
+
+        message.id
+      end
+
+    # The snapshot holds the database's write lock while it copies, so a read or send
+    # that lands mid-copy is refused busy; a member's client retries those, and the test
+    # does the same, because the scenario only constrains the snapshot, not the probes.
+    # Only the transient lock refusal is retried: any other error raises immediately.
+    with_busy_retries = fn fun ->
+      Enum.reduce_while(1..100, nil, fn _, _ ->
+        try do
+          {:halt, fun.()}
+        rescue
+          e in [Exqlite.Error] ->
+            if e.message =~ "busy" do
+              Process.sleep(20)
+              {:cont, nil}
+            else
+              reraise e, __STACKTRACE__
+            end
+        end
+      end)
+    end
+
+    senders =
+      for n <- 1..3 do
+        Task.async(fn ->
+          for m <- 1..4 do
+            with_busy_retries.(fn ->
+              {:ok, message} =
+                FamilyChat.send_message(
+                  "test-user-busy-#{n}",
+                  slug,
+                  Ecto.UUID.generate(),
+                  "busy #{n}.#{m}"
+                )
+
+              message.id
+            end)
+          end
+        end)
+      end
+
+    readers =
+      for _ <- 1..2 do
+        Task.async(fn ->
+          for _ <- 1..20 do
+            with_busy_retries.(fn ->
+              {:ok, _page} = FamilyChat.list_messages("test-user-busy-reader", slug, limit: 50)
+            end)
+          end
+        end)
+      end
+
+    assert {:ok, artifact} =
+             Backup.run(deadline: @now, destination_directory: location.directory)
+
+    sent_ids = MapSet.new(before_ids ++ Enum.flat_map(senders, &Task.await(&1, 30_000)))
+    Enum.each(readers, &Task.await(&1, 30_000))
+
+    assert {:ok, %{evidence: evidence}} = Backup.restore(artifact)
+    %{"orderedMessageIds" => restored_ids} = Jason.decode!(evidence)
+
+    assert MapSet.subset?(MapSet.new(before_ids), MapSet.new(restored_ids))
+    assert MapSet.subset?(MapSet.new(restored_ids), sent_ids)
+    assert restored_ids == Enum.sort(restored_ids)
+  end
+
+  # Reads and sends keep working for the whole backup: two probes read and send in a loop
+  # that only stops once the backup has finished, so every sample falls inside the backup
+  # window. No probe fails, slow outliers stay within the scenario's budgets, and every
+  # sent message is in the room history after.
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: Chat reads and sends stay within budget during a backup
+  test "chat reads and sends stay within budget during a backup", context do
+    FamilyChat.ensure_ready!()
+    {:ok, location} = Backup.save_destination(context.backup_directory)
+    slug = FamilyChat.canonical_room_slug()
+
+    for n <- 1..500 do
+      {:ok, _} =
+        FamilyChat.send_message(
+          "test-user-budget-seed",
+          slug,
+          Ecto.UUID.generate(),
+          "seed #{n} " <> String.duplicate("x", 200)
+        )
+    end
+
+    {:ok, flag} = Agent.start_link(fn -> false end)
+
+    # The snapshot briefly refuses lock losers while it copies; a probe retries those
+    # inside its own timing, so a transient refusal still completes without failure.
+    with_busy_retries = fn fun ->
+      Enum.reduce_while(1..100, nil, fn _, _ ->
+        try do
+          {:halt, fun.()}
+        rescue
+          e in [Exqlite.Error] ->
+            if e.message =~ "busy" do
+              Process.sleep(20)
+              {:cont, nil}
+            else
+              reraise e, __STACKTRACE__
+            end
+        end
+      end)
+    end
+
+    probe = fn user ->
+      Stream.repeatedly(fn ->
+        {read_ms, _} =
+          with_busy_retries.(fn ->
+            read_start = System.monotonic_time(:millisecond)
+            {:ok, _page} = FamilyChat.list_messages(user, slug, limit: 50)
+            {System.monotonic_time(:millisecond) - read_start, :ok}
+          end)
+
+        {send_ms, message_id} =
+          with_busy_retries.(fn ->
+            send_start = System.monotonic_time(:millisecond)
+
+            {:ok, message} =
+              FamilyChat.send_message(user, slug, Ecto.UUID.generate(), "budget probe")
+
+            {System.monotonic_time(:millisecond) - send_start, message.id}
+          end)
+
+        {message_id, [read_ms, send_ms]}
+      end)
+      |> Enum.reduce_while([], fn sample, acc ->
+        if acc != [] and Agent.get(flag, & &1), do: {:halt, acc}, else: {:cont, [sample | acc]}
+      end)
+    end
+
+    probers = for n <- 1..2, do: Task.async(fn -> probe.("test-user-budget-#{n}") end)
+
+    assert {:ok, _artifact} =
+             Backup.run(deadline: @now, destination_directory: location.directory)
+
+    Agent.update(flag, fn _ -> true end)
+    completed = Enum.flat_map(probers, &Task.await(&1, 30_000))
+    {sent_ids, samples} = Enum.unzip(completed)
+    durations = List.flatten(samples)
+
+    assert durations != []
+    assert Enum.all?(durations, &(&1 <= 2_000))
+
+    sorted = Enum.sort(durations)
+    p95 = Enum.at(sorted, max(trunc(Float.ceil(length(sorted) * 0.95)) - 1, 0))
+    assert p95 <= 500
+
+    assert {:ok, %{nodes: nodes}} =
+             FamilyChat.list_messages("test-user-budget-reader", slug, limit: 50)
+
+    history_ids = MapSet.new(nodes, & &1.id)
+    assert MapSet.subset?(MapSet.new(sent_ids), history_ids)
   end
 
   # A copy cut short by 100 bytes, less than one page, still opens and still reads its room,

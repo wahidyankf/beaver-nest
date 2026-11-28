@@ -167,7 +167,7 @@ export function copyRelease(source, destination) {
   run("cp", ["-a", source, destination]);
 }
 
-function slotUnit(slot, options) {
+export function slotUnit(slot, options) {
   const variables = {
     PATH: servicePath(),
     PHX_SERVER: "true",

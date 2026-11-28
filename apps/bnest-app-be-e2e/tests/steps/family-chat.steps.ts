@@ -1,3 +1,9 @@
+// family_chat_graphql.feature's plain subscription and afterId catch-up scenarios: one event per committed message,
+// and a message committed before the subscription started caught up through afterId.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber receives exactly one event per committed message
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A subscriber catches up a missed event through afterId
+
 import { randomUUID } from "node:crypto";
 import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";

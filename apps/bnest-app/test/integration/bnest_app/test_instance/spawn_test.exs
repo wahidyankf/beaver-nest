@@ -80,6 +80,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
   end
 
   describe "spawn!/2" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The spawn returns after its migrations and seed, and the instance stays current until deletion
     test "gives a real empty migrated SQLite file with the release seeds", %{run: run} do
       instance = TestInstance.spawn!(run)
 
@@ -148,6 +150,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert :ok = TestInstance.drop!(instance)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Consecutive tests never share a database
     test "gives consecutive cycles disjoint databases", %{run: run} do
       first = TestInstance.spawn!(run)
 
@@ -217,6 +221,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert Task.await(holder) == :ok
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawn while a scheduler task runs answers 409 instance_busy
     test "refuses a spawn while a scheduler task runs, and creates nothing", %{run: run} do
       before = snapshot()
       {:ok, task} = start_blocking_scheduler_task()
@@ -324,6 +330,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
     end
 
     for step <- @steps, phase <- @phases do
+      # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+      # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A failed spawn leaves nothing behind
       test "a failure at #{step} in #{phase} rolls the whole spawn back", %{run: run} do
         before = snapshot()
 
@@ -431,6 +439,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
   end
 
   describe "drop!/1" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes every directory, pointer, and backup configuration the instance made
     test "leaves no instance directory and adds nothing to the base", %{run: run} do
       # Other integration tests may write accounts into the shared base, so the base is judged by
       # what this spawn and drop add to it, not by its absolute state.
@@ -545,6 +555,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert snapshot() == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes every directory, pointer, and backup configuration the instance made
     test "restores the original runtime, backup and record store settings", %{run: run} do
       before = snapshot()
       instance = TestInstance.spawn!(run, phase: :flat_primary)
@@ -559,6 +571,8 @@ defmodule BnestApp.TestInstance.SpawnTest do
       assert snapshot() == before
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes every directory, pointer, and backup configuration the instance made
     test "removes a backup configuration written during the instance", %{run: run} do
       instance = TestInstance.spawn!(run)
       store = BackupConfigStore.new()

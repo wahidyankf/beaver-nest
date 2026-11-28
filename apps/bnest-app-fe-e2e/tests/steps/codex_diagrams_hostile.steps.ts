@@ -13,6 +13,8 @@ import {
 
 // The hostile-diagram scenario of chat.feature (ADR 004, Decisions 1 and 2): a script, an event handler, an outside
 // picture and shape data in a diagram must not reach the reader. The shared Before hook is in codex_diagrams.steps.ts.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hostile Codex diagram text is inert
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A diagram that carries settings is not drawn and shows a note
 const { Given, Then } = createBdd();
 
 Given(

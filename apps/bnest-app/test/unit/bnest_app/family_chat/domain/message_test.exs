@@ -87,6 +87,12 @@ defmodule BnestApp.FamilyChat.Domain.MessageTest do
                "System"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A sent message names its sender by display username, not raw user ID
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Re-querying an older message shows the sender's current display name
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quoted sender name follows the current account too
     test "a user message shows the live account name, else the stamped one" do
       message = %{sender_kind: "user", sender_id: "test-user-a", sender_display_name: "Ayah"}
 
@@ -108,6 +114,8 @@ defmodule BnestApp.FamilyChat.Domain.MessageTest do
       assert Message.attach_quote(%{reply_to_message_id: nil}, %{7 => @target}).reply_to == nil
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A quote carries a plain text preview and no HTML
     test "a reply quotes its target's sender and a collapsed preview, never the body" do
       quoted = Message.attach_quote(%{reply_to_message_id: 7}, %{7 => @target}).reply_to
 

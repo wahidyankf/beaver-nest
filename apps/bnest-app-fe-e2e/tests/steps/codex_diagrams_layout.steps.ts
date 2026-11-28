@@ -4,6 +4,8 @@ import { expectDecodedPicture, pictureLayout } from "../support/codex-diagrams";
 
 // The 320 px picture-layout steps of chat.feature's Codex diagram rules (tag @codex-diagram), in Chromium. Split out of
 // codex_diagrams.steps.ts to keep that file within the line limit; the steps and their proof are unchanged.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A narrow Codex diagram fits a 320 pixel bubble
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram keeps a readable size and scrolls inside its own box
 const { Then } = createBdd();
 
 Then(

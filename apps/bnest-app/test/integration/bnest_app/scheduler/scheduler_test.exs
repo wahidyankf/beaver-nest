@@ -23,6 +23,9 @@ defmodule BnestApp.SchedulerTest do
     :ok
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: After downtime only one catch-up backup runs
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Claim a slot once and recover
   test "two coordinators claim one latest missed slot and advance future" do
     claims =
       1..2
@@ -35,6 +38,8 @@ defmodule BnestApp.SchedulerTest do
              ~U[2026-08-31 19:00:00Z]
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
   test "setup claims are idempotent per destination" do
     assert {:ok, first} =
              Scheduler.claim_setup("prod-sqlite-backup-daily", "destination-safe", @now)
@@ -46,6 +51,8 @@ defmodule BnestApp.SchedulerTest do
     assert Schedules.run_count() == 1
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Claim a slot once and recover
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Expire schedules deterministically
   test "retry preserves occurrence and stops after three attempts" do
     [claim] = Scheduler.claim_due(@now)
 
@@ -89,6 +96,7 @@ defmodule BnestApp.SchedulerTest do
     assert final.attempt == 3
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Claim a slot once and recover
   test "a running attempt renews its lease and rejects stale fencing tokens" do
     [claim] = Scheduler.claim_due(@now)
     renewed_at = DateTime.add(@now, 60)
@@ -113,6 +121,7 @@ defmodule BnestApp.SchedulerTest do
     assert Enum.all?(Scheduler.admin_inventory().admin_system, &Map.has_key?(&1, :last_run_state))
   end
 
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Expire schedules deterministically
   test "occurrence expiry dispatches the final claim and rejects later slots" do
     :ok = Schedules.put_test_schedule("twice", "family", "fixture", @now, max_occurrences: 1)
     claims = Scheduler.claim_due(@now)
@@ -121,6 +130,28 @@ defmodule BnestApp.SchedulerTest do
 
     refute Enum.any?(Scheduler.claim_due(DateTime.add(@now, 86_400)), fn claim ->
              claim.schedule_key == "twice" and claim.occurrence_number > 1
+           end)
+  end
+
+  # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Expire schedules deterministically
+  test "a retried final occurrence is still claimed, and the schedule then expires" do
+    :ok =
+      Schedules.put_test_schedule("final-retried", "family", "fixture", @now, max_occurrences: 1)
+
+    [claim] = Enum.filter(Scheduler.claim_due(@now), &(&1.schedule_key == "final-retried"))
+    assert claim.occurrence_number == 1
+
+    assert {:retryable, _retry} =
+             ScheduleStore.fail_attempt(Scheduler.store(), claim.run_id, 1, :capacity, @now)
+
+    retry_at = DateTime.add(@now, 5 * 60)
+    assert [retried] = Enum.filter(Scheduler.claim_due(retry_at), &(&1.run_id == claim.run_id))
+    assert retried.occurrence_number == 1
+    assert retried.attempt == 2
+    assert Scheduler.get_schedule("final-retried").expired_at != nil
+
+    refute Enum.any?(Scheduler.claim_due(DateTime.add(@now, 86_400)), fn claim ->
+             claim.schedule_key == "final-retried" and claim.occurrence_number > 1
            end)
   end
 end

@@ -1,6 +1,7 @@
 ## Jest
 
-Jest-specific guidance for `nx import`. For the basic "Jest Preset Missing" fix (create `jest.preset.js`, install deps), see `SKILL.md`. This file covers deeper Jest integration issues.
+Jest-specific guidance for `nx import`. For the basic "Jest Preset Missing" fix (create `jest.preset.js`, install deps),
+see `SKILL.md`. This file covers deeper Jest integration issues.
 
 ---
 
@@ -24,9 +25,11 @@ Jest-specific guidance for `nx import`. For the basic "Jest Preset Missing" fix 
 1. **Registers `@nx/jest/plugin` in `nx.json`** — without this, no `test` targets are inferred
 2. Updates `namedInputs.production` to exclude test files
 
-**Gotcha**: `nx add @nx/jest` does NOT create `jest.preset.js` — that file is only generated when you run a generator (e.g. `@nx/jest:configuration`). For imports, you must create it manually (see "Jest Preset" section below).
+**Gotcha**: `nx add @nx/jest` does NOT create `jest.preset.js` — that file is only generated when you run a generator
+(e.g. `@nx/jest:configuration`). For imports, you must create it manually (see "Jest Preset" section below).
 
-**Other gotcha**: If you create `jest.preset.js` manually but skip `npx nx add @nx/jest`, the plugin won't be registered and `nx run PROJECT:test` will fail with "Cannot find target 'test'". You need both.
+**Other gotcha**: If you create `jest.preset.js` manually but skip `npx nx add @nx/jest`, the plugin won't be registered
+and `nx run PROJECT:test` will fail with "Cannot find target 'test'". You need both.
 
 ---
 
@@ -37,7 +40,7 @@ The preset provides shared Jest configuration (test patterns, ts-jest transform,
 **Root `jest.preset.js`:**
 
 ```js
-const nxPreset = require('@nx/jest/preset').default;
+const nxPreset = require("@nx/jest/preset").default;
 module.exports = { ...nxPreset };
 ```
 
@@ -45,13 +48,15 @@ module.exports = { ...nxPreset };
 
 ```ts
 export default {
-  displayName: 'my-lib',
-  preset: '../../jest.preset.js',
+  displayName: "my-lib",
+  preset: "../../jest.preset.js",
   // project-specific overrides
 };
 ```
 
-The `preset` path is relative from the project root to the workspace root. Subdirectory imports preserve the original relative path (e.g. `../../jest.preset.js`), which resolves correctly if the import destination matches the source directory depth.
+The `preset` path is relative from the project root to the workspace root. Subdirectory imports preserve the original
+relative path (e.g. `../../jest.preset.js`), which resolves correctly if the import destination matches the source
+directory depth.
 
 ---
 
@@ -82,7 +87,8 @@ Some React projects use Babel instead of ts-jest for JSX transformation:
 pnpm add -wD babel-jest @babel/core @babel/preset-env @babel/preset-react @babel/preset-typescript
 ```
 
-**When**: Project `jest.config` has `transform` using `babel-jest` instead of `ts-jest`. Common in older Nx workspaces and CRA migrations.
+**When**: Project `jest.config` has `transform` using `babel-jest` instead of `ts-jest`. Common in older Nx workspaces
+and CRA migrations.
 
 #### Vue testing
 
@@ -130,7 +136,8 @@ Workspaces can have both:
 - **Jest**: Next.js apps, older React libs, Node libraries
 - **Vitest**: Vite-based React/Vue apps and libs
 
-Both `@nx/jest/plugin` and `@nx/vite/plugin` (which infers Vitest targets) coexist without conflicts — they detect different config files (`jest.config.*` vs `vite.config.*`).
+Both `@nx/jest/plugin` and `@nx/vite/plugin` (which infers Vitest targets) coexist without conflicts — they detect
+different config files (`jest.config.*` vs `vite.config.*`).
 
 **Target naming**: Both default to `test`. If a project somehow has both config files, rename one:
 
@@ -150,16 +157,17 @@ Projects migrating from Jest to Vitest (or workspaces with both) need different 
 **Jest** (in `test-setup.ts`):
 
 ```ts
-import '@testing-library/jest-dom';
+import "@testing-library/jest-dom";
 ```
 
 **Vitest** (in `test-setup.ts`):
 
 ```ts
-import '@testing-library/jest-dom/vitest';
+import "@testing-library/jest-dom/vitest";
 ```
 
-If the source used Jest but the dest workspace uses Vitest for that project type, update the import path. Also add `@testing-library/jest-dom` to tsconfig `types` array.
+If the source used Jest but the dest workspace uses Vitest for that project type, update the import path. Also add
+`@testing-library/jest-dom` to tsconfig `types` array.
 
 ---
 
@@ -170,7 +178,8 @@ Nx rewrites `package.json` scripts during init. Test scripts get broken:
 - `"test": "jest"` → `"test": "nx test"` (circular if no executor configured)
 - `"test": "vitest run"` → `"test": "nx test run"` (broken — `run` becomes an argument)
 
-**Fix**: Remove all rewritten test scripts. `@nx/jest/plugin` and `@nx/vite/plugin` infer test targets from config files.
+**Fix**: Remove all rewritten test scripts. `@nx/jest/plugin` and `@nx/vite/plugin` infer test targets from config
+files.
 
 ---
 
@@ -188,21 +197,26 @@ Nx rewrites `package.json` scripts during init. Test scripts get broken:
 }
 ```
 
-This creates `test-ci--src/lib/foo.spec.ts` targets for each test file, enabling Nx Cloud distribution. Not relevant during import, but useful for post-import CI setup.
+This creates `test-ci--src/lib/foo.spec.ts` targets for each test file, enabling Nx Cloud distribution. Not relevant
+during import, but useful for post-import CI setup.
 
 ---
 
 ### Common Post-Import Issues
 
-1. **"Cannot find target 'test'"**: `@nx/jest/plugin` not registered in `nx.json`. Run `npx nx add @nx/jest` or manually add the plugin entry.
+1. **"Cannot find target 'test'"**: `@nx/jest/plugin` not registered in `nx.json`. Run `npx nx add @nx/jest` or manually
+   add the plugin entry.
 
 2. **"Cannot find module 'jest-preset'"**: `jest.preset.js` missing at workspace root. Create it (see SKILL.md).
 
-3. **"Cannot find type definition file for 'jest'"**: Missing `@types/jest` or `tsconfig.spec.json` doesn't have `"types": ["jest", "node"]`.
+3. **"Cannot find type definition file for 'jest'"**: Missing `@types/jest` or `tsconfig.spec.json` doesn't have
+   `"types": ["jest", "node"]`.
 
-4. **Tests fail with "Cannot use import statement outside a module"**: `ts-jest` not installed or not configured as transform. Check `jest.config.ts` transform section.
+4. **Tests fail with "Cannot use import statement outside a module"**: `ts-jest` not installed or not configured as
+   transform. Check `jest.config.ts` transform section.
 
-5. **Snapshot path mismatches**: After import, `__snapshots__` directories may have paths baked in. Run tests once with `--updateSnapshot` to regenerate.
+5. **Snapshot path mismatches**: After import, `__snapshots__` directories may have paths baked in. Run tests once with
+   `--updateSnapshot` to regenerate.
 
 ---
 

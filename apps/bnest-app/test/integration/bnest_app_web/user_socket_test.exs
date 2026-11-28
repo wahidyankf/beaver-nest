@@ -65,4 +65,35 @@ defmodule BnestAppWeb.UserSocketSessionTest do
 
     assert BnestAppWeb.UserSocket.id(socket) == "identity:" <> session["session_digest"]
   end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A socket connection acts as the signed-in member whatever identity its parameters claim
+  test "the socket ignores hostile params and carries the session's user", %{conn: conn} do
+    session = session_after_request(conn)
+
+    {:ok, socket} =
+      Phoenix.ChannelTest.connect(
+        BnestAppWeb.UserSocket,
+        %{"current_user" => %{"userId" => "attacker"}, "session_digest" => "forged"},
+        connect_info: %{session: session}
+      )
+
+    context = Keyword.fetch!(socket.assigns.absinthe.opts, :context)
+    assert context.current_user == session["current_user"]
+    assert context.session_digest == session["session_digest"]
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: The socket rejects a connection with no valid session
+  test "the socket rejects a connection with no valid session", %{conn: _conn} do
+    assert :error =
+             Phoenix.ChannelTest.connect(BnestAppWeb.UserSocket, %{},
+               connect_info: %{session: %{}}
+             )
+
+    assert :error =
+             Phoenix.ChannelTest.connect(BnestAppWeb.UserSocket, %{},
+               connect_info: %{session: nil}
+             )
+  end
 end

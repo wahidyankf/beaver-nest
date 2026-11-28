@@ -29,6 +29,12 @@ import { postSystemMessage } from "../support/family-chat-session";
 
 const { After, Given, Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is not yet committed cannot be replied to
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A press that turns into a scroll does not open the menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A system message can be replied to like any other
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a formatted message copies what was typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message puts its text on the clipboard
+
 const HOLD_THRESHOLD_MS = 500;
 
 // A scenario that takes the browser offline must not leave the next one

@@ -31,6 +31,12 @@ import type { SpawnedInstance } from "../support/testing-control-records.mts";
 // scenario's first step, its Given, ends that instance. playwright-bdd matches a step by its text alone, so one binding
 // serves the Given and the Then of "no test instance is current". It ends an instance only as the first step (see
 // isScenarioPrecondition). Control calls use Node fetch through the shared client, never Playwright's request context.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Consecutive tests never share a database
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: The spawn returns after its migrations and seed, and the instance stays current until deletion
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes the instance from the running server
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: Teardown removes every directory, pointer, and backup configuration the instance made
+// @scenario specs/apps/bnest/app-be/behaviours/test_isolation.feature: A spawned instance with no seeded accounts starts empty with initial setup open
 
 const { Before, BeforeStep, Given, Then, When } = createBdd();
 
@@ -85,7 +91,7 @@ Given("a test instance is current", async () => {
   );
 });
 
-// --- Scenario: a test starts from an empty migrated database ----------------
+// --- Scenario: a spawned instance with no seeded accounts starts empty ---------
 
 When(
   "a test spawns an instance with no seeded accounts",
@@ -98,8 +104,8 @@ When(
 );
 
 Then(
-  "the instance database holds no account, browser session, chat message, or user record",
-  () => {
+  "no account can log in, the chat has no messages, and the initial setup page is open",
+  async ({ page }) => {
     expect(instanceRowCounts()).toEqual({
       bnest_records: 0,
       family_chat_messages: 0,
@@ -112,16 +118,25 @@ Then(
         instanceEnvironment(currentInstance()).BNEST_RUNTIME_ROOT,
       ),
     ).toEqual([]);
+    const response = await page.goto("/setup");
+    expect(response?.status()).toBe(200);
+    await expect(
+      page.getByRole("heading", { name: "Create the first family accounts" }),
+    ).toBeVisible();
   },
 );
 
-Then("the initial setup stays open for that instance", async ({ page }) => {
-  const response = await page.goto("/setup");
-  expect(response?.status()).toBe(200);
-  await expect(
-    page.getByRole("heading", { name: "Create the first family accounts" }),
-  ).toBeVisible();
-});
+Then(
+  "the instance database holds no browser session or user record",
+  async ({ page }) => {
+    expect(instanceRowCounts().bnest_records).toBe(0);
+    // Sessions are signed cookies, so the only session a fresh browser can hold is its identity cookie.
+    const cookies = await page.context().cookies();
+    expect(cookies.map((cookie) => cookie.name)).not.toContain(
+      "_bnest_identity",
+    );
+  },
+);
 
 // --- Scenario: consecutive tests never share a database ---------------------
 

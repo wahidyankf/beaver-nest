@@ -3,6 +3,8 @@ import { createBdd } from "playwright-bdd";
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor retains public Codex progress beside the final answer
+
 When("Codex reports public progress", async ({ page }) => {
   await expect(
     page.locator("[data-role=codex-reasoning-summary]", {

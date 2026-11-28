@@ -16,6 +16,9 @@ import {
 
 const { Then, When } = createBdd();
 
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance reports its own storage generation
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance does not know the previous instance's admin account
+
 let previousAdmin: InstanceIdentity | undefined;
 
 When(

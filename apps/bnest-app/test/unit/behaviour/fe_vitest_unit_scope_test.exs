@@ -1,8 +1,8 @@
 defmodule BnestApp.Behaviour.FeVitestUnitScopeTest do
   @moduledoc """
   The prune that hands `@fe-vitest-unit` scenarios to the Vitest harness drops them from
-  the integration layer too, so it only does so for a scenario that records why
-  integration does not bind it.
+  both Elixir layers on the tag alone. Their integration layer is the browser
+  integration run, which selects them by `@scenario` reference.
   """
 
   use ExUnit.Case, async: true
@@ -42,24 +42,24 @@ defmodule BnestApp.Behaviour.FeVitestUnitScopeTest do
     assert scenario_names(pruned) == ["Server rendered"]
   end
 
-  test "refuses to drop an @fe-vitest-unit scenario integration does not record as exempt" do
-    error =
-      assert_raise ArgumentError, fn ->
-        FeVitestUnitScope.prune(
-          discovery("""
-          Feature: Scope
+  test "drops an @fe-vitest-unit scenario on the tag alone" do
+    pruned =
+      FeVitestUnitScope.prune(
+        discovery("""
+        Feature: Scope
 
-            Rule: Room
+          Rule: Room
 
-            @fe-vitest-unit
-            @e2e-exempt
-            Scenario: Silently unbound
-              When a visitor opens "/"
-          """)
-        )
-      end
+          Scenario: Server rendered
+            When a visitor opens "/"
 
-    assert error.message =~ "Silently unbound"
-    assert error.message =~ "@integration-exempt"
+          @fe-vitest-unit
+          @e2e-exempt
+          Scenario: Browser bound
+            When a visitor opens "/"
+        """)
+      )
+
+    assert scenario_names(pruned) == ["Server rendered"]
   end
 end

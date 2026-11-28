@@ -17,6 +17,10 @@ defmodule BnestApp.CodexChat.RepositoryAccessTest do
     refute RepositoryAccess.can_enable_write?(%{})
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An administrator turns repository writes on and off
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Repository access returns to read-only after a reload or after clearing the chat
   test "mode fails closed unless an eligible administrator explicitly requests writes" do
     assert RepositoryAccess.mode(%{"roles" => ["admin"]}, false) == :read_only
     assert RepositoryAccess.mode(%{"roles" => ["admin"]}, true) == :workspace_write

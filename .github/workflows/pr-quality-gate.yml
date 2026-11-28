@@ -1,14 +1,16 @@
 name: PR Quality Gate
 
-# Integration moved from direct pushes on local `main` to worktree-to-PR, so the
-# guarantees that used to rest solely on this workstation's Git hooks now need a
-# server-side mirror. Each job below reproduces one local hook: a change that
-# would have been refused by `pre-commit`, `commit-msg`, or `pre-push` must be
-# refused here too, because a pull request can be opened from any checkout.
+# The pull-request surface of the registry in `repo-config.yml` runs here, from
+# any checkout (C8). This workflow is a superset of the local hooks: it replays
+# every hook check, and it runs every other pull-request entry in parallel jobs.
+# One aggregate job is the single required result. Its display name is
+# `Quality gate`; its job id is `quality-gate`.
+#
+# The gates come only from the registry (C1). Each job selects its entries with
+# `--entry`, so no job copies a gate's command, and every pull-request entry runs
+# in exactly one job. Each compute step runs under one HIPPO boundary. Every
+# action reference names a full commit SHA, with its release tag in a comment.
 on:
-  # Pull requests only. Every job below derives its comparison range from
-  # `github.base_ref`, which no other event supplies, so a manual dispatch could
-  # not compute one and would fail for a reason unrelated to code quality.
   pull_request:
     types: [opened, synchronize, reopened]
     branches: [main]
@@ -25,254 +27,50 @@ env:
   NX_NO_CLOUD: "true"
 
 jobs:
-  commit-messages:
-    name: Commit messages
+  # The global checks: the tree, range, and document checks, the repository
+  # contract, the bootstrap tests, and the behaviour binding check. Each one reads
+  # the whole repository or the explicit range, so none is narrowed to a project.
+  global-checks:
+    name: Global checks
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 45
     steps:
-      # The real head, not the synthetic merge commit: commitlint must read the
-      # messages this branch actually contributes. GitHub's merge commit carries
-      # a "Merge ... into ..." subject that no Conventional Commits rule accepts.
-      - name: Check out the pull request head
-        uses: actions/checkout@v6
+      # The pull request head with its history: the explicit range reads commits.
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "24.22.3"
           cache: npm
 
       - name: Install npm dependencies
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
-      - name: Lint every commit this pull request adds
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -eu
-          git fetch --no-tags origin "${BASE_REF}"
-          # The fork point, not the base tip: a branch behind `main` would
-          # otherwise re-lint commits it never authored.
-          from=$(git merge-base FETCH_HEAD HEAD)
-          ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
-            npm exec -- commitlint --from "${from}" --to HEAD --verbose
-
-  formatting:
-    name: Formatting
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-
       - name: Set up Erlang and Elixir
-        uses: erlef/setup-beam@v1
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           otp-version: "29.1.2"
           elixir-version: "1.20.4"
           version-type: strict
 
-      - name: Install npm dependencies
-        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
-
-      - name: Determine the files this pull request changes
-        id: changed
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -eu
-          git fetch --no-tags origin "${BASE_REF}"
-          # Added, copied, modified, renamed only: a deleted file has no content
-          # left to check, and passing its path to a formatter is an error.
-          git diff --name-only --diff-filter=ACMR FETCH_HEAD...HEAD > changed-files.txt
-          if grep -qE '^apps/bnest-app/.*\.(ex|exs|heex)$' changed-files.txt; then
-            echo "elixir=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "elixir=false" >> "${GITHUB_OUTPUT}"
-          fi
-
-      # `lint-staged` writes formatting locally; CI can only verify it, because a
-      # pull request may come from a checkout whose hooks never ran. Same file
-      # set, same Prettier, `--check` instead of `--write`.
-      - name: Verify Prettier formatting on changed files
-        run: |
-          set -eu
-          if [ ! -s changed-files.txt ]; then
-            echo "No added, copied, modified, or renamed files to check."
-            exit 0
-          fi
-          # --ignore-unknown mirrors the lint-staged command, so paths outside
-          # Prettier's languages are skipped rather than failing the gate.
-          tr '\n' '\0' < changed-files.txt |
-            xargs -0 -r ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
-              npm exec -- prettier --check --ignore-unknown
-
-      - name: Install Phoenix dependencies
-        if: steps.changed.outputs.elixir == 'true'
-        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
-
-      # The second half of the lint-staged contract for Elixir sources. Its unit
-      # suite is not repeated here; `affected-quick` already owns that.
-      - name: Verify Elixir formatting
-        if: steps.changed.outputs.elixir == 'true'
-        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- npm exec -- nx run bnest-app:format
-
-  affected-quick:
-    name: Affected quick suites
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Set up Erlang and Elixir
-        uses: erlef/setup-beam@v1
-        with:
-          otp-version: "29.1.2"
-          elixir-version: "1.20.4"
-          version-type: strict
-
-      - name: Install npm dependencies
-        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
-
       - name: Install Phoenix dependencies
         run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
-      # `test:quick` runs `mix dialyzer`, which rebuilds its PLT from the whole
-      # OTP and dependency set on a cold runner. Without this cache every pull
-      # request pays that cost again; the key tracks the exact toolchain and
-      # dependency set the PLT is derived from.
-      - name: Cache the Dialyzer PLT
-        uses: actions/cache@v4
-        with:
-          path: apps/bnest-app/_build/test/*.plt*
-          key: plt-bnest-app-otp29.1.2-ex1.20.4-${{ hashFiles('apps/bnest-app/mix.lock') }}
-          restore-keys: |
-            plt-bnest-app-otp29.1.2-ex1.20.4-
+      # The UI class gate reads the built Tailwind bundle, so the shipped stylesheet is
+      # built first. The build runs `MIX_ENV=test mix assets.build` in apps/bnest-app,
+      # so it needs the Elixir toolchain and the Phoenix dependencies installed above.
+      - name: Build the shipped stylesheet bundle
+        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run bnest-app:assets:build
 
-      - name: Run the affected quick graph
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -eu
-          git fetch --no-tags origin "${BASE_REF}"
-          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
-            npm exec -- nx affected -t test:quick --base=FETCH_HEAD --head=HEAD
-
-  repository-contract:
-    name: Repository and consumer contracts
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: "24"
-          cache: npm
-
-      - name: Install npm dependencies
-        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
-
-      # The leak review's hosted range check runs on every head, whatever the
-      # routing below decides: each commit's additions, names, and message are
-      # screened, so a value one commit adds and a later one deletes still fails.
-      - name: Screen the pull request's range commit by commit
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -eu
-          git fetch --no-tags origin "${BASE_REF}"
-          ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
-            env RHINO_GATE_SURFACE=pull-request \
-              PUBLIC_SAFETY_BASE="$(git rev-parse FETCH_HEAD)" PUBLIC_SAFETY_HEAD="$(git rev-parse HEAD)" \
-              bash scripts/public-safety/check.sh
-
-      # Mirror the three `.husky/pre-push` path sets; governed changes include all
-      # four harnesses. A suite skips here only when it skips locally. Each set
-      # includes this workflow because an edit to the gate itself must re-prove it.
-      - name: Route the conditional suites
-        id: route
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -eu
-          git fetch --no-tags origin "${BASE_REF}"
-
-          changed_in() {
-            git diff --name-only FETCH_HEAD...HEAD -- "$@"
-          }
-
-          governed=$(changed_in \
-            ':(icase,glob)**/*.md' \
-            ':(glob)repo-governance/**' ':(glob)docs/**' ':(glob)specs/**' ':(glob)plans/**' \
-            'repo-config.yml' ':(glob)apps/rhino-consumer/**' '.husky/pre-push' \
-            ':(glob)scripts/public-safety/**' \
-            ':(glob).agents/**' ':(glob).codex/**' ':(glob).claude/**' ':(glob).opencode/**' ':(glob).commandcode/**' \
-            '.mcp.json' 'CLAUDE.md' 'opencode.json' 'opencode.jsonc' \
-            '.github/workflows/pr-quality-gate.yml')
-
-          hippo_consumer=$(changed_in \
-            hippo hippo.lock hippo.identity.json hippo.local.json.example \
-            '.github/scripts/test-hippo-bootstrap.sh' \
-            ':(glob)specs/tools/hippo-consumer/**' \
-            '.github/workflows/pr-quality-gate.yml')
-
-          rhino_consumer=$(changed_in \
-            rhino rhino.lock \
-            '.github/scripts/test-rhino-bootstrap.sh' \
-            ':(glob)specs/tools/rhino-consumer/**' \
-            '.github/workflows/pr-quality-gate.yml')
-
-          # Passed as an argument rather than resolved by name: each value is a
-          # newline-separated file list, which indirect expansion would split.
-          emit() {
-            if [ -n "$2" ]; then
-              echo "$1=true" >> "${GITHUB_OUTPUT}"
-            else
-              echo "$1=false" >> "${GITHUB_OUTPUT}"
-            fi
-          }
-
-          emit governed "${governed}"
-          emit hippo_consumer "${hippo_consumer}"
-          emit rhino_consumer "${rhino_consumer}"
-
-      - name: Verify the pinned HIPPO bootstrap
-        if: steps.route.outputs.hippo_consumer == 'true'
-        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- ./.github/scripts/test-hippo-bootstrap.sh
-
-      # Pinned to the version this workstation's `pre-push` hook runs. The
-      # runner image ships an older ShellCheck that still emits SC2015 for
-      # `A && B || continue`, an idiom `rhino` uses correctly; a mirror that
-      # fails on linter drift rather than on the code would train its readers to
-      # ignore it. Checksum-verified, following the pinned-Caddy precedent in
-      # `scheduled-quality-gates.yml`.
+      # The `rhino-bootstrap-lint` entry lints the RHINO bootstrap. Pinned to the
+      # version this workstation runs: the runner image ships an older ShellCheck
+      # that emits SC2015 for `A && B || C`, an idiom the bootstrap uses correctly.
+      # Checksum-verified, because an unverified download in a gate is a supply
+      # chain this repository did not choose.
       - name: Install the pinned ShellCheck
-        if: steps.route.outputs.rhino_consumer == 'true'
         env:
           SHELLCHECK_VERSION: "0.11.0"
           SHELLCHECK_LINUX_X86_64_SHA512: "25df28923d7d89cfdb9fa8aeef762a887f2bd4ebfbcd43ae71068c60e9458d66250b0f8d6fd66b4bc03723e6cdd47983c547e3ab4f3ea2cbc4bc4028842cc7b9"
@@ -293,58 +91,122 @@ jobs:
             "${RUNNER_TEMP}/pinned-bin/shellcheck"
           printf '%s\n' "${RUNNER_TEMP}/pinned-bin" >> "${GITHUB_PATH}"
 
-      - name: Verify the pinned RHINO bootstrap
-        if: steps.route.outputs.rhino_consumer == 'true'
+      - name: Run the global checks
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
+          set -eu
+          export PATH="${GITHUB_WORKSPACE}/node_modules/.bin:${PATH}"
+          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
+            ./rhino gate run --surface pull-request \
+              --entry public-safety-tree --entry public-safety-range \
+              --entry public-safety-tests --entry remote-dispatch-refusal \
+              --entry repo-config --entry word-budget --entry directory-map \
+              --entry quality-gates --entry harness-adapters --entry internal-links \
+              --entry mermaid --entry markdownlint --entry behaviour-coverage \
+              --entry hippo-bootstrap-test --entry rhino-bootstrap-lint \
+              --entry rhino-consumer-repo \
+              --entry ui-class-coverage --entry ui-class-coverage-tests \
+              --entry e2e-failure-summary-tests \
+              --base "${BASE_SHA}" --head "${HEAD_SHA}"
+
+  # The commit-message lint, per commit and over the range. Both entries read the
+  # explicit range, so the head needs its history.
+  commit-messages:
+    name: Commit messages
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.22.3"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
+
+      - name: Lint the commit messages of the pull request
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
           ./hippo run --class ephemeral --resource-tier light --disk-path . -- \
-            sh -c 'shellcheck rhino .github/scripts/test-rhino-bootstrap.sh &&
-              ./.github/scripts/test-rhino-bootstrap.sh'
+            ./rhino gate run --surface pull-request \
+              --entry commit-message --entry commit-history \
+              --base "${BASE_SHA}" --head "${HEAD_SHA}"
+
+  # One parallel job per project's quick suite. A project's job names its own
+  # entry, and only the Elixir project installs the Phoenix toolchain.
+  test-quick:
+    name: Test quick (${{ matrix.project }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [bnest-app, bnest-app-be-e2e, bnest-app-fe-e2e]
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.22.3"
+          cache: npm
+
+      - name: Install npm dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Set up Erlang and Elixir
-        uses: erlef/setup-beam@v1
+        if: matrix.project == 'bnest-app'
+        uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           otp-version: "29.1.2"
           elixir-version: "1.20.4"
           version-type: strict
 
       - name: Install Phoenix dependencies
-        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && mix deps.get'
+        if: matrix.project == 'bnest-app'
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
-      # The pull-request surface gates read the built Tailwind bundle, so the
-      # assets this checkout ships are built first (mirrors `ui-class-coverage`).
-      - name: Build the shipped stylesheet bundle
-        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run bnest-app:assets:build
+      # `test:quick` runs `mix dialyzer`, which rebuilds its PLT from the whole OTP
+      # and dependency set on a cold runner. The key tracks the exact toolchain and
+      # dependency set the PLT is derived from.
+      - name: Cache the Dialyzer PLT
+        if: matrix.project == 'bnest-app'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: apps/bnest-app/_build/test/*.plt*
+          key: plt-bnest-app-otp29.1.2-ex1.20.4-${{ hashFiles('apps/bnest-app/mix.lock') }}
+          restore-keys: |
+            plt-bnest-app-otp29.1.2-ex1.20.4-
 
-      # The pull-request surface receives the immutable range explicitly. Its
-      # membership stays declared in repo-config.yml rather than duplicated here.
-      - name: Verify the repository contract under the pinned RHINO
-        if: steps.route.outputs.governed == 'true'
+      - name: Run the project's quick suite
         run: |
-          ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
-            ./rhino gate run --surface pull-request \
-              --base "$(git rev-parse FETCH_HEAD)" --head "$(git rev-parse HEAD)"
+          set -eu
+          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
+            ./rhino gate run --surface pull-request --entry test-quick-${{ matrix.project }}
 
-  ui-class-coverage:
-    name: UI class coverage
-    # Mirrors the affected-quick setup: the gate reads the built Tailwind
-    # bundle, so the assets this checkout ships are built first, then the gate
-    # and its own suite run against them.
+  # The integration suites: local values only, so every pull request runs them (C17).
+  test-integration:
+    name: Test integration
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
-          node-version: "24"
+          node-version: "24.22.3"
           cache: npm
 
-      - name: Set up Erlang and Elixir
-        uses: erlef/setup-beam@v1
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
         with:
           otp-version: "29.1.2"
           elixir-version: "1.20.4"
@@ -354,38 +216,74 @@ jobs:
         run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
 
       - name: Install Phoenix dependencies
-        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- sh -c 'cd apps/bnest-app && mix deps.get'
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
 
-      - name: Build the shipped stylesheet bundle
-        run: ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run bnest-app:assets:build
+      - name: Install Chromium and system dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm exec -- playwright install --with-deps chromium
 
-      - name: Run the UI class coverage gate
-        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- ./scripts/check-ui-class-coverage.mjs
+      - name: Run the integration suites
+        run: |
+          set -eu
+          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
+            ./rhino gate run --surface pull-request --entry test-integration
 
-      - name: Run the gate's own suite
-        run: ./hippo run --class ephemeral --resource-tier light --disk-path . -- node --test scripts/check-ui-class-coverage.test.mjs
+  # The formatters replayed over the range, and the Elixir format check. Each
+  # verifies that the change is already formatted rather than rewriting it.
+  verify-clean:
+    name: Verify clean formatting
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: "24.22.3"
+          cache: npm
+
+      - uses: erlef/setup-beam@54075bcc5e249e4758d363f27d099f55d843f124 # v1.24.1
+        with:
+          otp-version: "29.1.2"
+          elixir-version: "1.20.4"
+          version-type: strict
+
+      - name: Install npm dependencies
+        run: ./hippo run --class transactional --resource-tier standard --disk-path . -- npm ci
+
+      - name: Install Phoenix dependencies
+        run: ./hippo run --class transactional --resource-tier standard --cwd apps/bnest-app --disk-path apps/bnest-app -- mix deps.get
+
+      - name: Verify the formatting entries
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -eu
+          export PATH="${GITHUB_WORKSPACE}/node_modules/.bin:${PATH}"
+          ./hippo run --class ephemeral --resource-tier standard --disk-path . -- \
+            ./rhino gate run --surface pull-request \
+              --entry format-staged --entry prettier-check --entry format-elixir \
+              --base "${BASE_SHA}" --head "${HEAD_SHA}"
+
+  # The single required status check. A skipped or cancelled dependency is not a
+  # pass, so only an explicit success from every job may open the merge button.
   quality-gate:
     name: Quality gate
-    # The single required status check. Individual jobs may legitimately skip a
-    # suite, and a skipped required check never reports at all, so merge
-    # protection points at this aggregate instead of at each job.
     needs:
-      [
-        commit-messages,
-        formatting,
-        affected-quick,
-        repository-contract,
-        ui-class-coverage,
-      ]
+      - global-checks
+      - commit-messages
+      - test-quick
+      - test-integration
+      - verify-clean
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Check every gate
         env:
-          # A cancelled or skipped dependency is not a pass: only an explicit
-          # success from every job may open the merge button.
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           set -eu

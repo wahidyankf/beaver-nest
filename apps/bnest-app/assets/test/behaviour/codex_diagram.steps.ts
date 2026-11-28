@@ -301,6 +301,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       ensureScene().engineAvailable = false;
       return context;
     }),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws after the diagram engine starts on a later try
     step("the first start of the diagram engine fails", async (context) => {
       ensureScene().engineFailuresLeft = 1;
       return context;
@@ -353,6 +354,7 @@ export function codexDiagramSteps(): StepDefinition[] {
         return context;
       },
     ),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex chat without a diagram does not load the diagram engine
     step("a completed Codex reply has no diagram", async (context) => {
       addReply(ensureScene(), [
         paragraph("Here is a plain answer. It has no diagram."),
@@ -361,6 +363,9 @@ export function codexDiagramSteps(): StepDefinition[] {
     }),
 
     // When
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram with a syntax error stays visible as source with a note
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A diagram that carries settings is not drawn and shows a note
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The largest allowed Codex flowchart is drawn within the time budget
     step("the browser draws the marked diagrams", async (context) => {
       await drawMarked(ensureScene());
       return context;
@@ -371,6 +376,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       await settle(state);
       return context;
     }),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clearing the Codex chat removes its diagrams and the next reply draws again
     step("the visitor clears the chat in the browser", async (context) => {
       ensureScene().root.replaceChildren();
       return context;
@@ -390,6 +396,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       ensureScene().engineAvailable = false;
       return context;
     }),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws again offline after it was drawn once
     step("the browser draws the same flowchart again", async (context) => {
       const state = ensureScene();
       addReply(state, [markedBlock(FLOWCHART)]);
@@ -422,6 +429,8 @@ export function codexDiagramSteps(): StepDefinition[] {
         return context;
       },
     ),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex flowchart is drawn as a picture
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hostile Codex diagram text is inert
     step("the picture loads nothing from another origin", async (context) => {
       const state = ensureScene();
       // A figure must exist before the loop, so an empty page cannot pass. Each picture is decoded and checked.
@@ -504,7 +513,8 @@ export function codexDiagramSteps(): StepDefinition[] {
       expect(code?.textContent).toContain("<script>");
       return context;
     }),
-    step("the picture is the same node as before", async (context) => {
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A drawn diagram stays drawn and keeps its source open when the conversation grows
+    step("the picture is still shown and not redrawn", async (context) => {
       const state = ensureScene();
       expect(state.figure).not.toBeNull();
       expect(state.root.querySelector("figure")).toBe(state.figure);
@@ -530,6 +540,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       ).toHaveLength(0);
       return context;
     }),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A narrow Codex diagram fits a 320 pixel bubble
     step("the picture fits its own box at 320 pixels", async (context) => {
       // The width of a narrow picture is its natural width, so the declared rule keeps it inside its box (the
       // layout itself is measured in Chromium by bnest-app-fe-e2e).
@@ -547,6 +558,7 @@ export function codexDiagramSteps(): StepDefinition[] {
       ).toBe(true);
       return context;
     }),
+    // @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram keeps a readable size and scrolls inside its own box
     step("the picture keeps a readable size at 320 pixels", async (context) => {
       // The picture is never narrower than 0.75 of its natural width or 30rem: a 16 px label stays at 12 px or more.
       const picture = declaredDiagramBlock(PICTURE_SELECTOR);

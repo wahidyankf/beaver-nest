@@ -117,6 +117,14 @@ function fixtureText(prompt: string): string {
 
 // --- Given ---------------------------------------------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex send shortcut hint follows the visitor's pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Send button lines up with the message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex links, tables, code blocks and diagram sources show the room's coral focus ring
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header's tab order follows the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat button fills on hover only for a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram uses the width of a desktop column
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex scrollable tables and code blocks are named as in Family Chat
 step("the Codex chat page is open at {string}", (spec) => {
   const match = /^\w+ (\d+)x(\d+)$/u.exec(spec);
   if (!match) throw new Error(`unreadable viewport ${JSON.stringify(spec)}`);
@@ -135,6 +143,7 @@ step("the home page is open at {string}", (spec) => {
   });
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page keeps a gap between the header and the hero card
 step("the header keeps a gap above the hero card", () => {
   // The header declares the space below it, so the hero card never touches the account row on any width.
   const viewport = recallOr("homeViewport", DEFAULT_VIEWPORT);
@@ -212,6 +221,7 @@ step("the message composer text is 16 pixels", () => {
   expect(size, "the composer text size").toBe(16);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex diagram source is at least 44 pixels tall on a touch screen
 step("the diagram source summary is at least 44 pixels tall", () => {
   const env = laidOut();
   const height = pixels(
@@ -227,6 +237,7 @@ step("the diagram source summary is at least 44 pixels tall", () => {
 
 // --- Then: scroll cues and height caps ------------------------------------------------
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex tables and code blocks show that they scroll
 step("the wide table and the code block show a scroll cue", () => {
   const env = laidOut();
   expect(recall<string>("codexPrompt")).toBeTruthy();
@@ -244,6 +255,7 @@ step("the wide table and the code block show a scroll cue", () => {
   }
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply does not overflow the phone width
 step("the page does not overflow horizontally at 390 pixels", () => {
   // Checks the declared rules only: the reply picture's cap (`.markdown-body img`), that no other shipped rule for an
   // image outside a diagram lifts that cap, and that the wide table, the code block and the diagram canvas scroll
@@ -273,6 +285,7 @@ step("the page does not overflow horizontally at 390 pixels", () => {
   }
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex code block scrolls inside a height limit
 step("the code block is no taller than 384 pixels and scrolls", () => {
   const env = laidOut();
   const declared = declarationsFor(".markdown-body pre", env);
@@ -290,6 +303,7 @@ step("the code block is no taller than 384 pixels and scrolls", () => {
   ).toBe(true);
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex picture fits a short screen
 step("the logo is no taller than 70 percent of the screen height", () => {
   const env = laidOut();
   const height = pixels(
@@ -362,6 +376,7 @@ function percentOf(value: string | undefined): number {
   return match ? Number(match[1]) : Number.NaN;
 }
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex panel fits the window on a tablet, a landscape phone and a desktop
 step("the Codex panel is no taller than the window", () => {
   const env = laidOut();
   const height = pixels(
@@ -500,29 +515,6 @@ function codexPanelBudget(env: Environment): {
   return { header, composer, box, list: env.height - header - composer - box };
 }
 
-step("the Codex Send button is on screen", () => {
-  // The composer sits at the foot of the panel, so its Send button is in view while the conversation has room left.
-  const budget = codexPanelBudget(laidOut());
-  expect(
-    budget.list,
-    "the message box leaves no room for the composer",
-  ).toBeGreaterThanOrEqual(0);
-});
-
-step("the Codex header is on screen", () => {
-  // The header is the panel's first row; it is cut at the top when the composer and the header need more than the panel.
-  const env = laidOut();
-  const budget = codexPanelBudget(env);
-  expect(
-    budget.header,
-    "the header is taller than the window",
-  ).toBeLessThanOrEqual(env.height);
-  expect(
-    budget.list,
-    "the header and the composer need more than the panel",
-  ).toBeGreaterThanOrEqual(0);
-});
-
 step("the conversation is at least 25 percent of the screen height", () => {
   const env = laidOut();
   const budget = codexPanelBudget(env);
@@ -581,6 +573,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex repository access state is visible without scrolling the header
 step("the repository write toggle is at least 44 pixels tall", () => {
   const env = laidOut();
   const height = pixels(
@@ -608,6 +601,7 @@ step("the message box is named {string}", (name) => {
   ).not.toBe("hidden");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box keeps its name when the window is short
 step("the visible Message label takes no space in the composer", () => {
   const declared = declarationsFor(".composer .label", laidOut());
   expect(declared["position"], "the label is taken out of the flow").toBe(
@@ -821,6 +815,7 @@ step("the newest message is fully above the composer", () => {
   ).not.toBe("absolute");
 });
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer and most of the conversation fit a small phone
 step("the message composer is on screen without scrolling the page", () => {
   const panel = declarationsFor(".chat-panel", laidOut());
   expect(
@@ -938,6 +933,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box has no resize handle
 step("the Codex message box has no resize handle", () => {
   expect(declarationsFor(".composer textarea", laidOut())["resize"]).toBe(
     "none",
@@ -976,6 +972,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button has four equal round corners that match the Family Chat Send button
 step("the Codex Send button has four equal corner radii", () => {
   const radius = resolveVars(
     declarationsFor(".send-button", laidOut())["border-radius"] ?? "",
@@ -1004,6 +1001,7 @@ step(
   },
 );
 
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button and the Family Chat Send button share one colour
 step("the Codex Send button text meets the contrast target", () => {
   const declared = declarationsFor(".send-button", laidOut());
   const ratio = contrastRatio(

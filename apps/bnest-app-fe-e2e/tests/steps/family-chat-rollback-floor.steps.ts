@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 import { createBdd } from "playwright-bdd";
 import {
   delivery,
@@ -21,7 +21,21 @@ import {
   waitForMessage,
 } from "../support/family-chat-reply";
 import { ensureRoomOpen } from "../support/family-chat-reply-room";
-
+import { test } from "../support/test-fixtures";
+import {
+  expectLiveServerAnswered,
+  forgetAnsweredBeforeRollback,
+  judgeAgainstRolledBackSlot,
+  previousRevisionTraffic,
+  refusals,
+  routeGraphqlWire,
+  sendPreviousBundleDocuments,
+} from "../support/family-chat-previous-revision";
+import {
+  navigationCount,
+  reloadRoutedRoom,
+  waitForRoutedReads,
+} from "../support/family-chat-routed-room";
 // AC-FCR-13's two release scenarios: a browser holding an older bundle while
 // the routed slot changes beneath it. Neither ever navigates after the route
 // moves. `reloadRoute` only rewrites Caddy's upstream and polls readiness
@@ -29,97 +43,29 @@ import { ensureRoomOpen } from "../support/family-chat-reply-room";
 // ones loaded before the route moved, and everything the Thens judge is that
 // held bundle talking to the newly routed revision.
 //
+// The held bundle's wire is judged against the frozen contract in
+// apps/bnest-app/assets/test/support/family_chat_previous_revision.json. The older page's documents are replayed as
+// the previous bundle sends them, and every document the held page sends is judged against the frozen rolled-back
+// schema. Both promoted candidates are one build, so the fixture is the only earlier contract these scenarios can see.
+//
 // Everything is driven from the visitor's own page. An earlier version seeded
 // through a second browser context, which had to log in against a slot that
 // had just booted; that returned `Internal Server Error` often enough to make
 // the scenario worthless. The proof does not need a second member.
 
+/** The message seeded while the newer version is live: the reloaded held page must render it. */
+let seededId = "";
 /** The reply committed after the rollback -- the one the earlier revision itself answered. */
 let floorReplyId = "";
 /** The revision whose bundle the page holds, and the one routed after it. */
 let heldRevision = "";
 let routedRevision = "";
 
-const { Given, Then, When } = createBdd();
+// `heldPage.rolledBack` (a test-scoped fixture) tells the shared Then which scenario's page is held.
+const { Given, Then, When } = createBdd(test);
 
-function navigationCount(page: Page): Promise<number> {
-  return page.evaluate(() => performance.getEntriesByType("navigation").length);
-}
-
-/**
- * Also the gate before any reload that follows a promotion: the room loads its
- * history once and never retries, so a reload into the churn window sits at
- * "booting" for good -- the held page, still open, can ask first.
- *
- * A promotion swaps the process behind the routed port, and `/health/ready`
- * answering with the new revision does not mean that process can reach SQLite
- * yet: the repo's pool can still be tearing down, and a request that lands in
- * that window comes back `Internal Server Error` with
- * `DBConnection.Holder.checkout ... (EXIT) shutdown` in the slot's log. It is
- * the harness's slot churn, not the room -- a plain send fails there just as a
- * reply does. So wait until the routed slot will actually answer a
- * database-backed read before asking it to commit anything.
- */
-async function waitForRoutedReads(page: Page, revision: string): Promise<void> {
-  await expect
-    .poll(
-      () =>
-        page.evaluate(async (expected) => {
-          const probe = async (): Promise<boolean> => {
-            const response = await fetch("/api/graphql", {
-              method: "POST",
-              credentials: "same-origin",
-              headers: {
-                "content-type": "application/json",
-                "x-csrf-token":
-                  document.querySelector<HTMLMetaElement>(
-                    "meta[name='csrf-token']",
-                  )?.content ?? "",
-              },
-              body: JSON.stringify({
-                query:
-                  "query Probe($roomSlug: String!) { familyChatMessages(roomSlug: $roomSlug, limit: 1) { nodes { id } } }",
-                variables: { roomSlug: "ruang-keluarga" },
-              }),
-            });
-            if (!response.ok) return false;
-            // Answered by the revision just routed, not one still draining.
-            if (response.headers.get("x-bnest-revision") !== expected)
-              return false;
-            const payload = (await response.json()) as { errors?: unknown };
-            return payload.errors === undefined;
-          };
-          // Side by side, so the browser's other pooled connections to the
-          // origin are asked too: the next real request may not reuse this one.
-          const answers = await Promise.all(
-            Array.from({ length: 6 }, () => probe().catch(() => false)),
-          );
-          return answers.every(Boolean);
-        }, revision),
-      { timeout: 20_000 },
-    )
-    .toBe(true);
-}
-
-/**
- * Reloads into the routed room. The page itself comes from the slot just
- * routed, and a slot still settling can answer that one request with an error
- * page that has no room in it; reloading again is what a person would do.
- */
-async function reloadRoutedRoom(page: Page): Promise<void> {
-  const room = page.locator('[data-role="family-chat-room"]');
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
-    // eslint-disable-next-line no-await-in-loop -- each reload is judged on its own result.
-    await page.reload();
-    // eslint-disable-next-line no-await-in-loop -- see above.
-    const loaded = await room
-      .waitFor({ state: "attached", timeout: 5_000 })
-      .then(() => true)
-      .catch(() => false);
-    if (loaded) break;
-  }
-  await waitForRoomReady(page);
-}
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A browser still running the older app version can open the room and send after an update
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: After the app is rolled back, a visitor on the newer version can still open the room, reply, and see earlier quotes
 
 // --- The earlier revision ------------------------------------------
 //
@@ -127,13 +73,21 @@ async function reloadRoutedRoom(page: Page): Promise<void> {
 // before the currently routed one -- and keeps it while a newer revision
 // (a different build serving the same always-on room) is routed.
 
-Given("an earlier revision is routed", async ({ page }) => {
+Given("the newer app version is live", async ({ page }) => {
   await ensureRoomOpen(page);
   ({ revision: heldRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
   }));
   await waitForRoutedReads(page, heldRevision);
+  // Seeded before the held page reloads, so the render after that reload is the previous bundle's history at work.
+  seededId = await postMessage(page, uniqueBody("Previous bundle seed"));
+  await waitForMessage(page, seededId);
+  // The held page reloads below through the previous bundle's wire, so its history and subscription are the
+  // previous bundle's documents, each judged against the frozen rolled-back schema.
+  await sendPreviousBundleDocuments(page);
+  judgeAgainstRolledBackSlot(page);
   await reloadRoutedRoom(page);
+  await waitForMessage(page, seededId);
   ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
     verifyLiveView: false,
   }));
@@ -141,7 +95,7 @@ Given("an earlier revision is routed", async ({ page }) => {
 });
 
 When(
-  "a browser loaded from the previous revision opens {string}",
+  "a browser running the previous app version opens {string}",
   async ({ page }, route: string) => {
     // Already open, from before the promotion: the held page is the browser.
     expect(new URL(page.url()).pathname).toBe(route);
@@ -151,14 +105,51 @@ When(
   },
 );
 
-Then("the room loads", async ({ page }) => {
+Then("the room loads", async ({ page, heldPage }) => {
   await expect(page.locator('[data-role="family-chat-room"]')).toHaveAttribute(
     "data-connection-state",
     "ready",
   );
+  if (heldPage.rolledBack) {
+    // The held page, never reloaded, still shows the history it had: the message and the reply to it.
+    await waitForMessage(page, scenario.targetId);
+    await waitForMessage(page, scenario.replyId);
+  } else {
+    // The reloaded page renders the seeded message from its history: the previous bundle's history query answered.
+    await waitForMessage(page, seededId);
+  }
   // The room is otherwise exactly the shipped one: the reply strip is part
   // of the static shell, hidden until a reply target is chosen.
   await expect(page.locator(REPLY_STRIP)).toHaveAttribute("hidden", /.*/u);
+  // The history query and the subscription that open the room both went out, and were judged against the frozen
+  // rolled-back schema (in the rollback scenario, before the route moved: the held page is never reloaded after it).
+  // The previous-bundle scenario also replayed them as that bundle sends them; the rollback scenario's held page is
+  // the newer bundle, so there the judging alone proves the room opens against the rolled-back schema.
+  const judged = heldPage.rolledBack
+    ? heldPage.judgedBeforeRollback
+    : previousRevisionTraffic.judged;
+  for (const operation of [
+    "FamilyChatMessages",
+    "FamilyChatMessageCommitted",
+  ]) {
+    expect(
+      judged.get(operation) ?? 0,
+      `the rolled-back schema judged no ${operation} the held page sent to open the room`,
+    ).toBeGreaterThan(0);
+    if (!heldPage.rolledBack)
+      expect(
+        previousRevisionTraffic.rewritten.get(operation) ?? 0,
+        `the held page sent no previous-bundle ${operation}`,
+      ).toBeGreaterThan(0);
+  }
+  expect(
+    refusals(),
+    "the rolled-back schema refuses a held page document",
+  ).toEqual([]);
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered(
+    heldPage.rolledBack ? "re-subscribed" : "replayed",
+  );
 });
 
 Then("the visitor can send a message normally", async ({ page }) => {
@@ -168,16 +159,27 @@ Then("the visitor can send a message normally", async ({ page }) => {
   await sendThroughComposer(page, uniqueBody("Compatibility send"));
   // Answered by the newly routed revision, through the held bundle.
   expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
+  expect(
+    previousRevisionTraffic.rewritten.get("SendFamilyChatMessage") ?? 0,
+    "the older page sent no previous-bundle SendFamilyChatMessage",
+  ).toBeGreaterThan(0);
   await expectCommitted(page, delivery.body);
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered("replayed");
   expect(await navigationCount(page)).toBe(1);
 });
 
 // --- The rollback ----------------------------------------------------
 
 Given(
-  "a visitor holds the reply-aware bundle with a reply on screen",
-  async ({ page }) => {
+  "a visitor on the newer version has a reply on screen",
+  async ({ page, heldPage }) => {
+    heldPage.rolledBack = true;
     await ensureRoomOpen(page);
+    // Routed before the page loads the document it will hold: Playwright routes sockets through a patch injected
+    // into each new document, so the reconnect after the rollback is seen only by a wire installed before this
+    // page's last navigation (the reload below).
+    await routeGraphqlWire(page);
 
     // Seeded before any promotion, against the slot already serving. The
     // server stores `replyToMessageId` unconditionally, and every bundle
@@ -203,6 +205,11 @@ Given(
     // that has just survived a promotion made the setup fail about a third of
     // the time on mobile. The constraint that matters -- never navigating --
     // binds from the rollback onwards, not here.
+    //
+    // Judging is armed before this reload, so the history query and the subscription the held page sends are judged
+    // against the frozen rolled-back schema: the reload is the only place the room is opened, and the rollback must
+    // not navigate again. The rollback keeps these refusals and counts.
+    judgeAgainstRolledBackSlot(page);
     await page.reload();
     await waitForRoomReady(page);
     await waitForMessage(page, scenario.replyId);
@@ -213,8 +220,26 @@ Given(
 );
 
 When(
-  "the routed slot is rolled back to an earlier revision",
-  async ({ page }) => {
+  "the app is rolled back to the previous version",
+  async ({ page, heldPage }) => {
+    // What opened the room (the history query, the subscription) was judged before the route moves: the Then checks
+    // this count, so a document judged only after the rollback cannot stand in for it. The subscription is pushed
+    // once the socket joins, which can land after the room shows as ready, so wait for it before the route moves.
+    await expect
+      .poll(
+        () => previousRevisionTraffic.judged.get("FamilyChatMessageCommitted"),
+        {
+          message:
+            "the held page sent no FamilyChatMessageCommitted subscription to judge before the rollback",
+          timeout: 15_000,
+        },
+      )
+      .toBeGreaterThan(0);
+    heldPage.judgedBeforeRollback = new Map(previousRevisionTraffic.judged);
+    // Judging stays armed from the Given, so its refusals and counts stay. Only the answers are forgotten: the
+    // subscription the held page opened before the route moved was answered by the newer slot, and the wait for the
+    // re-subscribed one must not be satisfied by that.
+    forgetAnsweredBeforeRollback();
     ({ revision: routedRevision } = await promoteCompatibleCandidate(page, {
       verifyLiveView: false,
     }));
@@ -247,7 +272,13 @@ When(
     );
     await sendThroughComposer(page, uniqueBody("Floor reply"));
     expect((await sent).headers()["x-bnest-revision"]).toBe(routedRevision);
+    expect(
+      refusals(),
+      "the rolled-back slot refuses a document the held bundle sends",
+    ).toEqual([]);
     floorReplyId = await expectCommitted(page, delivery.body);
+    // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+    await expectLiveServerAnswered("re-subscribed");
     expect(sendAttempts(page).at(-1)?.replyToMessageId).toBe(scenario.targetId);
   },
 );
@@ -262,4 +293,6 @@ Then("existing replies still render their quotes", async ({ page }) => {
       await expect(quote).toContainText(scenario.targetBody);
     }),
   );
+  // The subscription can answer after this step starts: wait for it, then expect no live refusal.
+  await expectLiveServerAnswered("re-subscribed");
 });

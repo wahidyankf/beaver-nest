@@ -3,6 +3,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
 
   import Phoenix.LiveViewTest
 
+  alias BnestApp.Backup
+  alias BnestApp.Backup.Domain.Reconciliation
   alias BnestApp.Release.Migrations.PersistentSchedules
   alias BnestApp.Test.BackupIntegrity
   alias BnestApp.Test.CallTrace
@@ -53,6 +55,10 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     :ok
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Every settings panel Bnest offers is listed in admin settings
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Show contextual daily schedules
   test "admin discovers typed panels and the grouped schedule inventory", %{conn: conn} do
     {:ok, settings, _html} = live(conn, "/admin/settings")
     assert has_element?(settings, "a[href='/storage']", "Data storage")
@@ -67,6 +73,13 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
              "[data-schedule-key='prod-sqlite-backup-daily']" <>
                ":is([data-last-run-state='never'], [data-last-run-state='running'], " <>
                "[data-last-run-state='retryable'], [data-last-run-state='verified'])"
+           )
+
+    assert has_element?(
+             schedules,
+             ".schedule-row[data-schedule-key='prod-sqlite-backup-daily']" <>
+               " a[href='/admin/settings/schedules']",
+             "Production database backup"
            )
   end
 
@@ -98,12 +111,134 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
     assert has_element?(view, "input[name='schedule[daily_time_wib]'][value='#{stored_time}']")
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A visitor who may not administer Bnest cannot open admin settings
   test "non-admin route denial happens before either settings surface renders", %{conn: conn} do
     {child_conn, _identity} =
       scenario_authenticated_conn(conn, "admin-settings-denial", ["children"])
 
     assert child_conn |> get("/admin/settings") |> response(404)
     assert child_conn |> get("/admin/settings/schedules") |> response(404)
+    assert child_conn |> get("/storage") |> response(404) == "Not found"
+  end
+
+  describe "refused saves" do
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A bad schedule time says "Enter a valid WIB time."
+    test "a bad schedule time says Enter a valid WIB time and keeps the saved schedule", %{
+      conn: conn
+    } do
+      key = "prod-sqlite-backup-daily"
+      current = BnestApp.Scheduler.get_schedule(key)
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, saved} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "02:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(current.revision)
+          },
+          now
+        )
+
+      {:ok, view, _html} = live(conn, @route)
+
+      html =
+        view
+        |> form("form[phx-submit=save_schedule]", %{
+          "schedule" => %{"daily_time_wib" => "25:00", "enabled" => "true"}
+        })
+        |> render_submit()
+
+      assert html =~ "Enter a valid WIB time."
+      kept = BnestApp.Scheduler.get_schedule(key)
+      assert kept.daily_at_utc == saved.daily_at_utc and kept.revision == saved.revision
+      refute html =~ "Daily schedule saved."
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A stale schedule save says to reload and try again
+    test "a stale schedule save says to reload and try again", %{conn: conn} do
+      key = "prod-sqlite-backup-daily"
+      current = BnestApp.Scheduler.get_schedule(key)
+      now = DateTime.utc_now() |> DateTime.truncate(:second)
+
+      {:ok, saved} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "02:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(current.revision)
+          },
+          now
+        )
+
+      {:ok, view, _html} = live(conn, @route)
+
+      {:ok, rival} =
+        BnestApp.Scheduler.update_daily(
+          key,
+          %{
+            "daily_time_wib" => "04:00",
+            "enabled" => "true",
+            "revision" => Integer.to_string(saved.revision)
+          },
+          DateTime.utc_now() |> DateTime.truncate(:second)
+        )
+
+      html =
+        view
+        |> form("form[phx-submit=save_schedule]", %{
+          "schedule" => %{"daily_time_wib" => "03:00", "enabled" => "true"}
+        })
+        |> render_submit()
+
+      assert html =~ "The schedule changed. Reload and try again."
+      stored = BnestApp.Scheduler.get_schedule(key)
+      assert stored.daily_at_utc == rival.daily_at_utc and stored.revision == rival.revision
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A bad backup folder gets a plain refusal reason
+    test "a bad backup folder gets a plain refusal reason", %{conn: conn} do
+      database_directory = BnestApp.Storage.database_path() |> Path.dirname()
+      link_root = Path.join(canonical_temporary_root(), "bnest-bad-folder-link")
+      link_target = Path.join(canonical_temporary_root(), "bnest-bad-folder-target")
+      File.mkdir_p!(link_target)
+      File.rm_rf(link_root)
+      File.ln_s!(link_target, link_root)
+      on_exit(fn -> File.rm_rf(link_root) end)
+      on_exit(fn -> File.rm_rf(link_target) end)
+
+      for {folder, message} <- [
+            {Path.join(database_directory, "backups"),
+             "Choose a folder outside the live database location."},
+            {Path.join(link_root, "backups"), "Choose a folder that is not a symbolic link."},
+            {"relative/backup", "The backup folder could not be saved safely."}
+          ] do
+        {:ok, view, _html} = live(conn, @route)
+
+        before = BnestApp.Backup.read_destination()
+
+        html =
+          view
+          |> form("form[phx-submit=save_backup]", %{
+            "backup" => %{"destination_directory" => folder}
+          })
+          |> render_submit()
+
+        assert html =~ message
+        assert BnestApp.Backup.read_destination() == before
+
+        kept = BnestApp.Scheduler.get_schedule("prod-sqlite-backup-daily")
+        assert kept.claimed_occurrences == 0
+
+        refute html =~ "Backup folder saved"
+      end
+    end
   end
 
   describe "integrity label" do
@@ -112,6 +247,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       %{backup_directory: location.directory, backup_location: location}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page states that every retained backup is present
     test "a connected page states that every retained backup is present",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :label_destination, ["all_present"])
@@ -126,6 +263,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert label.problems == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page names each date whose backup is missing or changed
     test "a connected page names each missing and changed date by its state",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_changed"])
@@ -138,6 +277,30 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert label.problems == BackupIntegrity.expected_label(context).problems
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label names the same dates and states as the reconcile report
+    test "the label names the same dates and states as the reconcile report",
+         %{conn: conn} = context do
+      context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_changed"])
+
+      {:ok, view, _first} = live(conn, @route)
+      label = label!(render_async(view, IntegrityLabel.settle_ms()))
+
+      {:ok, results} =
+        Backup.reconcile(
+          context.backup_directory,
+          BnestApp.Scheduler.verified_runs("prod_sqlite_backup")
+        )
+
+      report = Reconciliation.report({:ok, results})
+
+      assert label.summary == report.summary
+      assert label.problems == report.problems
+      assert label.problems != []
+    end
+
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when the check could not run
     test "a reconciliation that raises reads as could not be checked beside a usable page",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :label_destination, ["raising"])
@@ -154,6 +317,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert page |> LazyHTML.query("h1") |> LazyHTML.text() == "Schedules & backups"
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page says plainly when there is nothing to check
     test "a ledger holding no verified run reads as nothing to check yet",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :empty_ledger, [])
@@ -176,6 +341,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert events == []
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: Rendering the label never writes
     test "rendering and reloading leave the destination and the ledger unchanged",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_unknown"])
@@ -195,6 +362,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert BackupIntegrity.ledger_rows() == ledger
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label discloses no private path
     test "the rendered label and page carry no path, digest, destination identifier or run ID",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_changed"])
@@ -215,6 +384,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       for value <- private, do: refute(settled =~ value)
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label is reachable and announced without a pointer
     test "the label is a polite region in its place, with a marker and no control",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :label_destination, ["missing_and_changed"])
@@ -238,6 +409,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert Enum.empty?(LazyHTML.query(item, "a, button, input, select, textarea, [tabindex]"))
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A non-administrator causes no integrity check
     test "a non-administrator gets not found and no reconciliation starts",
          %{conn: conn} = context do
       _context = BackupIntegrity.prepare(context, :label_destination, ["watched"])
@@ -268,6 +441,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       %{backup_directory: location.directory, backup_location: location}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The label does not delay the page
     test "a check that outlasts the ceiling reads as could not be checked and is cancelled",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["all_present"])
@@ -310,6 +485,8 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       %{backup_directory: location.directory, backup_location: location}
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page checks again after the administrator saves
     test "a successful schedule save checks again and shows the new result",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["all_present"])
@@ -335,6 +512,10 @@ defmodule BnestAppWeb.AdminSettingsLiveTest do
       assert IntegrityLabel.outcome?(pages, :focus_does_not_move, [])
     end
 
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-be/behaviours/scheduled_backups.feature: Saving a backup folder confirms the save and queues one first check, however often it is submitted
+    # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+    # @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: The page checks again after the administrator saves
     test "a successful backup folder save, the folder unchanged, checks again",
          %{conn: conn} = context do
       context = BackupIntegrity.prepare(context, :label_destination, ["all_present"])

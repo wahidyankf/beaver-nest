@@ -17,6 +17,8 @@ import { currentIdentities } from "../support/instance-identities";
 // The one family_chat_operations.feature scenario a client reaches over HTTP: the public
 // GraphQL schema's mutation fields, read through introspection and each sent by a
 // logged-in member. Every other scenario there carries @e2e-exempt.
+//
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_operations.feature: The public GraphQL schema exposes no system-message mutation
 
 const { Then, When } = createBdd();
 

@@ -17,14 +17,26 @@ Binding counts are necessary but not sufficient; adapter changes require the
   policy, and cross-user data isolation.
 - [Centralized data](centralized_data.feature) specifies input validation, idempotency, stale-write rejection, and
   persisted continuation/recovery.
+- [Development commands](development_commands.feature) specifies loopback port ranges, the start
+  command, HIPPO-admitted test commands, tailnet commands, and ordered Nx targets.
 - [Family chat GraphQL](family_chat_graphql.feature) specifies the public schema surface: authenticated
   queries/mutations/subscription, pagination, and safe errors.
 - [Family chat operations](family_chat_operations.feature) specifies system messages, atomic delivery commit, push
   retry/retention/purge, Scheduler handler routing, backup capacity/concurrency/restore, and slot/socket policy.
+- [HTTP endpoints](http_endpoints.feature) specifies liveness, theme preference writes, public static files,
+  and the stock not found page.
+- [Operator commands](operator_commands.feature) specifies storage and identity Mix tasks, usage refusal,
+  and test-data cleanup reporting and refusal.
+- [Operator configuration](operator_configuration.feature) specifies production push-config refusal, stable
+  mode, fail-closed readiness, slot deployment refusal, cluster join, and loopback/HTTPS policy.
+- [Release and deploy](release_and_deploy.feature) specifies immutable artifact builds, release modes,
+  artifact steps, slot deploy/promote/rollback/retire, dispatcher refusal, detached worktrees, and proxy
+  commands.
+- [Runtime configuration](runtime_configuration.feature) specifies environment-driven port/server flags,
+  production secret and host, runtime-root and Codex overrides, runners, and boolean validation.
 - [Scheduled backups](scheduled_backups.feature) specifies destination policy, schedule persistence/catch-up,
   snapshot, claims/retries, retention, and registry behaviour.
 - [SQLite storage](sqlite_storage.feature) specifies migration, authority, safety, relocation, retirement, and the
   continuity contract.
 - [Test isolation](test_isolation.feature) specifies one empty migrated database per test, the spawn, migrate, seed,
-  test, and teardown order, the testing endpoint guards, production absence, synthetic seeded identities, and rollback
-  of a failed spawn.
+  test, and teardown order, the testing endpoint guards, synthetic seeded identities, and rollback of a failed spawn.

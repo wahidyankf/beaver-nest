@@ -66,6 +66,8 @@ export interface QueryRecord {
   memberId: string;
   operation: string;
   variables: Record<string, unknown>;
+  /** The document text as it crossed the wire. */
+  document: string;
 }
 
 /** One request reaching the server, or its answer leaving it, in order. */
@@ -107,11 +109,9 @@ function serverPreview(body: string): string {
 //
 // The revision's GraphQL surface the room's documents touch, copied from
 // `lib/bnest_app_web/schema/types/family_chat_types.ex` and
-// `web_push_types.ex` (and the root fields in `schema.ex`). Both the
-// compatibility revision and the reply-aware one serve this same schema; the
-// reply flag gates only what the browser asks for and renders.
+// `web_push_types.ex` (and the root fields in `schema.ex`).
 
-type FieldSet = Record<string, string | null>;
+export type FieldSet = Record<string, string | null>;
 
 const OBJECT_FIELDS: Record<string, FieldSet> = {
   FamilyChatMessage: {
@@ -137,10 +137,10 @@ const OBJECT_FIELDS: Record<string, FieldSet> = {
     hasNewer: null,
   },
   WebPushConfiguration: { available: null, publicKey: null },
-  WebPushSubscriptionStatus: { enabled: null, expirationTime: null },
+  WebPushSubscription: { enabled: null, expirationTime: null },
 };
 
-interface RootField {
+export interface RootField {
   type: string;
   args: Record<string, string>;
 }
@@ -164,15 +164,26 @@ export const REVISION_SCHEMA: Record<string, RootField> = {
     args: { roomSlug: "String!" },
   },
   webPushConfiguration: { type: "WebPushConfiguration", args: {} },
-  currentWebPushSubscription: { type: "WebPushSubscriptionStatus", args: {} },
+  currentWebPushSubscription: { type: "WebPushSubscription", args: {} },
   upsertWebPushSubscription: {
-    type: "WebPushSubscriptionStatus",
+    type: "WebPushSubscription",
     args: { endpoint: "String!", p256dh: "String!", auth: "String!" },
   },
   disableCurrentWebPushSubscription: {
-    type: "WebPushSubscriptionStatus",
+    type: "WebPushSubscription",
     args: {},
   },
+};
+
+/** A revision's GraphQL surface: the object types its documents select from, and the root fields they call. */
+export interface SchemaSnapshot {
+  objects: Record<string, FieldSet>;
+  roots: Record<string, RootField>;
+}
+
+const CURRENT_SCHEMA: SchemaSnapshot = {
+  objects: OBJECT_FIELDS,
+  roots: REVISION_SCHEMA,
 };
 
 interface ParsedDocument {
@@ -210,13 +221,17 @@ function topLevelFields(selection: string): { name: string; inner: string }[] {
   return fields;
 }
 
-function validateSelection(type: string, selection: string): string[] {
-  const known = OBJECT_FIELDS[type];
+function validateSelection(
+  type: string,
+  selection: string,
+  objects: Record<string, FieldSet>,
+): string[] {
+  const known = objects[type];
   if (!known) return [`unknown type ${type}`];
   return topLevelFields(selection).flatMap(({ name, inner }) => {
     if (!(name in known)) return [`${type} has no field ${name}`];
     const fieldType = known[name];
-    if (fieldType) return validateSelection(fieldType, inner);
+    if (fieldType) return validateSelection(fieldType, inner, objects);
     return inner.trim() === "" ? [] : [`${type}.${name} has no subfields`];
   });
 }
@@ -251,9 +266,10 @@ export function parseDocument(document: string): ParsedDocument {
 export function validateDocument(
   document: string,
   variables: Record<string, unknown>,
+  schema: SchemaSnapshot = CURRENT_SCHEMA,
 ): string[] {
   const parsed = parseDocument(document);
-  const field = REVISION_SCHEMA[parsed.root];
+  const field = schema.roots[parsed.root];
   if (!field) return [`unknown root field ${parsed.root}`];
   const errors = parsed.rootArgs
     .filter((arg) => !(arg in field.args))
@@ -263,7 +279,10 @@ export function validateDocument(
       errors.push(`variable $${name} is not declared`);
     }
   }
-  return [...errors, ...validateSelection(field.type, parsed.selection)];
+  return [
+    ...errors,
+    ...validateSelection(field.type, parsed.selection, schema.objects),
+  ];
 }
 
 // --- Socket ----------------------------------------------------------------
@@ -320,6 +339,7 @@ export class FakeSocket {
     private readonly server: {
       subscribe: (entry: SubscriptionEntry) => string;
       dropSocket: (socket: FakeSocket) => void;
+      refuse: Refuse;
     },
   ) {
     this.record = {
@@ -369,8 +389,18 @@ export class FakeSocket {
         this.joined.add(topic);
         return reply("ok", {});
       },
-      push: (event: string, payload: Record<string, unknown>) => {
+      push: (
+        event: string,
+        payload: Record<string, unknown>,
+        receive?: (document: string) => void,
+      ) => {
         if (event === "doc") {
+          receive?.(String(payload["query"]));
+          const refused = this.server.refuse(
+            String(payload["query"]),
+            (payload["variables"] ?? {}) as Record<string, unknown>,
+          );
+          if (refused.length > 0) return reply("error", { errors: refused });
           const subscriptionId = this.server.subscribe({
             socket: this,
             roomSlug: String(
@@ -392,13 +422,19 @@ export class FakeSocket {
   }
 }
 
-function createSocketServer(): SocketServer {
+type Refuse = (
+  document: string,
+  variables: Record<string, unknown>,
+) => string[];
+
+function createSocketServer(refuse: Refuse): SocketServer {
   const records: SocketRecord[] = [];
   const subscriptions = new Map<string, SubscriptionEntry>();
   const sockets = new Set<FakeSocket>();
   let nextSubscription = 0;
 
   const server = {
+    refuse,
     subscribe(entry: SubscriptionEntry): string {
       nextSubscription += 1;
       const id = `__absinthe__:doc:${nextSubscription}`;
@@ -482,6 +518,8 @@ export interface GraphqlServer {
    * the session's push binding (`Identity.logout`'s subscription revoker).
    */
   logout: (memberId: string) => void;
+  /** Answers from `schema` from now on: the rolled-back slot's surface, not this revision's. */
+  rollBackTo: (schema: SchemaSnapshot) => void;
   post: (options: PostOptions) => ServerMessage;
   byId: (id: string) => ServerMessage | undefined;
   /** The message a member's send committed as, if it did. */
@@ -491,9 +529,11 @@ export interface GraphqlServer {
   ) => ServerMessage | undefined;
   newest: () => ServerMessage | undefined;
   clientFor: (member: Member) => {
+    /** `receive` is called with the document text as it reaches the server, before anything else happens to it. */
     request: (
       query: string,
       variables: Record<string, unknown>,
+      receive?: (document: string) => void,
     ) => Promise<unknown>;
     connectSocket: (path: string) => Promise<unknown>;
   };
@@ -514,7 +554,12 @@ export function createGraphqlServer(options: {
   const committedByClientId = new Map<string, ServerMessage>();
   const outcomes = new Map<string, SendOutcome>();
   const held: { memberId: string; release: () => void }[] = [];
-  const sockets = createSocketServer();
+  let schema: SchemaSnapshot = CURRENT_SCHEMA;
+  const sockets = createSocketServer((document, variables) => {
+    const refused = validateDocument(document, variables, schema);
+    server.rejectedDocuments.push(...refused);
+    return refused;
+  });
   let nextId = 1000;
 
   const server: GraphqlServer = {
@@ -535,6 +580,9 @@ export function createGraphqlServer(options: {
     logout(memberId) {
       server.logouts.push(memberId);
       server.pushBindings.set(memberId, false);
+    },
+    rollBackTo(next) {
+      schema = next;
     },
     post,
     byId: (id) => messages.find((message) => message.id === id),
@@ -683,11 +731,21 @@ export function createGraphqlServer(options: {
 
   function clientFor(member: Member) {
     return {
-      async request(query: string, variables: Record<string, unknown>) {
+      async request(
+        query: string,
+        variables: Record<string, unknown>,
+        receive?: (document: string) => void,
+      ) {
+        receive?.(query);
         // A real response never arrives within the turn that sent it.
         await new Promise((resolve) => setTimeout(resolve, 0));
         const { operation } = parseDocument(query);
-        const record = { memberId: member.id, operation, variables };
+        const record = {
+          memberId: member.id,
+          operation,
+          variables,
+          document: query,
+        };
         server.queries.push(record);
         server.wire.push({ ...record, kind: "request" });
         try {
@@ -706,7 +764,7 @@ export function createGraphqlServer(options: {
     variables: Record<string, unknown>,
     operation: string,
   ): Promise<unknown> {
-    const refused = validateDocument(query, variables);
+    const refused = validateDocument(query, variables, schema);
     if (refused.length > 0) {
       server.rejectedDocuments.push(...refused);
       return {

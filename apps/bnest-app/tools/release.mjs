@@ -1014,7 +1014,7 @@ function requiredValue(environment, name) {
   return value;
 }
 
-function requiredPath(environment, name) {
+export function requiredPath(environment, name) {
   const value = resolve(requiredValue(environment, name));
   if (inside(repositoryRoot, value))
     throw new ReleaseError(
@@ -1024,7 +1024,7 @@ function requiredPath(environment, name) {
   return value;
 }
 
-function requiredOrigin(environment, name) {
+export function requiredOrigin(environment, name) {
   try {
     return normalizeProductionOrigin(requiredValue(environment, name)).origin;
   } catch (error) {
@@ -1146,15 +1146,39 @@ function argumentValue(name) {
   return index >= 0 ? process.argv[index + 1] : undefined;
 }
 
+// Exported pure so the release:run scenario can assert the refusal without
+// spawning the tool: the --mode flag was removed with the family-chat release
+// stages, so passing it at all stops with a configuration error that names
+// the removal, before any host is constructed.
+export function refuseRemovedMode(argv) {
+  const passesMode = argv.some(
+    (argument) => argument === "--mode" || argument.startsWith("--mode="),
+  );
+  if (passesMode)
+    throw new ReleaseError(
+      "configuration",
+      "The --mode flag was removed with the family-chat release stages; run release:run without --mode",
+    );
+}
+
+// Exported pure so the exit-status scenario can assert the mapping without
+// running a release: passed, queued and deferred all let the caller retry or
+// move on, so they exit 0; every other outcome exits 1.
+export function exitCodeFor(outcome) {
+  return ["passed", "queued", "deferred"].includes(outcome) ? 0 : 1;
+}
+
+// Exported pure so the release:run scenario can assert the printed JSON line
+// over the same renderer main uses, instead of re-serializing the result.
+export function render(resultValue) {
+  return `${JSON.stringify(resultValue)}\n`;
+}
+
 async function main() {
   let outputResult;
   try {
     const revision = argumentValue("--revision");
-    if (argumentValue("--mode") !== undefined)
-      throw new ReleaseError(
-        "configuration",
-        "The --mode flag was removed with the family-chat release stages; run release:run without --mode",
-      );
+    refuseRemovedMode(process.argv.slice(2));
     const host = new MachineHost();
     outputResult = await executeRelease(host, { revision });
   } catch (error) {
@@ -1175,9 +1199,8 @@ async function main() {
       migrationState: "not-required",
     });
   }
-  process.stdout.write(`${JSON.stringify(outputResult)}\n`);
-  if (!["passed", "queued", "deferred"].includes(outputResult.outcome))
-    process.exitCode = 1;
+  process.stdout.write(render(outputResult));
+  process.exitCode = exitCodeFor(outputResult.outcome);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href)

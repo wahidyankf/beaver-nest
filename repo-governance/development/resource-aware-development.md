@@ -22,8 +22,8 @@ host or queue. See [Tier Selection](resource-aware-development/002-tier-selectio
 
 Schema 3 keeps one FIFO waiter, grants the largest safe vector, and launches at most once.
 
-Independent DAG nodes may overlap through HIPPO. Preserve dependencies, shared-output edges, ordered stages,
-migrations, build state, ports, transactions, locks, and proven serialization.
+Independent DAG nodes may overlap through HIPPO. Preserve dependencies, shared-output edges, ordered stages, migrations,
+build state, ports, transactions, locks, and proven serialization.
 
 ## Reservations and Recovery
 
@@ -31,30 +31,28 @@ Schema 3 shares one reservation ledger. CPU and memory fit atomically; healthy e
 three. Later waiters never bypass the FIFO head.
 
 Children receive immutable `HIPPO_CONCURRENCY` and `HIPPO_RESERVED_MEMORY_BYTES`. The wrapper maps CPU only to
-`NX_PARALLEL`, `GOMAXPROCS`, and `DOTNET_PROCESSOR_COUNT`; missing values receive it, smaller values survive, larger ones
-clamp, and malformed values fail.
+`NX_PARALLEL`, `GOMAXPROCS`, and `DOTNET_PROCESSOR_COUNT`; missing values receive it, smaller values survive, larger
+ones clamp, and malformed values fail.
 
-A status says what to do; the `hippo: [hippo.area.reason]` line on stderr says which case. Two
-reasons under one status can need opposite responses, so read both.
+A status says what to do; the `hippo: [hippo.area.reason]` line on stderr says which case. Two reasons under one status
+can need opposite responses, so read both.
 
-- Exit `124` is a limit stopping the work. `hippo.limit.storage-blocked` means safely free space
-  first, since waiting frees no disk. `hippo.limit.capacity-deferred` is retryable only when a new
-  schema-1 receipt proves `never-started`; a pressure shed or a `started-safety-stop` requires
-  payload-specific recovery. A pre-push hook stopped before any check started may take the one-push exception in
-  [Capacity-Held Hook](../conventions/push-hook-verification/001-capacity-held-hook.md); reaching it never bypasses
-  this guard, and the guard's admission stays exactly as declared.
-- Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol
-  mismatch: never retry it; inspect `./hippo status`, then drain or upgrade the incompatible client.
-  `hippo.policy.replan-required` and the `hippo.config.*` reasons mean invalid configuration, an
-  impossible reservation, an invalid mapping, or a strict profile mismatch. Replan rather than
-  cooldown-loop.
+- Exit `124` is a limit stopping the work. `hippo.limit.storage-blocked` means safely free space first, since waiting
+  frees no disk. `hippo.limit.capacity-deferred` is retryable only when a new schema-1 receipt proves `never-started`; a
+  pressure shed or a `started-safety-stop` requires payload-specific recovery. A pre-push hook stopped before any check
+  started may take the one-push exception in
+  [Capacity-Held Hook](../conventions/push-hook-verification/001-capacity-held-hook.md); reaching it never bypasses this
+  guard, and the guard's admission stays exactly as declared.
+- Exit `125` means HIPPO started nothing. `hippo.coordination.protocol-mismatch` is a peer protocol mismatch:
+  never retry it; inspect `./hippo status`, then drain or upgrade the incompatible client.
+  `hippo.policy.replan-required` and the `hippo.config.*` reasons mean invalid configuration, an impossible reservation,
+  an invalid mapping, or a strict profile mismatch. Replan rather than cooldown-loop.
 - Exit `2` means the invocation itself is unusable. Read the diagnostic and fix the command.
 - Exit `126` and `127` mean the guarded command cannot be executed, or is not there.
 - Exit `1` means the work ran and the answer is empty: a result, never a capacity signal.
 
-Child codes pass through, including ones colliding with a status HIPPO uses; only HIPPO's own
-failures write that `hippo:` line, and without a new `never-started` receipt a code stays
-child-owned.
+Child codes pass through, including ones colliding with a status HIPPO uses; only HIPPO's own failures write that
+`hippo:` line, and without a new `never-started` receipt a code stays child-owned.
 
 `hippo.lock` pins identity, not semantics. Before changing behaviour, read the Hippo repository at the commit in
 `hippo.lock`, then align rules, Gherkin, and checks with its documented capabilities. Never infer capability from SemVer
@@ -70,12 +68,13 @@ An unguarded sibling Nx fan-out once forced a host restart. HIPPO cannot shed un
 [The boundary hook](../../.claude/hooks/require-hippo-boundary.sh) rejects unguarded compute before spawn. All four
 harnesses bind this shared consumer boundary. Command Code registers it in
 [native settings](../../.commandcode/settings.json) through
-[its policy bridge](../../.commandcode/hooks/run-policy-hook.sh), which maps native shell payloads and delegates to
-the same boundary hook.
+[its policy bridge](../../.commandcode/hooks/run-policy-hook.sh), which maps native shell payloads and delegates to the
+same boundary hook.
 
 It checks presence, not class judgment, and matches compute verbs only in command position.
 
 ## Modules
 
 - [Nx cache eviction](resource-aware-development/001-external-nx-cache-eviction.md)
-- [Remote dispatch](resource-aware-development/003-remote-dispatch.md) — when a dispatch may leave this machine, and the lifecycle it follows.
+- [Remote dispatch](resource-aware-development/003-remote-dispatch.md) — when a dispatch may leave this machine, and the
+  lifecycle it follows.

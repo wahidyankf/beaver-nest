@@ -32,6 +32,8 @@ defmodule BnestApp.Test.BackupIntegrity do
   alias BnestApp.Backup.Domain.Receipt
   alias BnestApp.Backup.Ports.ArtifactStore
   alias BnestApp.Scheduler
+  alias BnestApp.Storage
+  alias BnestApp.Test.CallTrace
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.ScheduleStore, as: InMemoryScheduleStore
@@ -67,6 +69,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   @digest ~r/[0-9a-f]{64}/
   @absolute_path ~r{(?:^|[\s"'(=:])/[\w.~-]}
   @date_line ~r/\d{4}-\d{2}-\d{2}/
+  @artifact_name_shape ~r{\Abnest-prod-[^/\s]+\.sqlite3\z}
   @failure_line ~r/(reconcil|backup files|integrity)[^\n]*(could not|fail)|(could not|fail)[^\n]*(reconcil|backup files|integrity)/i
 
   # Givens that need the layer's isolated destination first (the driver establishes it).
@@ -91,6 +94,7 @@ defmodule BnestApp.Test.BackupIntegrity do
   ]
   @performs [
     :reconcile_ledger,
+    :reconcile_with_argument,
     :complete_scheduled_run,
     :run_retention,
     :resolve_default_directory
@@ -124,7 +128,9 @@ defmodule BnestApp.Test.BackupIntegrity do
     :unowned_files_untouched,
     :foreign_receipts_never_counted,
     :default_directory_fails_closed,
-    :default_directory_unchanged
+    :default_directory_unchanged,
+    :usage_line,
+    :reads_nothing
   ]
 
   @doc "The Given states that run on a destination the driver has just established."
@@ -315,9 +321,22 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc "Calls the production code a When names, in the layer's configured adapters."
   @spec perform(map(), atom(), list()) :: map()
+  # The reconcile task refuses an argument before it reads the configuration, the ledger or the
+  # database. The refusal is the Mix error with the usage line, and the watched calls are none.
+  def perform(context, :reconcile_with_argument, []) do
+    watched = [
+      {{Backup, :_, :_}, []},
+      {{Scheduler, :_, :_}, []},
+      {{Storage, :_, :_}, []}
+    ]
+
+    {outcome, events} = CallTrace.record(watched, &refused_reconcile/0)
+    Map.merge(context, %{usage_error: outcome, usage_events: events})
+  end
+
   def perform(context, :reconcile_ledger, []) do
     directory = context.backup_directory
-    evidence = %{destination: snapshot(directory), ledger: ledger_rows()}
+    evidence = %{destination: snapshot(directory), ledger: readable_ledger()}
     runs = Scheduler.verified_runs(@handler)
 
     Map.merge(context, %{
@@ -365,8 +384,15 @@ defmodule BnestApp.Test.BackupIntegrity do
   @spec run_task(map(), (-> map())) :: map()
   def run_task(context, task_fun) do
     ledger = readable_ledger()
+    before = %{destination: destination_before(context), ledger: ledger}
     {task, trace} = SchedulerWatch.record(task_fun)
-    Map.merge(context, %{task: task, task_trace: trace, task_ledger_before: ledger})
+
+    Map.merge(context, %{
+      task: task,
+      task_trace: trace,
+      task_ledger_before: ledger,
+      evidence_before: before
+    })
   end
 
   @doc """
@@ -390,9 +416,16 @@ defmodule BnestApp.Test.BackupIntegrity do
 
   @doc "Whether the evidence a Then reads confirms what it states."
   @spec outcome?(map(), atom(), list()) :: boolean()
+  def outcome?(context, :usage_line, [line]), do: context.usage_error == {:usage, line}
+
+  def outcome?(context, :reads_nothing, []), do: context.usage_events == []
+
+  # The missing run is reported under the name its artifact carries. The name is a fixture's, so only its
+  # shape is checked: the production prefix and suffix, no directory separator, and the run's WIB date in it.
+  # `reported?/3` already holds the result's name to the one the ledger recorded.
   def outcome?(context, :run_reported_missing, [date]) do
     run = nightly(context, date)
-    reported?(context, run, :missing) and not on_disk?(context, run)
+    reported?(context, run, :missing) and not on_disk?(context, run) and artifact_name_shape?(run)
   end
 
   def outcome?(context, :runs_reported_present, dates) do
@@ -424,14 +457,18 @@ defmodule BnestApp.Test.BackupIntegrity do
     reported?(context, run, :present) and intact?(context, run)
   end
 
-  def outcome?(context, :older_run_not_reported, [date]),
-    do: not reported_at_all?(context, older(context, date))
+  # The task's report names no line for the older run's date: a run that retention keeps a backup
+  # for would print its problem as a line that starts with its date.
+  def outcome?(context, :older_run_not_reported, [date]) do
+    _older = older(context, date)
+    lines(context) != [] and not Enum.any?(lines(context), &String.starts_with?(&1, date))
+  end
 
   def outcome?(context, :destination_unchanged, []),
     do: snapshot(context.backup_directory) == context.evidence_before.destination
 
   def outcome?(context, :ledger_unchanged, []),
-    do: ledger_rows() == context.evidence_before.ledger
+    do: readable_ledger() == context.evidence_before.ledger
 
   def outcome?(context, :report_first_line, [line]), do: first_line(context) == line
 
@@ -695,8 +732,14 @@ defmodule BnestApp.Test.BackupIntegrity do
     |> Enum.each(&File.rm_rf!/1)
   end
 
+  # The destination as a task found it, so a Then can read whether the task changed any of its files.
+  defp destination_before(%{backup_directory: directory}) when is_binary(directory),
+    do: snapshot(directory)
+
+  defp destination_before(_context), do: nil
+
   # The ledger's rows, or `:unreadable` for the scenarios whose ledger cannot be opened.
-  defp readable_ledger do
+  def readable_ledger do
     {:ok, ledger_rows()}
   rescue
     RuntimeError -> :unreadable
@@ -998,6 +1041,11 @@ defmodule BnestApp.Test.BackupIntegrity do
       ArtifactStore.regular?(artifact_store(), Receipt.path(path))
   end
 
+  defp artifact_name_shape?(run) do
+    Regex.match?(@artifact_name_shape, run.basename) and
+      String.contains?(run.basename, Date.to_iso8601(run.date, :basic))
+  end
+
   defp on_disk?(context, run),
     do: ArtifactStore.regular?(artifact_store(), artifact_path(context, run))
 
@@ -1009,8 +1057,14 @@ defmodule BnestApp.Test.BackupIntegrity do
       ArtifactStore.digest(artifact_store(), path) == run.sha256
   end
 
+  # The per-run states the reconcile classifies. A run of the reconcile task has none stored, so
+  # its states come from a fresh read-only classification of the same verified runs, which
+  # changes no file and no ledger row.
   defp results(context) do
-    {:ok, results} = context.reconciliation
+    {:ok, results} =
+      Map.get(context, :reconciliation) ||
+        Backup.reconcile(context.backup_directory, Scheduler.verified_runs(@handler))
+
     results
   end
 
@@ -1062,4 +1116,12 @@ defmodule BnestApp.Test.BackupIntegrity do
   end
 
   defp iso8601(value), do: value |> DateTime.truncate(:second) |> DateTime.to_iso8601()
+
+  # The Mix task raises its usage line for any argument; anything it accepts is reported as such.
+  defp refused_reconcile do
+    Reconcile.run(["--unexpected"])
+    :accepted
+  rescue
+    error in Mix.Error -> {:usage, Exception.message(error)}
+  end
 end

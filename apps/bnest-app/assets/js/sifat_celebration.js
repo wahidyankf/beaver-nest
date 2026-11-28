@@ -4,7 +4,7 @@ const reducedMotionPreferred = () =>
   window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** @template T @param {T[]} items @returns {T} */
-const randomItem = (items) => {
+export const randomItem = (items) => {
   const item = items[Math.floor(Math.random() * items.length)];
 
   if (item === undefined) {

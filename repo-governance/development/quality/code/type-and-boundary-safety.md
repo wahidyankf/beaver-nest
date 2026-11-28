@@ -12,25 +12,28 @@ when_to_use: >-
 A type checker proves only what it is allowed to see. Data read from a request, a file, or the environment has whatever
 shape its sender chose, and a type declared over it is a belief rather than a check.
 
-This standard implements Explicit Over Implicit,
-Fail Closed, and
-Evidence Over Assertion. It holds the language-neutral rule; each
-stack standard maps it to that stack's native tools and states no second copy of it.
+This standard implements Explicit Over Implicit, Fail Closed, and Evidence Over Assertion. It holds the language-neutral
+rule; each stack standard maps it to that stack's native tools and states no second copy of it.
 
 ## The Strongest Practical Checker
 
 Each authored language runs the strongest static checker its ecosystem supports, over the whole project, as the type
-check target that [Quality Gates](../../quality-gates.md) names. Findings fail at the
-threshold [Quality Gates](../../quality-gates.md) sets, and a strictness option is never relaxed to make a
-change pass; the code is fixed instead.
+check target that [Quality Gates](../../quality-gates.md) names. Findings fail at the threshold
+[Quality Gates](../../quality-gates.md) sets, and a strictness option is never relaxed to make a change pass; the code
+is fixed instead.
 
-| Stack capability                     | Strongest practical checker                                                                                    |
-| ------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| static types                         | the compiler with its strict options, warnings treated as errors                                               |
-| optional annotations                 | a checker in its strict mode, with every public and external boundary annotated                                |
-| dynamic, with no checker of record   | its strongest substitute: static analysis plus declared data specifications checked at runtime at the boundary |
-| shell                                | a static analyser for the declared dialect, or the dialect's native syntax check plus review where none exists |
-| declarative infrastructure and hosts | schema-aware native validation, with no static-type claim                                                      |
+- **static types**
+  - Strongest practical checker: the compiler with its strict options, warnings treated as errors
+- **optional annotations**
+  - Strongest practical checker: a checker in its strict mode, with every public and external boundary annotated
+- **dynamic, with no checker of record**
+  - Strongest practical checker: its strongest substitute: static analysis plus declared data specifications checked at
+    runtime at the boundary
+- **shell**
+  - Strongest practical checker: a static analyser for the declared dialect, or the dialect's native syntax check plus
+    review where none exists
+- **declarative infrastructure and hosts**
+  - Strongest practical checker: schema-aware native validation, with no static-type claim
 
 A stack without static types states its strongest practical substitute in its stack standard, and never claims a
 guarantee its tools cannot give.
@@ -53,8 +56,7 @@ typed error there, and inner code trusts the result instead of checking it again
 
 Never declare a type over unvalidated external data. A cast that names the expected shape passes the checker and fails
 later, in code that never saw the input. [Runtime Flat-File Data](../../../conventions/runtime-flat-file-data.md) and
-Environment Variable Contract apply this rule to their
-own boundaries.
+Environment Variable Contract apply this rule to their own boundaries.
 
 ## Dynamic Languages
 

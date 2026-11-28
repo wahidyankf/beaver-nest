@@ -212,6 +212,10 @@
             "forwardAllArgs": false
           },
           {
+            "command": "npm exec -- oxlint -A all -D no-restricted-globals --deny-warnings assets/test/unit",
+            "forwardAllArgs": false
+          },
+          {
             "command": "mix deps.unlock --check-unused",
             "forwardAllArgs": false
           }
@@ -234,7 +238,7 @@
       "outputs": ["{projectRoot}/cover/unit"]
     },
     "test:unit:fe": {
-      "command": "npm exec -- vitest run",
+      "command": "npm exec -- vitest run --coverage",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app-fe/behaviours/**/*.feature"
@@ -268,7 +272,7 @@
     },
     "test:integration": {
       "dependsOn": ["test-data:cleanup"],
-      "command": "BNEST_TEST_LAYER=integration MIX_ENV=test mix do compile --warnings-as-errors + test --warnings-as-errors --exclude integration-exempt --exclude ci-exempt --max-cases 1 test/integration",
+      "command": "tools/test-integration-denied.sh",
       "inputs": [
         "default",
         "{workspaceRoot}/specs/apps/bnest/app-be/behaviours/**/*.feature",
@@ -291,7 +295,7 @@
       },
       "cache": false
     },
-    "test:coverage:behaviour": {
+    "test:behaviour:verify": {
       "executor": "nx:run-commands",
       "inputs": [
         "default",
@@ -310,6 +314,27 @@
           }
         ],
         "cwd": "apps/bnest-app",
+        "forwardAllArgs": false,
+        "parallel": false
+      }
+    },
+    "test:behaviour:coverage": {
+      "executor": "nx:run-commands",
+      "cache": false,
+      "inputs": [
+        "default",
+        "{workspaceRoot}/repo-config.yml",
+        "{workspaceRoot}/rhino",
+        "{workspaceRoot}/rhino.lock",
+        "{workspaceRoot}/specs/**/*"
+      ],
+      "options": {
+        "commands": [
+          {
+            "command": "./rhino behaviour coverage validate",
+            "forwardAllArgs": false
+          }
+        ],
         "forwardAllArgs": false,
         "parallel": false
       }
@@ -336,7 +361,11 @@
             "forwardAllArgs": false
           },
           {
-            "command": "npm exec -- nx run -p bnest-app -t test:coverage:behaviour",
+            "command": "npm exec -- nx run -p bnest-app -t test:behaviour:verify",
+            "forwardAllArgs": false
+          },
+          {
+            "command": "npm exec -- nx run -p bnest-app -t test:behaviour:coverage",
             "forwardAllArgs": false
           }
         ],

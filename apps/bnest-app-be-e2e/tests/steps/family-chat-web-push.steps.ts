@@ -16,6 +16,12 @@ import {
 } from "../support/family-chat-state";
 import { postGraphQl, type GraphQlResponse } from "../support/graphql";
 
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads the Web Push configuration
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member reads their current Web Push subscription state
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member enables Web Push for this device only
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: A member disables Web Push on this device
+// @scenario specs/apps/bnest/app-be/behaviours/family_chat_graphql.feature: Disabling Web Push again still reports disabled
+
 const { Given, Then, When } = createBdd();
 
 interface SubscriptionState {
@@ -175,7 +181,7 @@ Then("the response reports the subscription enabled", async ({ page }) => {
 // This session holds it; a second session of the same member does not, nor
 // does another member's session.
 Then(
-  "the stored subscription is bound to the current user and session only",
+  "no other session of that user and no other user reads that subscription as enabled",
   async ({ page, browser }) => {
     const identity = scenarioIdentity();
     expect((await currentState(page)).enabled).toBe(true);
@@ -189,6 +195,15 @@ Given(
   async ({ page }) => {
     await upsert(page);
     expect(mutationState("upsertWebPushSubscription")?.enabled).toBe(true);
+  },
+);
+
+Given(
+  "the user has disabled their Web Push subscription for this session",
+  async ({ page }) => {
+    await upsert(page);
+    expect(mutationState("upsertWebPushSubscription")?.enabled).toBe(true);
+    await disable(page);
   },
 );
 

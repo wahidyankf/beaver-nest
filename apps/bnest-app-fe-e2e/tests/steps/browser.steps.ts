@@ -9,7 +9,20 @@ import {
   openOptionsIfCollapsed,
 } from "../support/chat-ui-steps";
 
-// The primary route and the browser contexts are restored in lifecycle.steps.ts's After hook.
+// The primary route and the browser contexts are restored in lifecycle.steps.ts's After hook. The install-as-an-app
+// scenario lives in browser-install.steps.ts.
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor continues one page-scoped conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor changes the model or the reasoning effort within one Codex conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sees an alert when Codex cannot take or finish a message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An automatic LiveView reconnect preserves a completed user-owned conversation and Codex session
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An automatic LiveView reconnect safely restores a persisted in-progress user-owned turn
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor clears the chat and starts a new conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page offers a Start chatting link
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor returns home through the Beaver Nest brand
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot send an empty message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot overlap Codex turns
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sends a message with Shift+Enter
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A visitor reaches Ruang Keluarga from either family chat address
 const { Then, When } = createBdd();
 
 When("a visitor opens {string}", async ({ page }, route: string) => {
@@ -18,46 +31,6 @@ When("a visitor opens {string}", async ({ page }, route: string) => {
 
 Then("the page displays the Beaver Nest logo", async ({ page }) => {
   await expect(page.getByAltText("Beaver Nest logo")).toBeVisible();
-});
-
-Then("Beaver Nest is ready to install as an app", async ({ page }) => {
-  await expect(page.locator('link[rel="manifest"]')).toHaveAttribute(
-    "href",
-    "/manifest.webmanifest",
-  );
-
-  const manifest = await page.evaluate(async () => {
-    const response = await fetch("/manifest.webmanifest");
-    return response.json() as Promise<{
-      name: string;
-      display: string;
-      icons: Array<{ src: string; sizes: string }>;
-    }>;
-  });
-
-  expect(manifest.name).toBe("Beaver Nest");
-  expect(manifest.display).toBe("standalone");
-  expect(manifest.icons).toEqual(
-    expect.arrayContaining([
-      expect.objectContaining({
-        src: "/images/beaver-nest-192.png",
-        sizes: "192x192",
-      }),
-      expect.objectContaining({
-        src: "/images/beaver-nest-512.png",
-        sizes: "512x512",
-      }),
-    ]),
-  );
-
-  await expect
-    .poll(() =>
-      page.evaluate(async () => {
-        const registration = await navigator.serviceWorker.ready;
-        return registration.active?.scriptURL ?? "";
-      }),
-    )
-    .toMatch(/\/service-worker\.js$/u);
 });
 
 Then(
@@ -245,9 +218,15 @@ When(
   },
 );
 
-When("Codex reports the error {string}", async ({ page }, message: string) => {
-  await expect(page.getByRole("alert")).toHaveText(message);
-});
+When(
+  "Codex fails the visitor message {string} with the error {string}",
+  async ({ page }, message: string, error: string) => {
+    await expect(page.locator("[data-phx-main]")).toHaveClass(/phx-connected/u);
+    await page.getByLabel("Message").fill(message);
+    await page.getByRole("button", { name: "Send" }).click();
+    await expect(page.getByRole("alert")).toHaveText(error);
+  },
+);
 
 When(
   "the visitor types {string} without sending",

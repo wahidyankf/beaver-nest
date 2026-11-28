@@ -1,32 +1,29 @@
 # RHINO Consumer
 
-This project owns Beaver Nest's repository documentation gate. It has no product source: a
-`project.json`, one short shell script that says which checks run together, and this README,
-composing invocations of the pinned [RHINO](https://github.com/wahidyankf/rhino) executable as Nx
-targets — the same shape the Badakmini project used to compose raw `dotnet` commands, and for the
-same reason: the tool is not an Nx-plugin language, so its targets are declared rather than
-inferred.
+This project owns Beaver Nest's repository documentation gate. It has no product source: a `project.json`, one short
+shell script that says which checks run together, and this README, composing invocations of the pinned
+[RHINO](https://github.com/wahidyankf/rhino) executable as Nx targets — the same shape the Badakmini project used to
+compose raw `dotnet` commands, and for the same reason: the tool is not an Nx-plugin language, so its targets are
+declared rather than inferred.
 
 ## What it owns, and what it does not
 
 It owns **which checks run and in what combination**. That is all.
 
-It does not own the executable, its command surface, its exit codes, or its configuration schema —
-those live upstream. It does not own the policy either: every value enforced here is declared in
-[`repo-config.yml`](../../repo-config.yml) at the repository root. And it does not own the
-bootstrap that installs the executable; that is [`./rhino`](../../rhino), specified by
-[the RHINO consumer specification](../../specs/tools/rhino-consumer/README.md).
+It does not own the executable, its command surface, its exit codes, or its configuration schema — those live upstream.
+It does not own the policy either: every value enforced here is declared in [`repo-config.yml`](../../repo-config.yml)
+at the repository root. And it does not own the bootstrap that installs the executable; that is
+[`./rhino`](../../rhino), specified by
+[the RHINO consumer specification](../../specs/apps/tools/rhino-consumer/README.md).
 
-The division matters when a check fails. A finding means this repository disagrees with
-`repo-config.yml`. A refusal means the invocation or the configuration was unusable. Neither is a
-reason to edit anything in this directory.
+The division matters when a check fails. A finding means this repository disagrees with `repo-config.yml`. A refusal
+means the invocation or the configuration was unusable. Neither is a reason to edit anything in this directory.
 
 ## Prerequisites
 
-None beyond a checkout. `./rhino` installs the pinned release into a machine-wide cache on first
-use and verifies it on every use; the pin is [`rhino.lock`](../../rhino.lock). The first run on a
-cold cache downloads roughly two megabytes and takes about a second; every run after that resolves
-from the cache in tens of milliseconds.
+None beyond a checkout. `./rhino` installs the pinned release into a machine-wide cache on first use and verifies it on
+every use; the pin is [`rhino.lock`](../../rhino.lock). The first run on a cold cache downloads roughly two megabytes
+and takes about a second; every run after that resolves from the cache in tens of milliseconds.
 
 ## Targets
 
@@ -34,10 +31,12 @@ Run from the repository root:
 
 ```console
 $ npm exec -- nx run rhino-consumer:test:repo
-$ npm exec -- nx run rhino-consumer:test:bootstrap
+$ npm exec -- nx run rhino-consumer:test:integration
+$ npm exec -- nx run rhino-consumer:test:behaviour:coverage
 ```
 
-Heavy or repeated local runs go through the [HIPPO guard](../../repo-governance/development/resource-aware-development.md):
+Heavy or repeated local runs go through the
+[HIPPO guard](../../repo-governance/development/resource-aware-development.md):
 
 ```console
 $ ./hippo run --class ephemeral --resource-tier standard --disk-path . -- npm exec -- nx run rhino-consumer:test:repo
@@ -50,48 +49,40 @@ Dispatches the local `pre-push` surface: `./rhino gate run --surface pre-push --
 update record that pushes `HEAD` as a new ref, because the `public-safety-range` gate binds its range from push updates
 and refuses to run without one; a new ref starts from `origin/main`, so the range is the checkout's unpushed commits.
 
-Two of them screen what may leave this repository and run first — `public-safety-tree` over the tracked tree, and
-`public-safety-range` over the range commit by commit. The other seven are the validators:
+Pre-push holds only `public-safety-range` over the pushed range. The tree scan and the document and policy validators
+run at pull-request as separate entries; see the
+[gate inventory](../../repo-governance/development/quality/gate-inventory.md).
 
-| Invocation                                | What it checks                                            |
-| ----------------------------------------- | --------------------------------------------------------- |
-| `rhino repo-config validate`              | the declared policy itself is complete and usable         |
-| `rhino governance word-budget validate`   | every governed surface is inside its declared word budget |
-| `rhino governance directory-map validate` | every mapped tree's READMEs name their siblings           |
-| `rhino governance quality-gates validate` | every quality gate and propagation keeps the contract     |
-| `rhino harness adapters validate`         | every declared harness adapter still routes to the canon  |
-| `rhino md internal-link validate`         | every relative Markdown link resolves                     |
-| `rhino md mermaid validate`               | every diagram stays inside the label and colour rules     |
+Badakmini ran eight invocations to cover the same ground. The count fell rather than the coverage: its four
+`--directory` calls became one, because the four mapped trees are now declared in `repo-config.yml` and the call site no
+longer restates them. `repo-config validate` is the one addition, and it has no Badakmini counterpart — the policy only
+became a checkable artifact when it stopped being compiled into the validator. `governance quality-gates validate` came
+later, with the bounded quality-gate contract, and has no Badakmini counterpart either.
 
-Badakmini ran eight invocations to cover the same ground. The count fell rather than the coverage:
-its four `--directory` calls became one, because the four mapped trees are now declared in
-`repo-config.yml` and the call site no longer restates them. `repo-config validate` is the one
-addition, and it has no Badakmini counterpart — the policy only became a checkable artifact when it
-stopped being compiled into the validator. `governance quality-gates validate` came later, with the
-bounded quality-gate contract, and has no Badakmini counterpart either.
+Until this cutover the target ran `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh`, a local script
+naming six checks to run in parallel against one resolution. Both retire here. The combination they owned is now
+declared in `repo-config.yml`, where the hooks and CI read it from one place rather than three.
 
-Until this cutover the target ran `./rhino --bootstrap-exec apps/rhino-consumer/repository-gate.sh`,
-a local script naming six checks to run in parallel against one resolution. Both retire here. The
-combination they owned is now declared in `repo-config.yml`, where the hooks and CI read it from
-one place rather than three.
+The argument for the flag was cost: resolving the pinned release takes the shared install guard, digests the cached
+executable, and asks it for its embedded release identity, and six of those serialize. Measured again on a warm cache
+before removing it, the parallel resolved run took 0.66 s and six separate resolutions took 0.64 s. The premise no
+longer holds, so the flag went with the script rather than outliving its reason.
 
-The argument for the flag was cost: resolving the pinned release takes the shared install guard,
-digests the cached executable, and asks it for its embedded release identity, and six of those
-serialize. Measured again on a warm cache before removing it, the parallel resolved run took
-0.66 s and six separate resolutions took 0.64 s. The premise no longer holds, so the flag went with
-the script rather than outliving its reason.
+Everything still resolves from the repository root. That is deliberate: the alternative is a gate that runs from the
+wrong directory and reports a clean result for a tree nobody asked about.
 
-Everything still resolves from the repository root. That is deliberate: the alternative is a gate
-that runs from the wrong directory and reports a clean result for a tree nobody asked about.
+### `test:integration`
 
-### `test:bootstrap`
+Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — fifteen scenarios over cache
+integrity, argument passthrough, install serialization, stale-owner reclamation, retention, and the disjointness of this
+wrapper's state from HIPPO's, against a synthetic release, so it touches neither GitHub nor the real cache. The
+pull-request gate runs it; this target exists so it is also runnable on its own. It is this project's integration level:
+the project has no unit level, so it has no `test:quick`.
 
-Runs [the consumer bootstrap suite](../../.github/scripts/test-rhino-bootstrap.sh) — twenty-one
-scenarios over cache integrity, argument passthrough, install serialization, stale-owner
-reclamation, retention, and the disjointness of this wrapper's state from HIPPO's, against a
-synthetic release, so it touches neither GitHub nor the real cache. The
-pre-push hook runs it when a pushed range touches the consumer boundary; this target exists so it
-is also runnable on its own.
+### `test:behaviour:coverage`
+
+Runs `./rhino behaviour coverage validate`, RHINO's static check of every corpus that `repo-config.yml` declares. It
+runs no test. The corpus is repository-wide, so every project's target of this name reports the same result.
 
 ## Paths
 
@@ -102,7 +93,7 @@ is also runnable on its own.
 | `rhino`                                   | the bootstrap                      |
 | `rhino.lock`                              | the pinned release and its digests |
 | `.github/scripts/test-rhino-bootstrap.sh` | the bootstrap suite                |
-| `specs/tools/rhino-consumer/`             | the bootstrap's specification      |
+| `specs/apps/tools/rhino-consumer/`        | the bootstrap's specification      |
 
 ## See also
 

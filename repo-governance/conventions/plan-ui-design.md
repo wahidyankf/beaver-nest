@@ -1,24 +1,36 @@
 # Plan UI Design
 
-Apply this convention when an explicitly requested formal plan creates or materially changes user interface behaviour. The goal is to make complex UI work reviewable before implementation without turning every working plan into a repository artifact.
+Apply this convention when an explicitly requested formal plan creates or materially changes user interface behaviour.
+The goal is to make complex UI work reviewable before implementation without turning every working plan into a
+repository artifact.
 
 ## Required Exploration
 
-Store project-bound design assets under the plan-level `assets/` directory and link its required `README.md` from the plan map and technical document. Assets alone do not justify `tech-docs/`; choose the technical shape through the plan lifecycle's reader, cohesion, and navigation criteria.
+Store project-bound design assets under the plan-level `assets/` directory and link its required `README.md` from the
+plan map and technical document. Assets alone do not justify `tech-docs/`; choose the technical shape through the plan
+lifecycle's reader, cohesion, and navigation criteria.
 
-Embed all nine lo-fi assets and all three selected hi-fi assets in the UI Design section of `tech-docs.md`, or a mapped `tech-docs/NNN-ui-design.md` companion when UI design has a distinct reader job. Label each alternative and image group as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least one selected hi-fi preview and links the full comparison.
+Embed all nine lo-fi assets and all three selected hi-fi assets in the UI Design section of `tech-docs.md`, or a mapped
+`tech-docs/NNN-ui-design.md` companion when UI design has a distinct reader job. Label each alternative and image group
+as selected or not selected, and show the decision rationale beside the comparison. The plan README displays at least
+one selected hi-fi preview and links the full comparison.
 
 Use two fidelity stages for the same representative task and content:
 
 1. Create three distinct lo-fi alternatives on desktop, tablet, and mobile: nine assets total.
-2. Compare usability, accessibility, implementation cost, and product fit; name one selected alternative and explain why.
+2. Compare usability, accessibility, implementation cost, and product fit; name one selected alternative and explain
+   why.
 3. Create hi-fi assets only for the selected alternative on desktop, tablet, and mobile: three assets total.
 
-When studying another product, record which artifact or interaction disciplines are adopted and which visual/product choices are rejected. Use references as evidence, not as permission to copy an unrelated identity.
+When studying another product, record which artifact or interaction disciplines are adopted and which visual/product
+choices are rejected. Use references as evidence, not as permission to copy an unrelated identity.
 
-Use accessible SVG by default for deterministic, diffable wireframes and mockups. Use raster only when photographic or bitmap fidelity is material. Every SVG needs a unique `<title>` and `<desc>`; every Markdown embed needs useful alt text. Do not rely on color alone.
+Use accessible SVG by default for deterministic, diffable wireframes and mockups. Use raster only when photographic or
+bitmap fidelity is material. Every SVG needs a unique `<title>` and `<desc>`; every Markdown embed needs useful alt
+text. Do not rely on color alone.
 
-Name assets `ui-<option>-<fidelity>-<device>.svg`, where fidelity is `lofi` or `hifi` and device is `desktop`, `tablet`, or `mobile`.
+Name assets `ui-<option>-<fidelity>-<device>.svg`, where fidelity is `lofi` or `hifi` and device is `desktop`, `tablet`,
+or `mobile`.
 
 ## Plan Documentation
 
@@ -30,6 +42,12 @@ The UI Design section of `tech-docs.md`, or its mapped `tech-docs/NNN-ui-design.
 - keyboard, focus, error, empty, loading, reduced-motion, and responsive expectations; and
 - exact implementation, test, specification, and asset paths through the File Impact section or its split companion.
 
-Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes. `delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behaviour, and static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or evidence.
+Each UI-affecting PRD acceptance criterion names its affected routes, rendered states, and supported viewport classes.
+`delivery.md` traces exploration, selection, implementation, accessibility checks, and a post-implementation manual
+browser check of that matrix at the exact served origin. Automation, code inspection, inferred layout behaviour, and
+static assets supplement but never replace this proof. Record route, state, viewport class, and pass/fail without
+private values. Never include real accounts, credentials, cookies, private identifiers, or user data in an asset or
+evidence.
 
-`delivery.md` also includes the [exploratory and usability passes](../workflows/quality/exploratory-usability-review.md) as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.
+`delivery.md` also includes the [exploratory and usability passes](../workflows/quality/exploratory-usability-review.md)
+as required tasks with their `learnings.md` proof; every UI-affecting plan carries them regardless of size.

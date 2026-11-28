@@ -10,6 +10,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Behaviour.TestIsolation.UnitAdapter
   alias BnestApp.Behaviour.UnitFamilyChatDriver
   alias BnestApp.CodexChat
+  alias BnestApp.CodexChat.Domain.RunnerEvent
   alias BnestApp.CodexChat.Domain.Transcript
   alias BnestApp.CodexChat.ModelCatalog
   alias BnestApp.FamilyChat
@@ -39,6 +40,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.InMemory.ArtifactStore, as: InMemoryArtifactStore
   alias BnestApp.Test.InMemory.BackupConfigStore, as: InMemoryBackupConfigStore
   alias BnestApp.Test.InMemory.DatabaseSnapshot, as: InMemoryDatabaseSnapshot
+  alias BnestApp.Test.InMemory.FailingTranscriptStore, as: InMemoryFailingTranscriptStore
+  alias BnestApp.Test.InMemory.GeneratedImages, as: InMemoryGeneratedImages
   alias BnestApp.Test.InMemory.IdentityStore, as: InMemoryIdentityStore
   alias BnestApp.Test.InMemory.IgnoreCheck, as: InMemoryIgnoreCheck
   alias BnestApp.Test.InMemory.RecordBackend, as: InMemoryRecordBackend
@@ -52,8 +55,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   alias BnestApp.Test.RestoreDrill
   alias BnestApp.Test.SchedulerDispatch
   alias BnestAppWeb.AdminScheduleSettingsLive
+  alias BnestAppWeb.ChatComponents
   alias BnestAppWeb.ChatLive
+  alias BnestAppWeb.ChatMarkdown
   alias BnestAppWeb.DataMigrationLive
+  alias BnestAppWeb.Pwa
   alias BnestAppWeb.SifatAllahLive
   alias BnestAppWeb.StorageLive
   alias Mix.Tasks.Bnest.Backup.Reconcile
@@ -136,6 +142,32 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     context |> start_sifat_allah_records() |> mount_sifat_allah()
   end
 
+  # The migration page over the browser sources the scenario holds: the LiveView's own
+  # `browser-sources` event feeds them in, and the rendered page is kept, as the import
+  # outcomes below read it.
+  def open(context, "/data-migration") do
+    socket = %Socket{
+      view: DataMigrationLive,
+      transport_pid: self(),
+      assigns: %{
+        __changed__: %{},
+        flash: %{},
+        current_user: %{"userId" => migration_owner(context)}
+      }
+    }
+
+    {:ok, socket} = DataMigrationLive.mount(%{}, %{}, socket)
+
+    {:noreply, socket} =
+      DataMigrationLive.handle_event(
+        "browser-sources",
+        %{"sources" => Map.get(context, :browser_sources, [])},
+        socket
+      )
+
+    Map.put(context, :migration_socket, socket)
+  end
+
   # The browser lands wherever the router's "/family-chat" action redirects it to.
   # A location naming no room the visitor may open is the controller's "Not found" page.
   def open(context, "/family-chat") do
@@ -154,7 +186,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   def open(context, "/family-chat/" <> slug) do
-    render_family_chat_room(context, slug)
+    case FamilyChat.get_room_for("test-user-unit", slug) do
+      {:ok, _room} -> render_family_chat_room(context, slug)
+      {:error, _safe_error} -> not_found_page(context, "/family-chat/" <> slug)
+    end
+  end
+
+  defp not_found_page(context, route) do
+    context
+    |> Map.put(:route, route)
+    |> Map.put(:page, LazyHTML.from_fragment("Not found"))
   end
 
   @impl true
@@ -772,7 +813,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # The drawer opens and closes in the browser (conversation_drawer.js); the unit layer proves the rendered
   # contract that script depends on: the toggle naming the drawer, the rail, the scrim and the close control.
   @impl true
-  def open_conversation_drawer(context) do
+  def assert_conversation_drawer_rendered(context) do
     unless conversation_drawer_rendered?(context.page),
       do: raise("the chat page offers no conversation drawer")
 
@@ -780,11 +821,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   @impl true
-  def conversation_drawer_open?(context),
+  def conversation_drawer_contract_rendered?(context),
     do: conversation_drawer_rendered?(context.page)
 
   @impl true
-  def close_conversation_drawer(context) do
+  def assert_conversation_drawer_closable(context) do
     unless conversation_drawer_rendered?(context.page),
       do: raise("the chat page offers no conversation drawer")
 
@@ -793,7 +834,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # The server renders the drawer closed; closing returns it there. The overlay close itself is browser-proven.
   @impl true
-  def conversation_drawer_closed?(context) do
+  def conversation_drawer_rendered_closed?(context) do
     context.page
     |> LazyHTML.query("[data-role=conversations-toggle]")
     |> LazyHTML.attribute("aria-expanded") == ["false"]
@@ -801,7 +842,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # No layout engine runs here; the class names the stylesheet rule that sizes the toggle to 44 pixels.
   @impl true
-  def chats_toggle_touch_target?(context) do
+  def chats_toggle_sized_by_stylesheet?(context) do
     context.page
     |> LazyHTML.query("[data-role=conversations-toggle].conversations-toggle")
     |> Enum.empty?()
@@ -810,7 +851,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # Scrolling is a browser act on the rendered conversation; the scroll target the step acts on must exist for it.
   @impl true
-  def scroll_conversation_to_newest(context) do
+  def assert_scroll_target_rendered(context) do
     if context.page |> LazyHTML.query("#chat-conversation") |> Enum.empty?(),
       do: raise("the chat page renders no conversation to scroll")
 
@@ -819,18 +860,18 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   # The message and composer boxes are browser layout results; the regions the browser measures are rendered.
   @impl true
-  def newest_message_above_composer?(context) do
+  def conversation_and_composer_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, "#chat-conversation")) and
       not Enum.empty?(LazyHTML.query(context.page, "#chat-composer-form"))
   end
 
   @impl true
-  def codex_composer_at_bottom?(context) do
+  def composer_form_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, "#chat-composer-form"))
   end
 
   @impl true
-  def chat_page_does_not_scroll?(context) do
+  def chat_shell_rendered?(context) do
     not Enum.empty?(LazyHTML.query(context.page, ".chat-shell"))
   end
 
@@ -979,7 +1020,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     route = "/chat/images/" <> URI.encode(path, &URI.char_unreserved?/1)
     response = route_controller_request(route, Map.get(context, :identity_token))
 
-    Map.put(context, :image_response, response)
+    Map.merge(context, %{image_response: response, image_request_path: route})
   end
 
   # One browser GET through the router to the controller that answers `path`, with the identity
@@ -1297,7 +1338,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous_storage) end)
     records = InMemoryRecordBackend.start()
     ExUnit.Callbacks.start_supervised!({Records, store: records})
-    ExUnit.Callbacks.start_supervised!(ModelCatalog)
+    ExUnit.Callbacks.start_supervised!({ModelCatalog, catalog_options(context)})
     previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
     ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
 
@@ -1309,6 +1350,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
     Map.merge(context, %{chat_records: records, chat_user: chat_user(context, "")})
   end
+
+  defp catalog_options(%{catalog_models: models}), do: [models: models]
+  defp catalog_options(_context), do: []
 
   defp chat_user(context, suffix) do
     context
@@ -1734,6 +1778,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     render_sifat_allah(context, socket)
   end
 
+  # Studying the next pair: the mark above saved the first pair, and moving on
+  # persists the lesson position, so the reload below has earlier progress to show.
+  defp move_to_next_lesson_pair(context),
+    do: click_sifat_allah(context, "button[phx-click=next-pair]", "next-pair")
+
   # Renders the socket's assigns with the production template and moves the events the
   # LiveView pushed into the context, oldest first, as a client receives each once.
   defp render_sifat_allah(context, socket) do
@@ -1784,6 +1833,14 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def prepare_behaviour(context, :uninitialized, _args),
     do: Map.put(context, :identity_store, InMemoryIdentityStore.start())
+
+  # The identity cutover flag is read per request, so a scenario pins it and
+  # restores the configured value afterwards.
+  def prepare_behaviour(context, :cutover_off, _args),
+    do: pin_cutover(context, false)
+
+  def prepare_behaviour(context, :cutover_on, _args),
+    do: pin_cutover(context, true)
 
   # The account is bootstrapped through the Identity facade on the browser request path, so
   # the login When can post the real login form and follow the session cookie home.
@@ -1912,6 +1969,77 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     ])
   end
 
+  # BN-DATA-01: chat and learning data present, no explicit theme, and one foreign key
+  # the page must ignore.
+  def prepare_behaviour(context, :migration_mixed_sources, _args) do
+    central_request_context(context, [
+      Map.put(chat_source(), "present", true),
+      Map.put(learning_source(), "present", true),
+      %{"storageArea" => "localStorage", "storageKey" => "phx:theme", "present" => false},
+      %{
+        "storageArea" => "localStorage",
+        "storageKey" => "unknown.key",
+        "present" => true,
+        "payload" => "keep"
+      }
+    ])
+  end
+
+  # BN-DATA-09: one chat source filed per outcome row of the outline.
+  def prepare_behaviour(context, :filed_browser_source, ["accepted"]) do
+    central_request_context(context, [Map.put(chat_source(), "present", true)])
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["rejected"]) do
+    malformed = %{chat_source() | "payload" => "{malformed"}
+    central_request_context(context, [Map.put(malformed, "present", true)])
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["retryable"]) do
+    context = central_request_context(context, [Map.put(chat_source(), "present", true)])
+    InMemoryRecordBackend.fail_next_write(context.central_store)
+    context
+  end
+
+  def prepare_behaviour(context, :filed_browser_source, ["stale"]) do
+    context = central_request_context(context, [])
+    {:ok, _accepted} = Storage.import_browser(context.central_owner, chat_source())
+
+    stale_payload =
+      chat_source()["payload"] |> Jason.decode!() |> Map.put("model", "stale") |> Jason.encode!()
+
+    Map.put(context, :browser_sources, [
+      %{chat_source() | "payload" => stale_payload} |> Map.put("present", true)
+    ])
+  end
+
+  # BN-SIFAT-16: the learner studies with one remembered pair saved, then saves fail.
+  def prepare_behaviour(context, :sifat_saved_studying, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> mount_sifat_allah()
+    |> start_learning()
+    |> mark_current_pair_remembered()
+    |> move_to_next_lesson_pair()
+  end
+
+  # BN-SIFAT-17: the revision page prepared for the account user and the local
+  # browser user.
+  def prepare_behaviour(context, :sifat_account_ready, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> Map.put(:sifat_ready_user, :account)
+  end
+
+  def prepare_behaviour(context, :sifat_browser_ready, _args) do
+    context
+    |> start_sifat_allah_records()
+    |> Map.merge(%{
+      sifat_ready_user: :browser,
+      sifat_user: %{"migrationMode" => true, "userId" => "browser"}
+    })
+  end
+
   # The saved chat is the precondition, so it is saved through the CodexChat facade, on the
   # thread the agent session cannot resume.
   def prepare_behaviour(context, :unavailable_codex_thread, _args) do
@@ -1974,6 +2102,89 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       storage_socket: socket,
       storage_page: render_storage_page(socket)
     })
+  end
+
+  # BN-STORAGE-05/06/07: the administrator's storage page over the in-memory
+  # doubles for each phase. The production `StorageLive` is mounted with the
+  # given backend state and rendered with its template.
+  def prepare_behaviour(context, :storage_setup, ["fresh flat-primary"]) do
+    context
+    |> prepare_behaviour(:no_storage_configuration, [])
+    |> put_storage_runtime_root()
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["blocked migration"]) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(
+      @in_memory_flat_root,
+      sqlite_storage_fixture_files() ++ [malformed_theme_source()]
+    )
+
+    case Storage.migrate(@in_memory_flat_root, false) do
+      {:error, :blocked, _report} ->
+        # The production adapter derives `migration_started?` from the ledger;
+        # the in-memory double answers from this key, so the Given seeds it as
+        # the run it just recorded would.
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the malformed source did not block the migration: #{inspect(outcome)}")
+    end
+  end
+
+  def prepare_behaviour(context, :storage_setup, ["active SQLite"]) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    case Storage.migrate(@in_memory_flat_root, true) do
+      {:ok, :activated, _report} ->
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the seeded source did not migrate and activate: #{inspect(outcome)}")
+    end
+  end
+
+  def prepare_behaviour(context, :storage_seeded_with_malformed, _args) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(
+      @in_memory_flat_root,
+      sqlite_storage_fixture_files() ++ [malformed_theme_source()]
+    )
+
+    mount_storage_page(context)
+  end
+
+  def prepare_behaviour(context, :storage_migration_in_progress, _args) do
+    context =
+      context
+      |> prepare_behaviour(:no_storage_configuration, [])
+      |> put_storage_runtime_root()
+
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    case Storage.migrate(@in_memory_flat_root, false) do
+      {:ok, _outcome, _report} ->
+        StoragePorts.put(:started?, true)
+        context
+
+      outcome ->
+        raise("the seeded migration did not start: #{inspect(outcome)}")
+    end
   end
 
   # A fresh installation behind the Storage facade's in-memory ports: no pointer, no flat
@@ -2087,9 +2298,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  def prepare_behaviour(context, :non_admin_family_member, _args),
-    do: prepare_behaviour(context, :denied_settings_visitor, [])
-
   # A connected chat client over SQLite-primary storage, served by release revision A from
   # the blue slot: the production LiveView runs over the routed record repository with the
   # named Identity process beside it. The user's message was answered and saved, which is
@@ -2155,6 +2363,43 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     store = InMemoryBackupConfigStore.new()
     {:error, :absent} = InMemoryBackupConfigStore.read(store)
     Map.put(context, :repository_root, InMemoryBackupConfigStore.repository_root(store))
+  end
+
+  # BN-ADMIN-04 and BN-ADMIN-05: the schedules page mounted over a saved daily schedule
+  # (02:00 WIB), so a refused save can keep it. The mount reads the store, so the
+  # schedule is seeded and saved before the socket is built.
+  def prepare_behaviour(context, :schedules_saved_opened, _args) do
+    ensure_scheduler_tasks!()
+
+    key = "prod-sqlite-backup-daily"
+    :ok = put_schedule!(key, "prod_sqlite_backup", "admin_system")
+
+    {:ok, saved} =
+      Scheduler.update_daily(
+        key,
+        %{"daily_time_wib" => "02:00", "enabled" => "true", "revision" => "1"},
+        @behaviour_now
+      )
+
+    {:ok, socket} = AdminScheduleSettingsLive.mount(%{}, %{}, schedules_admin_socket())
+
+    Map.merge(context, %{
+      schedule_key: key,
+      saved_schedule: saved,
+      schedules_socket: socket
+    })
+  end
+
+  # BN-ADMIN-06: the schedules page with no save attempted yet.
+  def prepare_behaviour(context, :schedules_opened, _args) do
+    ensure_scheduler_tasks!()
+    :ok = put_schedule!("prod-sqlite-backup-daily", "prod_sqlite_backup", "admin_system")
+    {:ok, socket} = AdminScheduleSettingsLive.mount(%{}, %{}, schedules_admin_socket())
+
+    Map.merge(context, %{
+      schedule_key: "prod-sqlite-backup-daily",
+      schedules_socket: socket
+    })
   end
 
   # The Scheduler's schedules live in the scenario's in-memory schedule store
@@ -2331,10 +2576,12 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
              :committed_message,
              :committed_reply_to_previous,
              :sent_reply_with_known_id,
+             :plain_message_with_known_id,
              :replied_under_earlier_display_name,
              :reply_committed_before_subscription,
              :reply_migration_applied,
-             :one_other_active_subscription
+             :one_other_active_subscription,
+             :session_without_digest
            ] do
     UnitFamilyChatDriver.prepare_behaviour(context, state, args)
   end
@@ -2411,6 +2658,145 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> prepare_behaviour(:label_destination, ["watched"])
   end
 
+  # Unit bindings for the phase-8 FE ADD rows below live in this driver:
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home offers the Family chat link
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A failed write-enable stays read-only and says so
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The web manifest names Beaver Nest as a standalone app with two icons
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The service worker precaches the shell and drops the old cache
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Every image answer is private-cached and sandboxed
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a generated image
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
+  # @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The storage status reads Not started, Blocked, or SQLite active
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: Move data and Retry migration start or retry the migration
+  # @scenario specs/apps/bnest/app-fe/behaviours/sqlite_storage.feature: The folder is locked once migration has started
+  # --- phase-8 FE ADD rows ---
+
+  def prepare_behaviour(context, :write_session_refused, _args) do
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.delete_env(:bnest_app, :refuse_workspace_write)
+    end)
+
+    Application.put_env(:bnest_app, :refuse_workspace_write, true)
+    context
+  end
+
+  def prepare_behaviour(context, :model_missing_for_role, [model, role]) do
+    context
+    |> Map.merge(%{identity_role: role_atom(role), authenticated: true})
+    |> Map.put(:catalog_models, models_without(model))
+  end
+
+  def prepare_behaviour(context, :transcript_saves_rejected, _args),
+    do: install_failing_transcript_store(context, :refused)
+
+  def prepare_behaviour(context, :transcript_saves_stale, _args),
+    do: install_failing_transcript_store(context, :stale)
+
+  def prepare_behaviour(context, :generated_image_saved, [file]) do
+    ensure_generated_images()
+    InMemoryGeneratedImages.put_file(generated_reference(file), synthetic_png())
+    context
+  end
+
+  def prepare_behaviour(context, :generated_jpeg_saved, [file]) do
+    ensure_generated_images()
+    InMemoryGeneratedImages.put_file(generated_reference(file), synthetic_jpeg())
+    context
+  end
+
+  def prepare_behaviour(context, :generated_images_cleared, _args) do
+    ensure_generated_images()
+    context
+  end
+
+  defp ensure_generated_images do
+    unless GenServer.whereis(InMemoryGeneratedImages) do
+      swap_generated_images_adapter()
+      :ok = InMemoryGeneratedImages.install()
+    end
+
+    :ok
+  end
+
+  defp swap_generated_images_adapter do
+    previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(previous_chat, :generated_images, InMemoryGeneratedImages)
+    )
+  end
+
+  defp role_atom("child"), do: :child
+  defp role_atom("parent"), do: :parent
+
+  defp models_without("Luna"),
+    do: Enum.reject(FixtureModels.all(), &(&1.id == "gpt-6-luna"))
+
+  defp models_without("Terra"),
+    do: Enum.reject(FixtureModels.all(), &(&1.id == "gpt-6.1-terra"))
+
+  # The double holds the record the server had before the refusal, so a rejected save
+  # leaves exactly that record behind.
+  defp install_failing_transcript_store(context, mode) do
+    owner = context.chat_user["userId"]
+    before = CodexChat.load_transcript(owner)
+
+    records =
+      case before do
+        {:ok, _transcript, record} -> %{owner => record}
+        {:error, _reason} -> %{}
+      end
+
+    :ok = InMemoryFailingTranscriptStore.install(records)
+    previous_chat = Application.fetch_env!(:bnest_app, CodexChat)
+
+    ExUnit.Callbacks.on_exit(fn -> Application.put_env(:bnest_app, CodexChat, previous_chat) end)
+
+    Application.put_env(
+      :bnest_app,
+      CodexChat,
+      Keyword.put(previous_chat, :transcript_store, InMemoryFailingTranscriptStore)
+    )
+
+    previous_mode = Application.get_env(:bnest_app, :transcript_write_outcome)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      if is_nil(previous_mode),
+        do: Application.delete_env(:bnest_app, :transcript_write_outcome),
+        else: Application.put_env(:bnest_app, :transcript_write_outcome, previous_mode)
+    end)
+
+    Application.put_env(:bnest_app, :transcript_write_outcome, mode)
+    Map.put(context, :transcript_before, before)
+  end
+
+  @generated_thread "abcdef12-3456"
+
+  defp generated_reference(file), do: @generated_thread <> "/" <> file
+
+  defp synthetic_png, do: <<0x89, "PNG\r\n", 0x1A, "\n">> <> "synthetic generated image"
+
+  defp synthetic_jpeg, do: <<0xFF, 0xD8, 0xFF, 0xE0>> <> "synthetic generated photo"
+
   @impl true
   def perform_behaviour(context, :open_protected_route, [route]) do
     {response, accesses} = route_request(route, nil)
@@ -2471,6 +2857,109 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :logout_current_browser, _args) do
     response = dispatch_request(:delete, "/logout", context.identity_token)
     Map.merge(context, %{logout_response: response, authenticated: false})
+  end
+
+  # The login form posts its hidden return path with the credentials, so the
+  # redirect the controller answers is the evidence.
+  def perform_behaviour(context, :login_with_return_path, [return_to]) do
+    params = %{
+      "login" => %{
+        "username" => context.identity_username,
+        "password" => context.identity_password
+      },
+      "return_to" => login_return_path(return_to)
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  def perform_behaviour(context, :login_wrong_password, _args) do
+    params = %{
+      "login" => %{
+        "username" => context.identity_username,
+        "password" => "Definitely the wrong password 0!"
+      }
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  def perform_behaviour(context, :login_unknown_user, _args) do
+    params = %{
+      "login" => %{
+        "username" => "test-user-unit-unknown",
+        "password" => @synthetic_password
+      }
+    }
+
+    response = dispatch_request(:post, "/login", nil, params)
+    Map.put(context, :login_response, response)
+  end
+
+  # An unsigned browser opens home through the router, so the pipeline's own
+  # guards decide between the legacy home page and the login redirect. The
+  # request runs to the controller (unlike `route_request/2`, which stops at
+  # the guards), because the evidence is the rendered page.
+  def perform_behaviour(context, :visit_home, _args) do
+    response = dispatch_request(:get, "/", nil)
+
+    Map.merge(context, %{home_response: response, protected_response: response})
+  end
+
+  # The setup shell the server renders for an open bootstrap: the unit layer
+  # owns no browser, so it proves the shell the JavaScript dynamics (covered
+  # by the vitest scenario and the e2e click-through) start from.
+  def perform_behaviour(context, :show_setup, _args) do
+    html =
+      %{
+        live_action: :setup,
+        setup_status: Bootstrap.status(context.identity_store),
+        setup_draft: [%{username: "", roles: ["admin"]}],
+        setup_error: nil,
+        flash: %{}
+      }
+      |> BnestAppWeb.LoginLive.render()
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    Map.merge(context, %{setup_html: html, setup_page: LazyHTML.from_fragment(html)})
+  end
+
+  # A setup submission that breaks one rule, posted through the router to the
+  # bootstrap controller over the empty record-backed identity store.
+  def perform_behaviour(context, :submit_setup_case, [setup_case]) do
+    context = setup_open_request_path(context)
+    response = dispatch_request(:post, "/setup", nil, setup_case_params(setup_case))
+    followup = follow_redirect(response, nil)
+
+    Map.merge(context, %{setup_response: response, setup_followup: followup})
+  end
+
+  # Two cards whose confirmations differ: the refusal must keep the names and
+  # roles while clearing every password.
+  def perform_behaviour(context, :submit_mismatched_setup, _args) do
+    context = setup_open_request_path(context)
+
+    params = %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", "Setup password 1!", "Setup mismatch 9!", [
+            "children"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup-two", "Setup password 2!", "Setup mismatch 8!", [
+            "admin"
+          ])
+      }
+    }
+
+    response = dispatch_request(:post, "/setup", nil, params)
+    followup = follow_redirect(response, nil)
+
+    Map.merge(context, %{setup_response: response, setup_followup: followup})
   end
 
   def perform_behaviour(context, :reload_same_browser, _args),
@@ -2575,6 +3064,16 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     [["imports-accepted", %{"storageKeys" => cleared}]] = Utils.get_push_events(socket)
 
     Map.put(context, :cleared_storage_keys, cleared)
+  end
+
+  # The user changes the theme after the accepted import, through the routed theme endpoint the
+  # root layout's script uses. The change and the root it leaves are read by
+  # `:server_only_persistence`.
+  def perform_behaviour(context, :change_theme, _args) do
+    %{central_store: store, central_owner: owner, central_token: token} = context
+    before = RecordBackend.read(store, :theme, owner)
+    change = dispatch_request(:put, "/preferences/theme", token, %{"theme" => "dark"})
+    Map.merge(context, %{theme_before: before, theme_change_status: change.status})
   end
 
   # The user opens the saved chat, whose Codex thread the mount tries to resume, and sends the
@@ -2779,12 +3278,6 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
-  # The visitor's browser asks the router for the storage page with its own session cookie.
-  def perform_behaviour(context, :open_storage_settings_route, _args) do
-    {response, accesses} = route_request("/storage", context.visitor_token)
-    Map.merge(context, %{storage_response: response, storage_accesses: accesses})
-  end
-
   # Promotion swaps the routed release under the client: the candidate serves revision B
   # from the green slot, the LiveView terminates and the record repository restarts, and
   # the client mounts its route again and replays its draft through the form's recovery
@@ -2915,9 +3408,11 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, :open_schedules_from_home, _args),
     do: Map.put(context, :page, follow_admin_entry("admin-schedules-entry"))
 
-  def perform_behaviour(context, :open_admin_settings, _args) do
-    {response, accesses} = route_request("/admin/settings", context.visitor_token)
-    Map.merge(context, %{settings_response: response, settings_accesses: accesses})
+  # The visitor's browser asks the router for an admin route with its own session cookie. The
+  # router's admin guard answers before the page, whichever admin route is asked.
+  def perform_behaviour(context, :open_denied_route, [path]) do
+    {response, accesses} = route_request(path, context.visitor_token)
+    Map.merge(context, %{denied_response: response, denied_accesses: accesses})
   end
 
   # Nine daily setup runs of the saved destination, oldest first, each through the
@@ -3007,10 +3502,106 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     })
   end
 
+  # BN-ADMIN-04 and BN-ADMIN-05: the schedule form submitted with the socket's own
+  # revision. After a rival save that revision is stale, so the page reports the
+  # conflict instead.
+  def perform_behaviour(context, :save_schedule_with_time, [time]) do
+    socket = context.schedules_socket
+    revision = Integer.to_string(socket.assigns.backup_schedule.revision)
+
+    {:noreply, updated} =
+      AdminScheduleSettingsLive.handle_event(
+        "save_schedule",
+        %{"schedule" => %{"daily_time_wib" => time, "enabled" => "true", "revision" => revision}},
+        socket
+      )
+
+    Map.put(context, :schedules_socket, updated)
+  end
+
+  def perform_behaviour(context, :rival_schedule_save, [time]) do
+    {:ok, rival} =
+      Scheduler.update_daily(
+        context.schedule_key,
+        %{
+          "daily_time_wib" => time,
+          "enabled" => "true",
+          "revision" => Integer.to_string(context.saved_schedule.revision)
+        },
+        @behaviour_now
+      )
+
+    Map.put(context, :rival_schedule, rival)
+  end
+
+  # BN-ADMIN-06: the backup folder form submitted with a folder of the outline's kind.
+  def perform_behaviour(context, :save_backup_folder, [kind]) do
+    directory =
+      case kind do
+        "inside the live database location" -> "/srv/test-user-backup/database/backups"
+        "a symbolic link" -> backup_symlink_directory!()
+        _other -> "relative/backup"
+      end
+
+    {:noreply, updated} =
+      AdminScheduleSettingsLive.handle_event(
+        "save_backup",
+        %{"backup" => %{"destination_directory" => directory}},
+        context.schedules_socket
+      )
+
+    Map.merge(context, %{schedules_socket: updated, attempted_folder: directory})
+  end
+
+  # BN-DATA-10: the legacy local user is sent home with the login warning and sees
+  # no import control.
+  def perform_behaviour(context, :open_migration_cutover_off, _args) do
+    socket = %Socket{
+      view: DataMigrationLive,
+      transport_pid: self(),
+      assigns: %{
+        __changed__: %{},
+        flash: %{},
+        current_user: %{"migrationMode" => true, "userId" => "browser"}
+      }
+    }
+
+    {:ok, socket} = DataMigrationLive.mount(%{}, %{}, socket)
+    Map.put(context, :migration_cutover_socket, socket)
+  end
+
+  # BN-SIFAT-16: failing the next record write rejects the save the mark performs.
+  def perform_behaviour(context, :reject_progress_saves, _args) do
+    InMemoryRecordBackend.fail_next_write(context.sifat_records)
+    context
+  end
+
+  # The injected failure fires once, so the reload below reads the earlier saved progress.
+  def perform_behaviour(context, :mark_pair_while_failing, _args),
+    do: mark_current_pair_remembered(context)
+
+  # BN-SIFAT-17: the revision page opened for the user the Given prepared. The local
+  # browser user mounts disconnected (no transport), as a page load does before
+  # its socket connects and reports browser storage.
+  def perform_behaviour(%{sifat_ready_user: :account} = context, :open_revision_page, _args) do
+    mount_sifat_allah(context)
+  end
+
+  def perform_behaviour(%{sifat_ready_user: :browser} = context, :open_revision_page, _args) do
+    socket = %Socket{
+      view: SifatAllahLive,
+      transport_pid: nil,
+      assigns: %{__changed__: %{}, flash: %{}, current_user: context.sifat_user}
+    }
+
+    {:ok, socket} = SifatAllahLive.mount(%{}, %{}, socket)
+    context |> Map.put(:sifat_pushes, []) |> render_sifat_allah(socket)
+  end
+
   def perform_behaviour(context, :open_and_reload_label, []) do
     evidence = %{
       destination: BackupIntegrity.snapshot(context.backup_directory),
-      ledger: BackupIntegrity.ledger_rows()
+      ledger: BackupIntegrity.readable_ledger()
     }
 
     context |> open_label_page() |> open_label_page() |> Map.put(:evidence_before, evidence)
@@ -3054,6 +3645,8 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     Map.merge(context, %{
       settings_response: response,
       settings_accesses: accesses,
+      denied_response: response,
+      denied_accesses: accesses,
       denied_reads: denied,
       control_reads: control
     })
@@ -3072,8 +3665,120 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def perform_behaviour(context, action, args) when action in @drill_performs,
     do: RestoreDrill.perform(context, action, args)
 
+  # --- phase-8 FE ADD rows ---
+
+  def perform_behaviour(context, :open_second_session, [route]) do
+    first = Map.take(context, [:page, :route, :chat_socket])
+    second = mount_chat(context, route)
+
+    Map.merge(second, %{
+      page: first.page,
+      route: first.route,
+      chat_socket: first.chat_socket,
+      second_page: second.page,
+      second_route: second.route,
+      second_socket: second.chat_socket
+    })
+  end
+
+  def perform_behaviour(context, :runner_event, [event]) do
+    session = context.chat_socket.assigns.codex_session
+    message = {:error, RunnerEvent.message_for(event)}
+    {:noreply, socket} = ChatLive.handle_info({:codex, session, message}, context.chat_socket)
+    render_chat(context, socket)
+  end
+
+  def perform_behaviour(context, :request_generated_image, [file]) do
+    request_generated_image(context, generated_route(file))
+  end
+
+  def perform_behaviour(context, :request_generated_image_encoded, [file]) do
+    request_generated_image(context, generated_encoded_route(file))
+  end
+
+  def perform_behaviour(context, :request_generated_image_path, [path]) do
+    request_generated_image(context, "/chat/generated-images/" <> path)
+  end
+
+  def perform_behaviour(context, :request_service_worker, _args) do
+    response = static_request("/service-worker.js")
+
+    Map.merge(context, %{
+      service_worker_response: response,
+      service_worker_body: response.resp_body
+    })
+  end
+
+  def perform_behaviour(context, :complete_image_reply, _args) do
+    {events, context} = answer_next_prompt(context)
+    deliver_codex_events(context, events)
+  end
+
+  # BN-STORAGE-05/06/07: mounts the production `StorageLive` as the
+  # administrator over the scenario's backend state and renders its template.
+  # The control events run the same managed migration the page triggers.
+  def perform_behaviour(context, :open_storage_page, _args) do
+    socket = storage_admin_socket()
+
+    {:ok, socket} = StorageLive.mount(%{}, %{}, socket)
+
+    Map.merge(context, %{
+      storage_admin?: true,
+      storage_socket: socket,
+      storage_page: render_storage_page(socket)
+    })
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Move data"]) do
+    {:noreply, _socket} = StorageLive.handle_event("move_data", %{}, context.storage_socket)
+    StoragePorts.put(:started?, true)
+    mount_storage_page(context)
+  end
+
+  def perform_behaviour(context, :press_storage_control, ["Retry migration"]) do
+    {:noreply, _socket} = StorageLive.handle_event("retry_migration", %{}, context.storage_socket)
+    mount_storage_page(context)
+  end
+
+  # The operator repairs the source by replacing the malformed file with a
+  # valid one, the way a hand edit on the host would; the retry then runs the
+  # same managed migration the control triggers.
+  def perform_behaviour(context, :repair_and_retry, [_label]) do
+    FlatSource.put_files(@in_memory_flat_root, sqlite_storage_fixture_files())
+
+    {:noreply, _socket} = StorageLive.handle_event("retry_migration", %{}, context.storage_socket)
+    mount_storage_page(context)
+  end
+
+  def perform_behaviour(context, :sign_out, _args) do
+    Map.merge(context, %{authenticated: false, identity_token: nil})
+  end
+
   def perform_behaviour(context, action, args),
     do: UnitFamilyChatDriver.perform_behaviour(context, action, args)
+
+  defp request_generated_image(context, route) do
+    context = context |> prepare_repository_images() |> image_request_context()
+    response = route_controller_request(route, Map.get(context, :identity_token))
+
+    Map.merge(context, %{image_response: response, image_request_path: route})
+  end
+
+  defp generated_route(file),
+    do: "/chat/generated-images/" <> @generated_thread <> "/" <> file
+
+  defp generated_encoded_route(file) do
+    "/chat/generated-images/" <>
+      URI.encode(@generated_thread <> "/" <> file, &URI.char_unreserved?/1)
+  end
+
+  # A static file the endpoint serves, read from the application's own priv directory: the
+  # committed configuration the endpoint serves, never a test fixture.
+  defp static_request(path) do
+    full = Application.app_dir(:bnest_app, "priv/static/" <> String.trim_leading(path, "/"))
+    {:ok, bytes} = :file.read_file(full)
+    %{Plug.Test.conn(:get, path) | status: 200, resp_body: bytes}
+  end
 
   @impl true
   def behaviour_outcome?(context, :redirected_to_login, _args),
@@ -3136,6 +3841,106 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   def behaviour_outcome?(context, :protected_home_available, _args),
     do: protected_home?(context.home_response)
+
+  # The controller redirects a valid login to the posted return path, or to
+  # the site root when the path would leave this site.
+  def behaviour_outcome?(context, :landed_on, [path]) do
+    Plug.Conn.get_resp_header(context.login_response, "location") == [path]
+  end
+
+  # A wrong password and an unknown username share the safe refusal: back to
+  # the login page with one alert, and no identity cookie.
+  def behaviour_outcome?(context, :invalid_login_alert, _args) do
+    response = context.login_response
+
+    redirects_to_login?(response) and
+      Phoenix.Flash.get(response.assigns.flash, :error) ==
+        "Username or password is not valid."
+  end
+
+  def behaviour_outcome?(context, :no_identity_cookie, _args),
+    do: identity_cookie(context.login_response) == nil
+
+  # With cutover off the unsigned browser is the legacy local user: the
+  # status names it, no log out control is offered, and the migration note
+  # says chat and progress stay in this browser.
+  def behaviour_outcome?(context, :local_browser_user, _args) do
+    case context.home_response do
+      %{status: 200, resp_body: body} ->
+        String.contains?(body, "Local browser") and
+          not String.contains?(body, "Log out") and
+          String.contains?(body, "remain in this browser")
+
+      _other ->
+        false
+    end
+  end
+
+  # The setup shell for an open bootstrap: exactly one administrator card.
+  def behaviour_outcome?(context, :one_admin_card, _args) do
+    cards = LazyHTML.query(context.setup_page, "[data-account-card]")
+
+    Enum.count(cards) == 1 and
+      cards |> Enum.at(0) |> LazyHTML.text() |> String.contains?("Initial administrator")
+  end
+
+  def behaviour_outcome?(context, :first_card_no_remove, _args) do
+    context.setup_page
+    |> LazyHTML.query("[data-account-card]")
+    |> Enum.at(0)
+    |> LazyHTML.query("[data-remove-account]")
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :offers_add_account, _args) do
+    context.setup_page |> LazyHTML.query("[data-add-account]") |> Enum.any?() and
+      String.contains?(context.setup_html, "account-card-template")
+  end
+
+  def behaviour_outcome?(context, :template_numbers_card, _args) do
+    String.contains?(context.setup_html, "accounts[__INDEX__][username]") and
+      String.contains?(context.setup_html, "data-account-number")
+  end
+
+  # A refused setup redirects back to the setup page with the rule's message,
+  # and the followed page still answers the open setup form.
+  def behaviour_outcome?(context, :setup_refused, [message]) do
+    response = context.setup_response
+
+    redirects_to_setup?(response) and
+      Phoenix.Flash.get(response.assigns.flash, :error) == message and
+      match?(%{status: 200}, context.setup_followup) and
+      String.contains?(context.setup_followup.resp_body, "bootstrap-form")
+  end
+
+  def behaviour_outcome?(_context, :no_account_created, _args),
+    do: Identity.setup_status() == :open
+
+  # The refused re-render keeps both usernames and ticked roles.
+  def behaviour_outcome?(context, :setup_keeps_names_roles, _args) do
+    body = context.setup_followup.resp_body
+
+    String.contains?(body, "test-user-setup-one") and
+      String.contains?(body, "test-user-setup-two") and
+      role_checked?(body, "0", "children") and
+      role_checked?(body, "1", "admin")
+  end
+
+  def behaviour_outcome?(context, :passwords_cleared, _args) do
+    body = context.setup_followup.resp_body
+
+    not String.contains?(body, "Setup password 1!") and
+      not String.contains?(body, "Setup password 2!") and
+      not String.contains?(body, "Setup mismatch 9!") and
+      not String.contains?(body, "Setup mismatch 8!")
+  end
+
+  def behaviour_outcome?(context, :refusal_alert, _args) do
+    body = context.setup_followup.resp_body
+
+    String.contains?(body, "Each password and confirmation must match.") and
+      String.contains?(body, "setup-error")
+  end
 
   # The logout went through the router; reopening home with the same cookie must redirect to
   # login, and the session it named must be gone.
@@ -3485,15 +4290,10 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     end
   end
 
-  def behaviour_outcome?(context, :storage_access_denied, _args) do
-    response = context.storage_response
-    response.halted and response.status == 404 and response.resp_body == "Not found"
-  end
-
   # The refusal names no storage location or flat source, and the request read nothing but
   # the visitor's own session and account.
   def behaviour_outcome?(context, :no_host_path_or_inventory_revealed, _args) do
-    body = context.storage_response.resp_body
+    body = context.denied_response.resp_body
     own = [Identity.session_digest(context.visitor_token), context.visitor["userId"]]
 
     not String.contains?(body, [
@@ -3503,7 +4303,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
       "users/",
       "system/"
     ]) and
-      Enum.all?(context.storage_accesses, fn {operation, _type, identity} ->
+      Enum.all?(context.denied_accesses, fn {operation, _type, identity} ->
         operation == :read and identity in own
       end)
   end
@@ -3690,20 +4490,122 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
           RecordBackend.read(context.central_store, :chat, context.central_owner)
         )
 
+  # BN-ADMIN-04 and BN-ADMIN-05: the page names the refusal, and the store keeps the
+  # save the scenario started from.
+  def behaviour_outcome?(context, :schedule_error_shown, [message]) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :saved_schedule_kept, _args),
+    do: Scheduler.get_schedule(context.schedule_key) == context.saved_schedule
+
+  def behaviour_outcome?(context, :no_schedule_success, _args) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query(".admin-settings-status")
+    |> Enum.empty?()
+  end
+
+  def behaviour_outcome?(context, :rival_schedule_kept, _args),
+    do: Scheduler.get_schedule(context.schedule_key) == context.rival_schedule
+
+  # BN-ADMIN-06: the page names the refusal, and no destination was saved.
+  def behaviour_outcome?(context, :backup_error_shown, [message]) do
+    context.schedules_socket
+    |> render_schedules_page()
+    |> LazyHTML.query("#settings-error")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
+  def behaviour_outcome?(context, :backup_nothing_saved, _args) do
+    store = InMemoryBackupConfigStore.new()
+
+    match?({:error, :absent}, InMemoryBackupConfigStore.read(store)) and
+      InMemoryScheduleStore.runs(Scheduler.store()) == [] and
+      context.schedules_socket
+      |> render_schedules_page()
+      |> LazyHTML.query(".admin-settings-status")
+      |> Enum.empty?()
+  end
+
+  # BN-DATA-01: every recognized source is listed with whether this browser holds
+  # it, and the foreign key is listed nowhere.
+  def behaviour_outcome?(context, :migration_source_listed, [label, status]) do
+    context
+    |> open("/data-migration")
+    |> Map.fetch!(:migration_socket)
+    |> render_migration_page()
+    |> LazyHTML.query(".identity-account-card")
+    |> Enum.map(&(&1 |> LazyHTML.text() |> String.trim()))
+    |> Enum.any?(&(String.contains?(&1, label) and String.contains?(&1, status)))
+  end
+
+  def behaviour_outcome?(context, :migration_no_unknown, _args) do
+    page =
+      context
+      |> open("/data-migration")
+      |> Map.fetch!(:migration_socket)
+      |> render_migration_page()
+
+    page |> LazyHTML.text() |> String.contains?("unknown.key") |> Kernel.not()
+  end
+
+  # BN-DATA-09: the confirmed import's outcome line, read from the When's own
+  # confirmation: confirming again would resume the import and change the outcome.
+  def behaviour_outcome?(context, :migration_outcome_shown, [line]),
+    do: Enum.member?(Map.get(context, :import_outcomes, []), line)
+
+  def behaviour_outcome?(context, :migration_login_warning, _args) do
+    socket = context.migration_cutover_socket
+
+    match?({:redirect, %{to: "/"}}, socket.redirected) and
+      Phoenix.Flash.get(socket.assigns.flash, :error) ==
+        "Log in before importing browser data."
+  end
+
+  # Redirected home before the page renders, the visitor is never offered the
+  # confirmation the import control would submit.
+  def behaviour_outcome?(context, :migration_no_import_control, _args) do
+    match?({:redirect, _redirect}, context.migration_cutover_socket.redirected)
+  end
+
+  def behaviour_outcome?(context, :failed_save_notice, _args) do
+    context.page
+    |> LazyHTML.query("[role=alert]")
+    |> LazyHTML.text()
+    |> String.contains?("Progress could not be saved. The previous saved progress is unchanged.")
+  end
+
+  def behaviour_outcome?(context, :earlier_progress_shown, _args),
+    do: progress_shows?(context, "6 dari 120 soal sudah hafal")
+
+  def behaviour_outcome?(context, :storage_note_shown, [message]) do
+    context.page
+    |> LazyHTML.query(".sifat-saved-note")
+    |> LazyHTML.text()
+    |> String.trim()
+    |> Kernel.==(message)
+  end
+
   # A change made after the accepted import: the theme request the root layout's script sends
   # goes through the router to the theme controller. It must change the user's record in the
   # server store, and the root the router then renders for that user must carry it while
   # telling the browser script to keep no copy of its own.
   def behaviour_outcome?(context, :server_only_persistence, _args) do
     %{central_store: store, central_owner: owner, central_token: token} = context
-    before = RecordBackend.read(store, :theme, owner)
     requested = "dark"
-    change = dispatch_request(:put, "/preferences/theme", token, %{"theme" => requested})
     stored = RecordBackend.read(store, :theme, owner)
     home = dispatch_request(:get, "/", token)
     root = home.resp_body |> LazyHTML.from_document() |> LazyHTML.query("html")
 
-    change.status == 204 and stored != before and
+    context.theme_change_status == 204 and stored != context.theme_before and
       match?({:ok, %{"ownerId" => ^owner, "theme" => ^requested}}, stored) and
       Preferences.theme(owner) == requested and home.status == 200 and
       LazyHTML.attribute(root, "data-browser-persistence") == ["false"]
@@ -3899,7 +4801,7 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   # record the request touched is the visitor's own session, account or theme, which the
   # browser pipeline reads to resolve them. No other record was read or written.
   def behaviour_outcome?(context, :not_found_before_reads, _args) do
-    %{settings_response: response, settings_accesses: accesses} = context
+    %{denied_response: response, denied_accesses: accesses} = context
     own = [Identity.session_digest(context.visitor_token), context.visitor["userId"]]
 
     response.halted and response.status == 404 and response.resp_body == "Not found" and
@@ -3966,6 +4868,13 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
         schedule.schedule_key == context.schedule_key and schedule.last_run_state == "verified"
       end)
 
+  # The coordinator's run is the one verified run the fixture handler's ledger holds, and the
+  # contextual inventory shows the family schedule verified.
+  def behaviour_outcome?(context, :shared_ledger_and_inventory, _args),
+    do:
+      match?([_run], Scheduler.verified_runs("fixture")) and
+        behaviour_outcome?(context, :shared_inventory, [])
+
   # Every declared panel renders as one link to its path, under its label.
   def behaviour_outcome?(context, :panels_discoverable, _args),
     do:
@@ -4017,8 +4926,202 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   def behaviour_outcome?(context, expected, args) when expected in @drill_outcomes,
     do: RestoreDrill.outcome?(context, expected, args)
 
+  # --- phase-8 FE ADD rows ---
+
+  def behaviour_outcome?(context, :chat_entry_link_absent, [label, path]) do
+    page = context.page
+    no_path_link = page |> LazyHTML.query("a[href='#{path}']") |> Enum.empty?()
+
+    no_labelled_link =
+      page
+      |> LazyHTML.query("a")
+      |> Enum.all?(fn element ->
+        not String.contains?(LazyHTML.text(element), label) and
+          not Enum.any?(LazyHTML.attribute(element, "aria-label"), &String.contains?(&1, label))
+      end)
+
+    no_path_link and no_labelled_link
+  end
+
+  def behaviour_outcome?(context, :second_session_message, [message]),
+    do: visitor_message_visible?(%{context | page: context.second_page}, message)
+
+  def behaviour_outcome?(context, :second_session_response, _args),
+    do: one_completed_codex_response_visible?(%{context | page: context.second_page})
+
+  def behaviour_outcome?(context, :runner_reported, [alert]),
+    do: alert_visible?(context, alert)
+
+  def behaviour_outcome?(context, :stored_transcript_unchanged, _args),
+    do: CodexChat.load_transcript(context.chat_user["userId"]) == context.transcript_before
+
+  def behaviour_outcome?(context, :no_codex_session, _args) do
+    not Enum.any?(Map.get(context, :codex_calls, []), &match?({:agent_session, :open, _}, &1))
+  end
+
+  def behaviour_outcome?(_context, :generated_image_inline, [file]) do
+    content = image_turn_content(file)
+
+    html =
+      ChatMarkdown.to_html(content, false, codex_images: true)
+      |> Safe.to_iodata()
+      |> IO.iodata_to_binary()
+
+    String.contains?(html, "/chat/generated-images/abcdef12-3456/#{file}") and
+      String.contains?(html, "<img")
+  end
+
+  def behaviour_outcome?(_context, :family_reference_as_text, _args) do
+    thread_id = "abcdef12-3456"
+    source = "![Generated image](codex-image:#{thread_id}/exec-fixture-image.png)"
+
+    html =
+      ChatComponents.markdown_body_html(source,
+        hard_breaks: true,
+        attrs: %{"data-role": "family-chat-message-body", class: "family-chat-message-body"}
+      )
+
+    String.contains?(html, "[image not shown: Generated image]") and
+      not String.contains?(html, "<img")
+  end
+
+  def behaviour_outcome?(context, :image_cached_and_sandboxed, _args) do
+    Plug.Conn.get_resp_header(context.image_response, "cache-control") == ["private, max-age=60"] and
+      Plug.Conn.get_resp_header(context.image_response, "content-security-policy") == [
+        "default-src 'none'; sandbox"
+      ]
+  end
+
+  def behaviour_outcome?(context, :image_echoes_no_header, _args) do
+    values = Enum.map(context.image_response.resp_headers, &elem(&1, 1))
+    not Enum.any?(values, &String.contains?(&1, context.image_request_path))
+  end
+
+  def behaviour_outcome?(context, :repository_logo_present, _args) do
+    _ = prepare_repository_images(context)
+
+    match?(
+      {:ok, _type, _bytes},
+      CodexChat.repository_image("apps/bnest-app/priv/static/images/beaver-nest-logo.png")
+    )
+  end
+
+  def behaviour_outcome?(_context, :manifest_names_app, _args) do
+    manifest = fetch_manifest()
+    icon_sources = manifest["icons"] |> Enum.map(& &1["src"]) |> Enum.sort()
+
+    manifest["name"] == "Beaver Nest" and manifest["short_name"] == "Beaver Nest" and
+      manifest["display"] == "standalone" and manifest["start_url"] == "/" and
+      icon_sources == Pwa.install_metadata().icon_paths |> Enum.sort()
+  end
+
+  def behaviour_outcome?(_context, :manifest_icons_load, _args) do
+    icons = Enum.map(fetch_manifest()["icons"], & &1["src"])
+    length(icons) == 2 and Enum.all?(icons, &(static_request(&1).status == 200))
+  end
+
+  def behaviour_outcome?(context, :worker_precaches_shell, [cache]) do
+    body = context.service_worker_body
+
+    String.contains?(body, ~s(CACHE_NAME = "#{cache}")) and
+      String.contains?(body, ~s("/manifest.webmanifest")) and
+      String.contains?(body, ~s("/assets/css/app.css")) and
+      String.contains?(body, ~s("/assets/js/app.js")) and
+      String.contains?(body, ~s("/images/beaver-nest-192.png")) and
+      String.contains?(body, ~s("/images/beaver-nest-512.png")) and
+      String.contains?(body, "cache.addAll(APP_SHELL)")
+  end
+
+  def behaviour_outcome?(context, :worker_never_precaches, [path]) do
+    [shell] =
+      Regex.run(~r/const APP_SHELL = \[(.*?)\];/s, context.service_worker_body,
+        capture: :all_but_first
+      )
+
+    not String.contains?(shell, ~s("#{path}"))
+  end
+
+  def behaviour_outcome?(context, :worker_activate_deletes, _args) do
+    body = context.service_worker_body
+
+    String.contains?(body, ".filter((key) => key !== CACHE_NAME)") and
+      String.contains?(body, "caches.delete(key)")
+  end
+
+  # BN-STORAGE-05/06/07: reads the rendered storage page the scenario mounted.
+  def behaviour_outcome?(context, :storage_page_reads, [text]) do
+    status =
+      context.storage_page
+      |> LazyHTML.query("section[aria-label='Migration status'] strong")
+      |> LazyHTML.text()
+
+    status == String.replace_prefix(text, "Status: ", "")
+  end
+
+  def behaviour_outcome?(context, :storage_control_reads, [label]) do
+    control_label(context.storage_page) == label
+  end
+
+  def behaviour_outcome?(context, :storage_status_and_control, [status, label]) do
+    page = context.storage_page
+
+    strong =
+      page |> LazyHTML.query("section[aria-label='Migration status'] strong") |> LazyHTML.text()
+
+    control = control_label(page)
+    strong == String.replace_prefix(status, "Status: ", "") and control == label
+  end
+
+  def behaviour_outcome?(context, :storage_folder_locked, _args) do
+    page = context.storage_page
+
+    disabled_input? =
+      page
+      |> LazyHTML.query("input#directory[disabled]")
+      |> Enum.any?()
+
+    disabled_check? =
+      page
+      |> LazyHTML.query("section[aria-label='Database folder'] button[disabled]")
+      |> LazyHTML.text()
+      |> String.contains?("Check folder")
+
+    disabled_input? and disabled_check? and
+      not String.contains?(LazyHTML.text(page), "Create database")
+  end
+
+  def behaviour_outcome?(context, :room_not_found_body, [body]) do
+    context.page |> LazyHTML.text() |> String.trim() == body
+  end
+
+  def behaviour_outcome?(context, :room_reveals_no_name, _args) do
+    not String.contains?(LazyHTML.text(context.page), "Ruang Keluarga")
+  end
+
   def behaviour_outcome?(context, expected, args),
     do: UnitFamilyChatDriver.behaviour_outcome?(context, expected, args)
+
+  # The turn the runner's image event completes: the reference the transcript appends
+  # for a valid session thread, rendered the way the Codex room renders it.
+  @image_thread "abcdef12-3456"
+
+  defp image_turn_content(file) do
+    {:ok, submitted} =
+      Transcript.new("gpt-6.1-terra", "medium")
+      |> Transcript.submit("Generate an image without a reference")
+
+    {:checkpoint, chat} =
+      submitted
+      |> Transcript.put_thread_id(@image_thread)
+      |> then(fn sized -> CodexChat.apply_event(sized, {:image_generated, file}) end)
+
+    chat.messages |> Enum.find(&(&1.role == :assistant)) |> Map.fetch!(:content)
+  end
+
+  defp fetch_manifest do
+    %{status: 200, resp_body: body} = static_request("/manifest.webmanifest")
+    Jason.decode!(body)
+  end
 
   # A synthetic destination no disk holds: the scenario's in-memory artifact store keeps it.
   defp unit_backup_directory(tag),
@@ -4119,6 +5222,50 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
     |> LazyHTML.from_fragment()
+  end
+
+  # BN-STORAGE-05/06/07: points the LiveView's `move_data` handler at the
+  # in-memory flat root for the scenario, restoring the previous root
+  # afterwards.
+  defp put_storage_runtime_root(context) do
+    previous = Application.get_env(:bnest_app, :runtime_root)
+    Application.put_env(:bnest_app, :runtime_root, @in_memory_flat_root)
+    ExUnit.Callbacks.on_exit(fn -> restore_storage_runtime_root(previous) end)
+    context
+  end
+
+  defp restore_storage_runtime_root(nil), do: Application.delete_env(:bnest_app, :runtime_root)
+
+  defp restore_storage_runtime_root(previous),
+    do: Application.put_env(:bnest_app, :runtime_root, previous)
+
+  defp malformed_theme_source,
+    do: {"users/user-test-storage/preferences/theme.json", "{malformed"}
+
+  defp storage_admin_socket do
+    %Socket{
+      view: StorageLive,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+  end
+
+  defp mount_storage_page(context) do
+    socket = storage_admin_socket()
+    {:ok, socket} = StorageLive.mount(%{}, %{}, socket)
+
+    Map.merge(context, %{
+      storage_admin?: true,
+      storage_socket: socket,
+      storage_page: render_storage_page(socket)
+    })
+  end
+
+  defp control_label(page) do
+    page
+    |> LazyHTML.query("section[aria-label='Migration status'] button")
+    |> LazyHTML.text()
+    |> String.trim()
   end
 
   # The database path the storage profile this layer runs under resolves to, worked out
@@ -4321,6 +5468,140 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
 
   defp redirects_to_login?(_response), do: false
 
+  # The bootstrap controller's refusal redirect back to the setup page.
+  defp redirects_to_setup?(%{status: 302} = response),
+    do: Plug.Conn.get_resp_header(response, "location") == ["/setup"]
+
+  defp redirects_to_setup?(_response), do: false
+
+  # Pins the identity cutover flag for the scenario and restores it after.
+  defp pin_cutover(context, enabled) do
+    previous = Application.fetch_env!(:bnest_app, :identity_cutover_enabled)
+    Application.put_env(:bnest_app, :identity_cutover_enabled, enabled)
+
+    ExUnit.Callbacks.on_exit(fn ->
+      Application.put_env(:bnest_app, :identity_cutover_enabled, previous)
+    end)
+
+    context
+  end
+
+  # The outline spells an empty return path "(empty)", as the corpus does for
+  # other empty values.
+  defp login_return_path("(empty)"), do: ""
+  defp login_return_path(return_to), do: return_to
+
+  # The browser request path for setup scenarios: the record-backed identity
+  # store stays empty, so bootstrap is open, and the named Identity process
+  # serves the facade calls the bootstrap controller makes.
+  defp setup_open_request_path(context) do
+    {:ok, _apps} = Application.ensure_all_started(:plug)
+    previous = StoragePorts.install()
+    ExUnit.Callbacks.on_exit(fn -> StoragePorts.restore(previous) end)
+    store = InMemoryRecordBackend.start(self())
+    ExUnit.Callbacks.start_supervised!({Records, store: store})
+    unless GenServer.whereis(Identity), do: ExUnit.Callbacks.start_supervised!(Identity)
+    Map.put(context, :request_store, store)
+  end
+
+  # One setup form submission per rule the outline names, in the shape Plug
+  # decodes the setup form into.
+  defp setup_case_params("no admin") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", @synthetic_password, @synthetic_password, [
+            "children"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup-two", @synthetic_password, @synthetic_password, [
+            "parents"
+          ])
+      }
+    }
+  end
+
+  defp setup_case_params("duplicate username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params("Test-User-Setup", @synthetic_password, @synthetic_password, [
+            "admin"
+          ]),
+        "1" =>
+          setup_account_params("test-user-setup", @synthetic_password, @synthetic_password, [
+            "admin"
+          ])
+      }
+    }
+  end
+
+  defp setup_case_params("empty username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" => setup_account_params("", @synthetic_password, @synthetic_password, ["admin"])
+      }
+    }
+  end
+
+  defp setup_case_params("long username") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params(
+            String.duplicate("a", 33),
+            @synthetic_password,
+            @synthetic_password,
+            ["admin"]
+          )
+      }
+    }
+  end
+
+  defp setup_case_params("password mismatch") do
+    %{
+      "confirm" => "closed",
+      "accounts" => %{
+        "0" =>
+          setup_account_params(
+            "test-user-setup-one",
+            @synthetic_password,
+            "A different password 0!",
+            ["admin"]
+          )
+      }
+    }
+  end
+
+  defp setup_case_params("unchecked box") do
+    %{
+      "accounts" => %{
+        "0" =>
+          setup_account_params("test-user-setup-one", @synthetic_password, @synthetic_password, [
+            "admin"
+          ])
+      }
+    }
+  end
+
+  defp setup_account_params(username, password, confirmation, roles) do
+    %{
+      "username" => username,
+      "password" => password,
+      "password_confirmation" => confirmation,
+      "roles" => Map.new(roles, &{&1, "true"})
+    }
+  end
+
+  # A role checkbox the refused setup re-renders ticked for the card.
+  defp role_checked?(body, index, role) do
+    Regex.match?(~r/name="accounts\[#{index}\]\[roles\]\[#{role}\]".*?checked/s, body)
+  end
+
   # Home's protected actions, read from the rendered page: the chat entry and logout form.
   defp protected_home?(%{status: 200, resp_body: body}) do
     page = LazyHTML.from_document(body)
@@ -4385,6 +5666,9 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
   end
 
   defp recognized_browser_sources, do: [chat_source(), learning_source(), theme_source()]
+
+  defp migration_owner(%{central_owner: owner}), do: owner
+  defp migration_owner(_context), do: "user-unit"
 
   defp chat_source do
     %{
@@ -4542,6 +5826,27 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     socket
   end
 
+  defp ensure_scheduler_tasks! do
+    if is_nil(GenServer.whereis(BnestApp.Scheduler.Tasks)),
+      do: ExUnit.Callbacks.start_supervised!({Task.Supervisor, name: BnestApp.Scheduler.Tasks})
+  end
+
+  defp schedules_admin_socket do
+    %Socket{
+      view: AdminScheduleSettingsLive,
+      transport_pid: self(),
+      assigns: %{__changed__: %{}, flash: %{}, current_user: @unit_admin}
+    }
+  end
+
+  # The symlink the unit backup refusal names: recorded in the in-memory artifact
+  # store, which the destination check reads instead of the disk.
+  defp backup_symlink_directory! do
+    handle = InMemoryArtifactStore.new()
+    :ok = InMemoryArtifactStore.put_symlink(handle, "/srv/test-user-backup/link")
+    "/srv/test-user-backup/link/backups"
+  end
+
   defp open_label_page(context) do
     socket = mount_schedules_page()
     first = render_schedules_page(socket)
@@ -4590,6 +5895,15 @@ defmodule BnestApp.Behaviour.UnitHomePageDriver do
     socket.assigns
     |> Map.delete(:__changed__)
     |> AdminScheduleSettingsLive.render()
+    |> Safe.to_iodata()
+    |> IO.iodata_to_binary()
+    |> LazyHTML.from_fragment()
+  end
+
+  defp render_migration_page(socket) do
+    socket.assigns
+    |> Map.delete(:__changed__)
+    |> DataMigrationLive.render()
     |> Safe.to_iodata()
     |> IO.iodata_to_binary()
     |> LazyHTML.from_fragment()

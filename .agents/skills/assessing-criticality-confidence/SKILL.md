@@ -11,9 +11,9 @@ compatibility: Requires read access to the content each finding names.
 
 # Assessing Criticality and Confidence
 
-Finding Criticality and Confidence
-owns the levels, the assignment order, the fixed adjustments, the priority matrix, and the report fields. This skill
-covers the judgement those rules leave to the rater: the borderline cases where a correct level is easy to miss.
+Finding Criticality and Confidence owns the levels, the assignment order, the fixed adjustments, the priority matrix,
+and the report fields. This skill covers the judgement those rules leave to the rater: the borderline cases where a
+correct level is easy to miss.
 
 ## Rate the Consequence, Not the Effort
 
@@ -60,11 +60,21 @@ would sit on a state still broken. Lower-priority work that needs approval waits
 
 ## Worked Ratings
 
-| Finding                                                  | Criticality | Confidence       | Why                                                  |
-| -------------------------------------------------------- | ----------- | ---------------- | ---------------------------------------------------- |
-| a required metadata field is absent                      | `CRITICAL`  | `HIGH`           | the artifact fails validation; one correct value     |
-| a paragraph reads as unclear                             | `MEDIUM`    | `MEDIUM`         | minor quality issue; any rewrite is a judgement      |
-| a link reported broken now resolves after a rename       | `HIGH`      | `FALSE_POSITIVE` | re-reading disproves it; the checker's path is stale |
-| a version number is reported outdated, citing a registry | `HIGH`      | `HIGH`           | misleading; the cited source settles the value       |
+- **a required metadata field is absent**
+  - Criticality: `CRITICAL`
+  - Confidence: `HIGH`
+  - Why: the artifact fails validation; one correct value
+- **a paragraph reads as unclear**
+  - Criticality: `MEDIUM`
+  - Confidence: `MEDIUM`
+  - Why: minor quality issue; any rewrite is a judgement
+- **a link reported broken now resolves after a rename**
+  - Criticality: `HIGH`
+  - Confidence: `FALSE_POSITIVE`
+  - Why: re-reading disproves it; the checker's path is stale
+- **a version number is reported outdated, citing a registry**
+  - Criticality: `HIGH`
+  - Confidence: `HIGH`
+  - Why: misleading; the cited source settles the value
 
 For writing the report itself, see [Generating Validation Reports](../generating-validation-reports/SKILL.md).

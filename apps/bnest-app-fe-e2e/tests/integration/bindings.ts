@@ -1,0 +1,285 @@
+// Integration-level bindings of the app-fe behaviour corpus. Each `@scenario` line binds one scenario to the
+// integration level declared in `policies.behaviour.levels.integration` of repo-config.yml. tools/run-integration.mts
+// reads these lines and runs exactly the named scenarios through the existing browser steps in tests/steps, against a
+// primary server started locally on loopback.
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member sends a message online and sees it reach Sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A network failure shows Retrying then automatic recovery
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A non-retryable rejection shows Couldn't send
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A 101st waiting message in one room is refused with a retry-or-discard hint
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member opens the message action menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Closing the menu returns focus to the message it came from
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A press that turns into a scroll does not open the menu
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only one menu is open at a time
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message offers both actions
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control is visible, large enough to press, beside its bubble and inside the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The actions control has an accessible name
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Holding a message to open its menu clears the text the browser selects during the press
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is not yet committed cannot be replied to
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A system message can be replied to like any other
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message puts its text on the clipboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A fine-pointer Enter send keeps keyboard focus in the Family composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message stays waiting after sign-in expires and is never sent by another member
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out discards the member's waiting messages
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Logging out turns off push notifications for this device session
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The composer keeps focus after a message is sent
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter and Shift+Enter follow the pointer in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter that confirms a composition does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Enter with keyCode 229 does not send in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A held Enter sends one message in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Shift+Enter does not send an empty Family Chat draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending brings the visitor to their own message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat send shortcut hint follows the pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Choosing Reply puts the target above the message input
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typing right after choosing Reply reaches the message input
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long quoted message is shortened in the strip
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The member abandons the reply
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The reply target does not survive a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Sending clears the reply target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat history has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message is fully above the composer on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The header and the composer leave most of a phone screen to the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The last Family Chat message is not hidden behind the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message list keeps its overscroll inside itself
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat header and composer stay in place with a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long Family Chat draft grows the message box to its cap and keeps Send and the header on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A smaller screen from the soft keyboard keeps the Family Chat header, composer and newest message on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box has an accessible name
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Family Chat Send button has four equal round corners
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Family Chat keeps one light appearance and has no theme control
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message with a mermaid flowchart shows a diagram
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Hostile diagram text in a message is inert
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An oversized, unsupported or surplus diagram in a message stays as source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram that arrives live is drawn
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending shows its diagram source as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram stays as source when the diagram engine cannot load
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in another message adds no tab stop to the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a message with a diagram copies the typed Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a message with a diagram quotes the typed Markdown as plain text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A narrow diagram is readable on the own message bubble and fits a 320 px message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram keeps a readable size and scrolls inside its own box at 320 px
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays in view when a diagram draws
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide diagram in a message uses most of a desktop column
+
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A committed message is shown as formatted Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Raw HTML in a message is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message that is still sending is shown as typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Typed line breaks in a message are kept
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An https image in a message is shown inline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A repository image in a message is shown inline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Images a message may not show stay as text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A formatted message that arrives live is formatted
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Links in a message open in a new tab
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide image or table fits a phone-width message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Copying a formatted message copies what was typed
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Replying to a formatted message quotes plain text
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Inline text in my own message stays readable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab moves from a message into its links and opens one
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab and Shift+Tab pass through message content without a trap
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Escape returns focus from message content to the message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keys inside message content keep their own meaning
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The diagram source opens from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A scrolled diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A wide table, code block or diagram can be scrolled from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A table or code block that fits is not a tab stop
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Only the focused message's links are reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message keeps the focused message's content reachable
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A diagram in an older message can be reached from the keyboard on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Keyboard focus stays in a diagram's message when its picture replaces the source
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The quote card can be used from the keyboard
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A tab that lost its connection while hidden receives new messages again once it is shown, without reloading
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reconnect never attempts to join the per-message subscription channel
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply carries its quote through each arrival path
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A reply to a reply shows only one level of quote
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is already on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is above the loaded window
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The original is beyond the jump bound
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Highlighting respects reduced motion
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The whole journey works from the keyboard alone
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Tab does not walk through every message in the room
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A quote exposes an accessible name naming its sender
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The keys that move focus through the history bring the focused message into view
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The action menu opened from the keyboard sits beside its message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message taller than the window shows its top when focus reaches it
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message already in view does not move the history
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A returning member lands on the first unread message with an unread marker
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Earlier messages are shown above the unread marker and older history can be loaded
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A member with nothing unread lands on the newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reading down to the newest message moves the resume point
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: More unread messages than one page still offer a way back to the newest
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Loading older history preserves the visitor's scroll anchor
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message is announced to assistive technology without moving focus from the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A new message away from the bottom shows "New messages below" instead of scrolling
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room shows that notifications are blocked
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Opening the room offline shows no signed-in messages from the device's saved copy
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A streaming Codex reply shows the diagram source until the reply is complete
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An oversized diagram stays as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An unsupported diagram type stays as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Diagrams beyond the first four in a message stay as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex flowchart is drawn as a picture
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram with a syntax error stays visible as source with a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Hostile Codex diagram text is inert
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A diagram that carries settings is not drawn and shows a note
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A drawn diagram stays drawn and keeps its source open when the conversation grows
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram stays as source when the diagram engine cannot load
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws after the diagram engine starts on a later try
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clearing the Codex chat removes its diagrams and the next reply draws again
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A narrow Codex diagram fits a 320 pixel bubble
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram keeps a readable size and scrolls inside its own box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex diagram draws again offline after it was drawn once
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex chat without a diagram does not load the diagram engine
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The largest allowed Codex flowchart is drawn within the time budget
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Enter and Shift+Enter follow the visitor's pointer, not the screen size
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A filled draft is sent once, and a blank, whitespace or busy draft is never sent
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Keyboard focus stays in the Codex message box after a reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A confirmed composition never sends in the Codex message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex send shortcut hint follows the visitor's pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box follows a pointer change while the page is open
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Send button lines up with the message box
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box has no resize handle
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box placeholder meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button and the Family Chat Send button share one colour
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex Send button has four equal round corners that match the Family Chat Send button
+
+export const bindingLevel = "integration";
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Every control in the room is reachable by keyboard with a visible focus indicator
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room has no horizontal page scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The room does not scroll the whole page vertically
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The conversation keeps room on a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message uses most of a narrow phone's width
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer grows with a long draft and then stops at five lines
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer leaves most of a short screen to the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The newest message stays above the composer when the draft grows
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A long unbroken draft leaves the Family room inside the screen (a regression guard)
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The Send button text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Reopening the app resumes queued sends
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued message survives a real browser reload while offline
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A waiting message is sent as soon as the connection returns
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: Each failed automatic retry waits longer than the last, up to one minute
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued more than seven days becomes manual-only
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An offline reply waits for the connection and stays a reply
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply survives closing the app
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A queued reply commits with its link on reconnect
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A message queued before the update still sends after it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor can install Beaver Nest as an app
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home controls and content remain visually separated
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sends a message with Shift+Enter
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: After a dropped connection, a resumed reply shows its later text and diagram without a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex reply tables, task lists, links and images keep their layout
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Clear chat asks for confirmation before it deletes the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Cancel, Escape and tabbing away keep the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The confirmation takes focus and cancel returns focus to Clear chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Confirming clears the conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Escape with focus outside the confirmation closes it and leaves focus where it is
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Reopening the options panel shows no stale Clear chat question
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat confirmation fits a narrow screen with 44 pixel targets
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor's message renders Markdown and can show its raw text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Show raw control reads on the dark visitor bubble
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view of a hostile visitor's message shows text, not HTML
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The raw view keeps the typed line breaks and spaces
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page and Codex chat keep one light appearance and have no theme control
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation has most of the screen with an empty draft
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A typical Codex phone view shows the newest message above the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header controls are at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer text is 16 pixels on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex tables and code blocks show that they scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex code block scrolls inside a height limit
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex picture fits a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex diagram source is at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex links, tables, code blocks and diagram sources show the room's coral focus ring
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply does not overflow the phone width
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header is compact on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header's tab order follows the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Clear chat button fills on hover only for a fine pointer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel holds the model, the effort and Clear chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel keeps 12 pixels from the screen edge on a phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page keeps a gap between the header and the hero card
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex options panel closes on Escape and on a tap outside it
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex repository access state is visible without scrolling the header
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message box keeps its name when the window is short
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation opens at its newest message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation follows a new reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps a reader who scrolled up in place
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex conversation keeps its newest reply in view when a diagram draws
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer and most of the conversation fit a small phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex panel fits the window on a tablet, a landscape phone and a desktop
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A wide Codex diagram uses the width of a desktop column
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex scrollable tables and code blocks are named as in Family Chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The repository write toggle text meets the contrast target
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long unbroken draft keeps the Codex chat inside the screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header and composer stay in place while the messages scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The last Codex message is not hidden behind the composer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex message list keeps its overscroll inside itself
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex draft grows the message box to its cap and keeps Send and the header on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A smaller screen from the soft keyboard keeps the Codex composer on screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A conversation continues in another tab or browser of the same user
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home hides the Sifat Allah mission entry and keeps the chat entry
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Home offers the Family chat link
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A runner exit or invalid runner output shows one fixed line
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A chat that cannot be saved says the saved chat is unchanged
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A failed write-enable stays read-only and says so
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A role whose model is missing in local Codex is unavailable
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex-generated images show inline in the reply
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The web manifest names Beaver Nest as a standalone app with two icons
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Every image answer is private-cached and sandboxed
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A signed-in visitor can fetch a generated image
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A malformed or unknown generated image path is an empty not found response
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: An unknown room slug is a plain not found response
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The home page offers a Start chatting link
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A login return path stays on this site
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A wrong login stays on the login page and says it is not valid
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: With identity cutover off an unsigned browser acts as the local user
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A setup submission that breaks a rule is refused and creates no account
+// @scenario specs/apps/bnest/app-fe/behaviours/authentication.feature: A failed setup keeps the names and roles and clears every password
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: A settings panel saves only the fields it offers and refuses any other field
+// @scenario specs/apps/bnest/app-fe/behaviours/scheduled_backups.feature: No horizontal scrolling and no hidden problem appears at any supported width
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor returns home through the Beaver Nest brand
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Completed browser migration is not offered from the home page
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor opens a fresh chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot send an empty message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor cannot overlap Codex turns
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor retains public Codex progress beside the final answer
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor continues one page-scoped conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor changes the model or the reasoning effort within one Codex conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A model change falls back to Max from an unsupported reasoning effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor sees an alert when Codex cannot take or finish a message
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A visitor clears the chat and starts a new conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A child, or a child administrator, is limited to read-only Luna at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A parent chooses Luna or Terra at medium effort
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: An administrator turns repository writes on and off
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Repository access returns to read-only after a reload or after clearing the chat
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex replies are formatted as Markdown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply stays readable while its Markdown is unfinished
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Raw HTML in a Codex reply is shown as text and never runs
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Unsafe links in a Codex reply are not clickable
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Links in a Codex reply open in a new tab without sharing the page
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply shows an image from the repository
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: External https and small inline images in a Codex reply are shown
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex reply keeps http, svg and oversized images as text
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A half-written image address in a streaming reply is not shown as an image
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child opens the revision dashboard
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns a pair and keeps the progress after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child resets saved progress from the mission
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child learns the earliest pair that is not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz skips individual questions that are already remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz prioritizes individual questions that are not remembered yet
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz continues as reinforcement after every pair is remembered
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child can return to the mission while learning
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child receives kind feedback for a correct quiz answer
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A quiz locks one answer and moves on automatically
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child sees correct answers in varied positions
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child keeps the current quiz question after a reload
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child practises every question form of a pair
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A difficult pair is kept for another try
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child retests a difficult pair until it is correct
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: Every answered question moves between the review lists immediately
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A pair moves between remembered and difficult review
+// @scenario specs/apps/bnest/app-fe/behaviours/sifat_allah.feature: A child gets another difficult pair before repeating one
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Accepted browser import clears only the accepted browser key
+// @scenario specs/apps/bnest/app-fe/behaviours/centralized_data.feature: Failed Codex-thread resume reports a fresh conversation
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance reports its own storage generation
+// @scenario specs/apps/bnest/app-fe/behaviours/test_instances.feature: A fresh test instance does not know the previous instance's admin account
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: A visitor reaches Ruang Keluarga from either family chat address

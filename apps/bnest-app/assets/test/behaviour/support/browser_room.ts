@@ -44,7 +44,9 @@ import {
   type FakeSocket,
   type GraphqlServer,
   type Member,
+  parseDocument,
   type PostOptions,
+  type SchemaSnapshot,
   type ServerMessage,
 } from "../../support/graphql_server";
 import type { WorkerHarness } from "../../support/service_worker";
@@ -428,6 +430,9 @@ function renderRoom(member: Member): string {
     ],
     "room.html.heex",
   );
+  // Served on purpose: the frozen pre-#239 client (family_chat.js at 4ee4027) reads dataset["familyChatReplyEnabled"]
+  // === "true", and a browser still holding that bundle runs this markup after a reload into this revision. No code
+  // in the current bundle reads the attribute.
   if (!html.includes('data-family-chat-reply-enabled="true"')) {
     throw new Error(
       "room.html.heex no longer serves the room with replies enabled",
@@ -468,6 +473,26 @@ const RENDERED_BODIES = path.resolve(
 );
 const RENDERED_BODY_HTML: Record<string, string> = JSON.parse(
   readFileSync(RENDERED_BODIES, "utf8"),
+);
+
+// The frozen wire contract of two earlier revisions, captured from commit 4ee4027 (see the file's `_about`). A page
+// opened with `bundle: "previous"` sends the previous bundle's documents; a rolled-back routed slot answers from the
+// frozen schema.
+interface FrozenDocument {
+  document: string;
+  variables: string[];
+}
+
+interface PreviousRevision {
+  previousClient: { documents: Record<string, FrozenDocument> };
+  rolledBackSlot: { schema: SchemaSnapshot };
+}
+
+const PREVIOUS_REVISION: PreviousRevision = JSON.parse(
+  readFileSync(
+    path.resolve(ASSETS, "test/support/family_chat_previous_revision.json"),
+    "utf8",
+  ),
 );
 
 function renderedBodyHtml(body: string): string | null {
@@ -594,6 +619,19 @@ function storageOf(map: Map<string, string>) {
 
 // --- Pages -------------------------------------------------------------------
 
+/** Which bundle a page runs: this revision's own, or the frozen previous bundle that sends the earlier documents. */
+export type Bundle = "current" | "previous";
+
+/**
+ * One GraphQL document a previous-bundle page put on the wire: its channel, its operation, and the text the double
+ * received for it.
+ */
+export interface SentDocument {
+  channel: "http" | "socket";
+  operation: string;
+  wire: string;
+}
+
 export interface Page {
   id: number;
   kind: "room" | "home";
@@ -609,6 +647,9 @@ export interface Page {
   scrolledTo: string[];
   visibility: "visible" | "hidden";
   inflight: number;
+  bundle: Bundle;
+  /** The documents a previous-bundle page sent, in order; the step checks them against the frozen contract. */
+  sentDocuments: SentDocument[];
   closed: boolean;
   /** Where a submitted form sent this page, if anywhere. */
   navigatedTo: string | null;
@@ -968,6 +1009,8 @@ function newPage(
     scrolledTo: [],
     visibility: "visible",
     inflight: 0,
+    bundle: "current",
+    sentDocuments: [],
     closed: false,
     navigatedTo: null,
     dialogs: [],
@@ -998,6 +1041,42 @@ function newPage(
   return page;
 }
 
+/** The text a previous-bundle page's request reached the double with: the double reports it, the page keeps it. */
+type Receipt = (document: string) => void;
+
+/**
+ * The document a page puts on the wire: its own, or, for a previous-bundle page, the previous bundle's frozen document
+ * for the same operation. A previous-bundle page also gets a receipt, which the double calls with the text it receives;
+ * the check reads that text back, so it is what the double got, not what this function chose.
+ */
+function sentFrames(
+  page: Page,
+  channel: SentDocument["channel"],
+  query: string,
+  variables: Record<string, unknown>,
+): {
+  sent: { query: string; variables: Record<string, unknown> };
+  receipt?: Receipt;
+} {
+  if (page.bundle === "current") return { sent: { query, variables } };
+  const operation = parseDocument(query).operation;
+  const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
+  const sent = frozen
+    ? {
+        query: frozen.document,
+        variables: Object.fromEntries(
+          Object.entries(variables).filter(([name]) =>
+            frozen.variables.includes(name),
+          ),
+        ),
+      }
+    : { query, variables };
+  const receipt: Receipt = (received) => {
+    page.sentDocuments.push({ channel, operation, wire: received });
+  };
+  return { sent, receipt };
+}
+
 /** The room's way to the server, as this page's network carries it. */
 function requestFor(page: Page) {
   const client = requireWorld().server.clientFor(page.member);
@@ -1017,7 +1096,8 @@ function requestFor(page: Page) {
         await new Promise((resolve) => setTimeout(resolve, 0));
         throw new TypeError("Failed to fetch");
       }
-      const answer = await client.request(query, variables);
+      const { sent, receipt } = sentFrames(page, "http", query, variables);
+      const answer = await client.request(sent.query, sent.variables, receipt);
       await untilActive(page);
       return answer;
     } finally {
@@ -1028,7 +1108,11 @@ function requestFor(page: Page) {
 
 interface RawChannel {
   join: () => unknown;
-  push: (event: string, payload: Record<string, unknown>) => unknown;
+  push: (
+    event: string,
+    payload: Record<string, unknown>,
+    receipt?: Receipt,
+  ) => unknown;
   on: (
     event: string,
     handler: (payload: Record<string, unknown>) => void,
@@ -1066,8 +1150,11 @@ function socketFor(page: Page) {
         const channel = raw.channel(topic, params) as unknown as RawChannel;
         return {
           join: () => channel.join(),
-          push: (event: string, payload: Record<string, unknown>) =>
-            channel.push(event, payload),
+          push: (event: string, payload: Record<string, unknown>) => {
+            if (event !== "doc") return channel.push(event, payload);
+            const sent = sentSubscription(page, payload);
+            return channel.push(event, sent.payload, sent.receipt);
+          },
           on: (
             event: string,
             handler: (payload: Record<string, unknown>) => void,
@@ -1080,6 +1167,20 @@ function socketFor(page: Page) {
       },
     };
   };
+}
+
+/** A subscription document as the page's bundle sends it, and the receipt the double answers to. */
+function sentSubscription(
+  page: Page,
+  payload: Record<string, unknown>,
+): { payload: Record<string, unknown>; receipt: Receipt | undefined } {
+  const { sent, receipt } = sentFrames(
+    page,
+    "socket",
+    String(payload["query"]),
+    (payload["variables"] ?? {}) as Record<string, unknown>,
+  );
+  return { payload: { ...payload, ...sent }, receipt };
 }
 
 /** Waits until nothing this page asked for is still on the wire. */
@@ -1114,10 +1215,15 @@ export async function waitFor(
 
 /**
  * Loads `pathname` for `member` on `device`, the way a browser navigation
- * and `app.js` do. Every room serves replies: the shell hardcodes the flag.
+ * and `app.js` do. Every room serves replies: the shell always reports them on.
  */
 export async function openRoomPage(
-  options: { member?: Member; device?: Device; pathname?: string } = {},
+  options: {
+    member?: Member;
+    device?: Device;
+    pathname?: string;
+    bundle?: Bundle;
+  } = {},
 ): Promise<Page> {
   const current = requireWorld();
   const member = options.member ?? current.visitor;
@@ -1130,6 +1236,7 @@ export async function openRoomPage(
     await worker.fetch("/assets/js/app.js");
   }
   const page = newPage("room", member, device, pathname, renderRoom(member));
+  page.bundle = options.bundle ?? "current";
   activate(page);
   installLayout(page);
   page.elements = findElements();
@@ -1607,6 +1714,33 @@ export function visibleRemediation(page: Page = activePage()): string {
 
 export function hidden(element: HTMLElement): boolean {
   return element.hidden !== false;
+}
+
+/**
+ * Each document a previous-bundle page's request reached the double with that the previous bundle does not send, per
+ * page and in order: the text the double received, compared with the frozen document for the operation. An operation
+ * with no frozen document is a mismatch too, so a page cannot pass by sending a document the map lacks.
+ */
+export function previousBundleMismatches(): string[] {
+  return requireWorld().pages.flatMap((page) =>
+    page.sentDocuments.flatMap(({ channel, operation, wire }) => {
+      const frozen = PREVIOUS_REVISION.previousClient.documents[operation];
+      if (frozen === undefined)
+        return [
+          `${operation} went over the ${channel} with no previous-bundle document`,
+        ];
+      return wire === frozen.document
+        ? []
+        : [
+            `${operation} went over the ${channel} as text the previous bundle does not send`,
+          ];
+    }),
+  );
+}
+
+/** The routed slot is the rolled-back one from here on: it answers from the frozen earlier schema. */
+export function rollBackServer(): void {
+  requireWorld().server.rollBackTo(PREVIOUS_REVISION.rolledBackSlot.schema);
 }
 
 export function server(): GraphqlServer {

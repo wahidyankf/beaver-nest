@@ -23,12 +23,20 @@ numbers, so the obligations concern the files alone.
 
 ## Observations
 
-| Obligation                                    | Followed                                                                      | Violated                                                                                                               |
-| --------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| 1. New migration takes the next free number   | Its version sorts after every version on `origin/main`, and no file uses it   | Its version already exists on `origin/main`, or sorts before one there                                                 |
-| 2. A named number is a hint                   | The document calls the number a hint, or names none                           | The document says the number is reserved, claimed, or fixed, or a migration takes a number because a document named it |
-| 3. A taken or out-of-order number is replaced | The migration takes the next free version, and no reference names the old one | The migration keeps a taken version or sorts before one on `origin/main`, or a reference still names the old version   |
-| 4. An applied or merged migration is kept     | Its file name is unchanged in the change                                      | A change renames or renumbers such a file                                                                              |
+- **1. New migration takes the next free number**
+  - Followed: Its version sorts after every version on `origin/main`, and no file uses it
+  - Violated: Its version already exists on `origin/main`, or sorts before one there
+- **2. A named number is a hint**
+  - Followed: The document calls the number a hint, or names none
+  - Violated: The document says the number is reserved, claimed, or fixed, or a migration takes a number because a
+    document named it
+- **3. A taken or out-of-order number is replaced**
+  - Followed: The migration takes the next free version, and no reference names the old one
+  - Violated: The migration keeps a taken version or sorts before one on `origin/main`, or a reference still names the
+    old version
+- **4. An applied or merged migration is kept**
+  - Followed: Its file name is unchanged in the change
+  - Violated: A change renames or renumbers such a file
 
 ## Reason
 
@@ -39,7 +47,9 @@ again.
 
 ## File Impact
 
-The [Plan Specification Changes](../plan-specification-changes.md#file-impact) convention requires exact File Impact paths. A new migration's path is named as a hint under obligation 2, and execution takes the timestamp under obligation 1. Naming the hint satisfies both, so neither conflicts with the other.
+The [Plan Specification Changes](../plan-specification-changes.md#file-impact) convention requires exact File Impact
+paths. A new migration's path is named as a hint under obligation 2, and execution takes the timestamp under
+obligation 1. Naming the hint satisfies both, so neither conflicts with the other.
 
 ## Enforcement
 
@@ -53,11 +63,8 @@ The [Plan Specification Changes](../plan-specification-changes.md#file-impact) c
 ## Adoption
 
 Adopted from the shared [ose-rules](https://github.com/wahidyankf/ose-rules) catalog at catalog head
-`81982e20c798d8af6dbb85ae446d39d0432b6362`, from its
-[Plan Migrations](https://github.com/wahidyankf/ose-rules/blob/81982e20c798d8af6dbb85ae446d39d0432b6362/repo-governance/conventions/structure/plan-migrations/001-source-inventory-and-contracts.md)
-module (the hint) and its
-[Release Cutover](https://github.com/wahidyankf/ose-rules/blob/81982e20c798d8af6dbb85ae446d39d0432b6362/repo-governance/development/quality/delivery/live-service-continuity/002-release-cutover.md)
-workflow (take at use). Adaptations:
+`81982e20c798d8af6dbb85ae446d39d0432b6362`, from its [Plan Migrations][catalog-plan-migrations] module (the hint) and
+its [Release Cutover][catalog-release-cutover] workflow (take at use). Adaptations:
 
 - One home here, in plan migrations, because plans are where numbers get named. The repository's
   [Live-Service Continuity](../../development/live-service-continuity.md) standard governs cutovers, not numbering.
@@ -69,5 +76,8 @@ The obligations are otherwise unchanged.
 ## Beyond This Repository
 
 No sibling obligation is recorded. This repository declares no parity boundary: its README says `ose-rules` artifacts
-are adopted by explicit copy and nothing propagates in either direction. The catalog already holds this rule, so none
-is proposed upstream.
+are adopted by explicit copy and nothing propagates in either direction. The catalog already holds this rule, so none is
+proposed upstream.
+
+[catalog-plan-migrations]: https://github.com/wahidyankf/ose-rules/blob/81982e20c798d8af6dbb85ae446d39d0432b6362/repo-governance/conventions/structure/plan-migrations/001-source-inventory-and-contracts.md
+[catalog-release-cutover]: https://github.com/wahidyankf/ose-rules/blob/81982e20c798d8af6dbb85ae446d39d0432b6362/repo-governance/development/quality/delivery/live-service-continuity/002-release-cutover.md

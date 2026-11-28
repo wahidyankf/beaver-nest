@@ -80,6 +80,27 @@ defmodule BnestApp.Test.CodexReplyPage do
     end)
   end
 
+  # The generated image the reply shows points at the generated-image route for this file.
+  def shows_generated_image?(reply, file) do
+    reply
+    |> LazyHTML.query("img")
+    |> Enum.any?(&generated_image_file?(&1, file))
+  end
+
+  defp generated_image_file?(image, file) do
+    case LazyHTML.attribute(image, "src") do
+      ["/chat/generated-images/" <> encoded] -> generated_file?(encoded, file)
+      _other -> false
+    end
+  end
+
+  defp generated_file?(encoded, file) do
+    case encoded |> URI.decode() |> String.split("/") do
+      [_thread, ^file] -> true
+      _other -> false
+    end
+  end
+
   # The reply's task checkboxes: `checked` of them are ticked and `unchecked` are not.
   def task_checkboxes?(reply, checked, unchecked) do
     boxes = LazyHTML.query(reply, "input[type=checkbox]")

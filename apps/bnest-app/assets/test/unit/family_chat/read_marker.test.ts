@@ -5,7 +5,7 @@
 // non-numeric id, and the monotonicity rule that keeps a late catch-up page
 // from dragging the position backwards.
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createMemoryReadStorage,
   createReadMarker,
@@ -119,4 +119,37 @@ describe("createReadMarker", () => {
     const supplied = createMemoryReadStorage();
     expect(resolveReadStorage(supplied)).toBe(supplied);
   });
+
+  it("uses the real localStorage when the probe read succeeds", () => {
+    const entries = new Map();
+    vi.stubGlobal("localStorage", {
+      getItem: (key: string) => entries.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        entries.set(key, value);
+      },
+      removeItem: (key: string) => {
+        entries.delete(key);
+      },
+    });
+    const resolved = resolveReadStorage();
+    resolved.setItem("k", "v");
+    expect(resolved.getItem("k")).toBe("v");
+  });
+
+  it("falls back to memory when the probe read throws", () => {
+    vi.stubGlobal("localStorage", {
+      getItem: () => {
+        throw new Error("denied");
+      },
+      setItem: () => {},
+      removeItem: () => {},
+    });
+    const resolved = resolveReadStorage();
+    resolved.setItem("k", "v");
+    expect(resolved.getItem("k")).toBe("v");
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });

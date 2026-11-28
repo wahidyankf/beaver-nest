@@ -13,14 +13,23 @@ import { emulateTouchPointer } from "../support/touch-pointer";
 // The touch and short-screen layout scenarios of chat.feature (the Rule "Codex chat on touch and short screens").
 // Each Then reads a rendered box or a computed style in real Chromium. A touch pointer is emulated through the DevTools
 // protocol, so `(pointer: coarse)` holds in both the desktop and the mobile project. Their unit proof is the Vitest
-// binding in apps/bnest-app/assets/test/behaviour/codex_layout.steps.ts.
+// binding in apps/bnest-app/assets/test/behaviour/codex_layout.steps.ts. The coral focus-ring scenarios live in
+// codex-touch-focus.steps.ts.
 
 const { Given, Then, When } = createBdd();
+
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer and most of the conversation fit a small phone
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex header controls are at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex composer text is 16 pixels on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: Codex tables and code blocks show that they scroll
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A long Codex code block scrolls inside a height limit
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: A Codex picture fits a short screen
+// @scenario specs/apps/bnest/app-fe/behaviours/chat.feature: The Codex diagram source is at least 44 pixels tall on a touch screen
+// @scenario specs/apps/bnest/app-fe/behaviours/family_chat.feature: The message composer leaves most of a short screen to the conversation
 
 const TOUCH_TARGET_PX = 44;
 const CODE_BLOCK_MAX_PX = 384;
 const SCREEN_IMAGE_SHARE = 0.7;
-const CORAL_RGB = "rgb(229, 99, 61)";
 
 function latestReply(page: Page): Locator {
   return page.locator("[data-role=assistant-message]").last();
@@ -193,91 +202,6 @@ Then(
     expect(height, "the diagram source summary height").toBeGreaterThanOrEqual(
       TOUCH_TARGET_PX,
     );
-  },
-);
-
-// Presses Tab from the page's start until the target has focus, as a keyboard reader would. A script focus does not
-// match `:focus-visible` after a mouse click, so the ring a keyboard reader sees is only shown this way.
-async function tabTo(page: Page, target: Locator, presses = 0): Promise<void> {
-  if (presses === 0)
-    await page.evaluate(() =>
-      (document.activeElement as HTMLElement | null)?.blur(),
-    );
-  if (await target.evaluate((node) => node === document.activeElement)) return;
-  if (presses >= 300) throw new Error("the keyboard cannot reach the link");
-  // Each Tab moves focus from where the previous one left it, so the presses cannot run in parallel.
-  await page.keyboard.press("Tab");
-  return tabTo(page, target, presses + 1);
-}
-
-Then("a focused link shows the coral focus ring", async ({ page }) => {
-  const link = latestReply(page).locator("a[href]").first();
-  await tabTo(page, link);
-  await expect(link).toBeFocused();
-  const ring = await link.evaluate((node) => {
-    const style = getComputedStyle(node);
-    return {
-      color: style.outlineColor,
-      width: style.outlineWidth,
-      style: style.outlineStyle,
-    };
-  });
-  expect(ring).toEqual({ color: CORAL_RGB, width: "3px", style: "solid" });
-});
-
-/** The computed outline of a focused element, as the coral ring a keyboard reader sees. */
-function ringOfFocused(target: Locator): Promise<{
-  color: string;
-  width: string;
-  style: string;
-}> {
-  return target.evaluate((node) => {
-    const style = getComputedStyle(node);
-    return {
-      color: style.outlineColor,
-      width: style.outlineWidth,
-      style: style.outlineStyle,
-    };
-  });
-}
-
-/** Tabs to the element and checks that it shows the coral ring while focused. */
-async function expectFocusedCoralRing(
-  page: Page,
-  reply: Locator,
-  selector: string,
-): Promise<void> {
-  const target = reply.locator(selector).first();
-  await tabTo(page, target);
-  await expect(target).toBeFocused();
-  expect(await ringOfFocused(target), selector).toEqual({
-    color: CORAL_RGB,
-    width: "3px",
-    style: "solid",
-  });
-}
-
-Then(
-  "a focused table and a focused code block show the coral focus ring",
-  async ({ page }) => {
-    // A table and a code block are reached by Tab like the link, and their computed outline is read while focused.
-    const reply = latestReply(page);
-    await expectFocusedCoralRing(page, reply, "table");
-    await expectFocusedCoralRing(page, reply, "pre");
-  },
-);
-
-Then(
-  "a focused diagram source shows the coral focus ring",
-  async ({ page }) => {
-    const summary = page.locator(".bnest-diagram-source > summary").first();
-    await tabTo(page, summary);
-    await expect(summary).toBeFocused();
-    expect(await ringOfFocused(summary)).toEqual({
-      color: CORAL_RGB,
-      width: "3px",
-      style: "solid",
-    });
   },
 );
 

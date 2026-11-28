@@ -124,6 +124,8 @@ defmodule BnestAppWeb.ChatLiveTest do
            )
   end
 
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/bnest/app-be/behaviours/centralized_data.feature: Failed Codex-thread resume preserves the transcript
   test "replaces a failed resumed Codex session and preserves the transcript" do
     {:ok, restored} =
       Transcript.restore(%{
