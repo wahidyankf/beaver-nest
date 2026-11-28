@@ -87,14 +87,26 @@ defmodule BnestApp.ScheduledGatesWorkflow do
         not String.contains?(frontend, "--entry test-e2e-be"),
         "the front-end job must run no back-end entry"
       ) ++
-      expect(
-        @frontend_job not in needs(backend),
-        "the back-end job must not wait for the front-end job (needs #{inspect(needs(backend))})"
-      ) ++
-      expect(
-        @backend_job not in needs(frontend),
-        "the front-end job must not wait for the back-end job (needs #{inspect(needs(frontend))})"
-      )
+      wait_findings(@backend_job, backend, "back-end", @frontend_job, "front-end") ++
+      wait_findings(@frontend_job, frontend, "front-end", @backend_job, "back-end")
+  end
+
+  # A job must not wait for the other suite's job. A needs the check cannot read in full is a finding of its own,
+  # because reading it as waiting for nothing would let a wait pass unseen.
+  defp wait_findings(job_name, job, label, other_name, other_label) do
+    case needs(job) do
+      {:ok, names} ->
+        expect(
+          other_name not in names,
+          "the #{label} job must not wait for the #{other_label} job (needs #{inspect(names)})"
+        )
+
+      {:unreadable, raw} ->
+        [
+          "unreadable needs in job #{job_name} (the #{label} job): #{inspect(raw)}; " <>
+            "write it as a job name, a flow list of job names, or a block list of job names"
+        ]
+    end
   end
 
   defp integration_findings(workflow, jobs, entries) do
@@ -226,34 +238,130 @@ defmodule BnestApp.ScheduledGatesWorkflow do
     |> Enum.map(fn {name, lines} -> {name, lines |> Enum.reverse() |> Enum.join("\n")} end)
   end
 
-  # `needs: a`, `needs: [a, b]`, or a block list of `- a` lines, as the job names it lists. A list marker, quotes,
-  # and a trailing comment are not part of a name.
+  # The job names under a job's `needs:`, as `{:ok, names}`: a plain name, a flow list (on one line or spread over
+  # several), or a block list of `- a` lines. A list marker, quotes, and a trailing comment are not part of a name.
+  # A job without `needs:` waits for nothing. Anything else the check cannot read in full, such as a mapping, a
+  # block scalar, an anchor, an alias, a tag, an expression, an unterminated quote, a list that never closes, or an
+  # empty value, comes back as `{:unreadable, raw}`, never as an empty list, so it fails closed.
   defp needs(job) do
     lines = String.split(job, "\n")
 
     case Enum.find_index(lines, &Regex.match?(~r/^ {4}needs:/, &1)) do
       nil ->
-        []
+        {:ok, []}
 
       start ->
-        inline = lines |> Enum.at(start) |> String.replace(~r/^ {4}needs:/, "")
-
-        [inline | block_items(Enum.drop(lines, start + 1))]
-        |> Enum.flat_map(&(&1 |> String.replace(~r/\s+#.*$/, "") |> String.split(",")))
-        |> Enum.map(&(&1 |> String.replace(~r/[\[\]"']/, "") |> String.trim()))
-        |> Enum.reject(&(&1 == ""))
+        inline = lines |> Enum.at(start) |> String.replace(~r/^ {4}needs:/, "") |> strip_comment()
+        read_needs(inline, Enum.drop(lines, start + 1))
     end
   end
 
-  # The items of a block list, as written after the marker. Blank and comment lines inside it are skipped, and the
-  # first other line ends it.
-  defp block_items([]), do: []
+  defp read_needs("", rest) do
+    case block_items(rest) do
+      {[], _tail} -> {:unreadable, "no value"}
+      {items, tail} -> items |> Enum.map(&scalar/1) |> collect(tail)
+    end
+  end
 
-  defp block_items([line | rest]) do
+  defp read_needs("[" <> opened = inline, rest) do
+    case flow_body(opened, rest, []) do
+      {:ok, body, tail} -> body |> flow_items() |> collect(tail)
+      :unreadable -> {:unreadable, inline}
+    end
+  end
+
+  defp read_needs(inline, rest), do: collect([scalar(inline)], rest)
+
+  # The text of a flow list up to its `]`, from however many lines it spans, and the lines after it. Only a comment
+  # may follow the `]`, and a list that never closes is unreadable.
+  defp flow_body(text, rest, acc) do
+    case String.split(text, "]", parts: 2) do
+      [body, ""] ->
+        {:ok, join_flow([body | acc]), rest}
+
+      [_body, _trailing] ->
+        :unreadable
+
+      [_open] when rest == [] ->
+        :unreadable
+
+      [open] ->
+        [next | more] = rest
+        flow_body(strip_comment(next), more, [open | acc])
+    end
+  end
+
+  defp join_flow(parts) do
+    parts
+    |> Enum.reverse()
+    |> Enum.map(&String.trim/1)
+    |> Enum.reject(&(&1 == ""))
+    |> Enum.join(" ")
+  end
+
+  defp flow_items(""), do: []
+
+  defp flow_items(body) do
+    items = body |> String.split(",") |> Enum.map(&String.trim/1)
+    items = if List.last(items) == "" and length(items) > 1, do: Enum.drop(items, -1), else: items
+    Enum.map(items, &scalar/1)
+  end
+
+  # One name: a job id, bare or in a matching pair of quotes. Any other shape is unreadable.
+  defp scalar(text) do
+    name = text |> strip_comment() |> unquote_pair()
+
+    if Regex.match?(~r/^[A-Za-z_][A-Za-z0-9_-]*$/, name),
+      do: {:ok, name},
+      else: {:unreadable, text}
+  end
+
+  defp unquote_pair(text) do
+    case Regex.run(~r/^(["'])(.*)\1$/, text) do
+      [_whole, _quote, inner] -> inner
+      nil -> text
+    end
+  end
+
+  defp strip_comment(text), do: text |> String.replace(~r/(^|\s)#.*$/, "") |> String.trim()
+
+  # The names when every item was readable and the value ends where the next job key starts; the first unreadable
+  # item, or a line still indented under the value, otherwise.
+  defp collect(results, tail) do
+    case Enum.find(results, &match?({:unreadable, _raw}, &1)) do
+      nil ->
+        if ends_cleanly?(tail),
+          do: {:ok, for({:ok, name} <- results, do: name)},
+          else: {:unreadable, hd(tail)}
+
+      unreadable ->
+        unreadable
+    end
+  end
+
+  # The next line that is neither blank nor a comment must be a key of the job or a later block, not a continuation.
+  defp ends_cleanly?(lines) do
+    case Enum.find(lines, &(not Regex.match?(~r/^\s*(#.*)?$/, &1))) do
+      nil -> true
+      line -> Regex.match?(~r/^ {0,4}\S/, line)
+    end
+  end
+
+  # The items of a block list, as written after the marker, and the lines after the list. Blank and comment lines
+  # inside it are skipped, and the first other line ends it.
+  defp block_items([]), do: {[], []}
+
+  defp block_items([line | rest] = lines) do
     cond do
-      Regex.match?(~r/^\s*(#.*)?$/, line) -> block_items(rest)
-      Regex.match?(~r/^\s+- /, line) -> [String.replace(line, ~r/^\s+- /, "") | block_items(rest)]
-      true -> []
+      Regex.match?(~r/^\s*(#.*)?$/, line) ->
+        block_items(rest)
+
+      Regex.match?(~r/^\s+-(\s|$)/, line) ->
+        {items, tail} = block_items(rest)
+        {[String.replace(line, ~r/^\s+-\s*/, "") | items], tail}
+
+      true ->
+        {[], lines}
     end
   end
 

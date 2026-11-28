@@ -256,7 +256,10 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesTest do
       "    needs: [OTHER]\n",
       "    needs: [other, \"OTHER\"] # waits\n",
       "    needs:\n      - OTHER\n",
-      "    needs:\n      # the other suite first\n\n      - 'OTHER' # waits\n"
+      "    needs:\n      # the other suite first\n\n      - 'OTHER' # waits\n",
+      "    needs: [\n      OTHER\n    ]\n",
+      "    needs: [ # opens\n      setup,\n      \"OTHER\", # waits\n\n      # a note\n      lint\n    ] # closes\n",
+      "    needs: [setup,\n      'OTHER'] # waits\n"
     ]
 
     for wait <- waits do
@@ -282,6 +285,66 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesTest do
           "    needs:\n      - setup\n"
         ] do
       assert drift(:workflow, backend, backend <> wait) == []
+    end
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/rhino-consumer/behaviours/repository_gates.feature: The scheduled gates run at 06:00 and 18:00 WIB and run each end-to-end suite as its own job
+  test "scheduled workflow must report a needs it cannot read in full, never read it as waiting for nothing" do
+    backend = "    name: Bnest test e2e backend\n"
+    frontend = "    name: Bnest test e2e frontend (${{ matrix.project }})\n"
+
+    unreadable = [
+      "    needs: [\n      bnest-test-e2e-fe\n",
+      "    needs: [bnest-test-e2e-fe\n",
+      "    needs: [bnest-test-e2e-fe] extra\n",
+      "    needs: [bnest-test-e2e-fe, [setup]]\n",
+      "    needs: {first: bnest-test-e2e-fe}\n",
+      "    needs: |\n      bnest-test-e2e-fe\n",
+      "    needs: >\n      bnest-test-e2e-fe\n",
+      "    needs: &wait bnest-test-e2e-fe\n",
+      "    needs: *wait\n",
+      "    needs: !!str bnest-test-e2e-fe\n",
+      "    needs: ${{ fromJSON(vars.WAIT) }}\n",
+      "    needs: [${{ vars.WAIT }}]\n",
+      "    needs: \"bnest-test-e2e-fe\n",
+      "    needs: ['bnest-test-e2e-fe]\n",
+      "    needs: setup\n      bnest-test-e2e-fe\n",
+      "    needs:\n",
+      "    needs: # nothing follows\n",
+      "    needs:\n      - {name: bnest-test-e2e-fe}\n",
+      "    needs:\n      - [bnest-test-e2e-fe]\n",
+      "    needs:\n      - &wait bnest-test-e2e-fe\n",
+      "    needs:\n      - |\n        bnest-test-e2e-fe\n",
+      "    needs:\n      -\n",
+      "    needs:\n      - setup\n        bnest-test-e2e-fe\n"
+    ]
+
+    for {job, anchor} <- [{"bnest-test-e2e-be", backend}, {"bnest-test-e2e-fe", frontend}],
+        form <- unreadable do
+      assert_found(drift(:workflow, anchor, anchor <> form), "unreadable needs in job #{job}")
+    end
+  end
+
+  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
+  # @scenario specs/apps/tools/rhino-consumer/behaviours/repository_gates.feature: The scheduled gates run at 06:00 and 18:00 WIB and run each end-to-end suite as its own job
+  test "scheduled workflow gives no finding for a needs it can read that names another job" do
+    backend = "    name: Bnest test e2e backend\n"
+    frontend = "    name: Bnest test e2e frontend (${{ matrix.project }})\n"
+
+    readable = [
+      "    needs: setup\n",
+      "    needs: bnest-test-e2e-fe-extra\n",
+      "    needs: bnest-test-e2e-be-extra\n",
+      "    needs: []\n",
+      "    needs: [setup, \"lint\"] # first\n",
+      "    needs: [\n      setup,\n      lint\n    ]\n",
+      "    needs: [ # opens\n      # a note\n\n      'setup' # kept\n    ] # closes\n",
+      "    needs:\n      - setup\n      - lint\n"
+    ]
+
+    for anchor <- [backend, frontend], wait <- readable do
+      assert drift(:workflow, anchor, anchor <> wait) == []
     end
   end
 
