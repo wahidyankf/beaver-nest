@@ -39,7 +39,9 @@ because it includes the static behaviour check.
 | `test-quick-bnest-app-fe-e2e` | `pull-request` | project       | `bnest-app-fe-e2e` `test:quick`  | unit plus static |
 | `test-integration`            | `pull-request` | project       | `run-many` `test:integration`    | integration      |
 | `test-e2e-be`                 | `scheduled`    | project       | `bnest-app-be-e2e` `test:e2e`    | e2e              |
-| `test-e2e-fe`                 | `scheduled`    | project       | `bnest-app-fe-e2e` `test:e2e`    | e2e              |
+| `test-e2e-fe-chromium`        | `scheduled`    | project       | `bnest-app-fe-e2e` `test:e2e`    | e2e              |
+| `test-e2e-fe-tablet-chromium` | `scheduled`    | project       | `bnest-app-fe-e2e` `test:e2e`    | e2e              |
+| `test-e2e-fe-mobile-chromium` | `scheduled`    | project       | `bnest-app-fe-e2e` `test:e2e`    | e2e              |
 
 1. Pre-commit: applies the formatting to the index.
 2. Pull request: verify-clean replay after the write.
@@ -47,7 +49,8 @@ because it includes the static behaviour check.
 4. The `governance` commands run as `./rhino governance <name> validate`.
 5. Then the hook tests `.commandcode/hooks/policy-hooks.test.sh` and `.muse/hooks/run-policy-hook.test.sh`.
 6. Command shows `<project> <target>`, which runs `npm exec --no -- nx run -p <project> -t <target>`. The `run-many` row
-   runs `nx run-many -t <target>` in every project.
+   runs `nx run-many -t <target>` in every project. Each `test-e2e-fe-*` row adds `-- --workers=1 --project=<name>`; it
+   runs as its own job in the scheduled workflow, and together the three cover every browser project.
 
 Each `./rhino <command>` in the registry is shown here without its prefix. The registry holds the full argv.
 

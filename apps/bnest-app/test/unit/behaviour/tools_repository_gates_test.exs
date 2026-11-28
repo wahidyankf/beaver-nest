@@ -75,7 +75,15 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesModel do
   # serial group without cancellation, integration before both E2E suites).
   def schedule_cron, do: "0 6,18 * * *"
   def schedule_zone, do: "Asia/Jakarta"
-  def schedule_order, do: ["test:integration", "test-e2e-be", "test-e2e-fe"]
+
+  def schedule_order,
+    do: [
+      "test:integration",
+      "test-e2e-be",
+      "test-e2e-fe-chromium",
+      "test-e2e-fe-tablet-chromium",
+      "test-e2e-fe-mobile-chromium"
+    ]
 
   # Mirrors scripts/check-commit-message.sh with commitlint conventional
   # config; a missing message requires the gate message value.
@@ -162,7 +170,14 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesTest do
     # Mirrors scheduled-quality-gates.yml cron, zone, and suite order.
     assert Model.schedule_cron() == "0 6,18 * * *"
     assert Model.schedule_zone() == "Asia/Jakarta"
-    assert Model.schedule_order() == ["test:integration", "test-e2e-be", "test-e2e-fe"]
+
+    assert Model.schedule_order() == [
+             "test:integration",
+             "test-e2e-be",
+             "test-e2e-fe-chromium",
+             "test-e2e-fe-tablet-chromium",
+             "test-e2e-fe-mobile-chromium"
+           ]
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

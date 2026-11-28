@@ -74,10 +74,17 @@ jobs:
         run: node scripts/e2e-failure-summary.mjs apps/bnest-app-be-e2e/test-results/e2e-summary.json
 
   bnest-test-e2e-fe:
-    name: Bnest test e2e frontend
+    name: Bnest test e2e frontend (${{ matrix.project }})
     runs-on: ubuntu-24.04
-    # Estimate, not measured: 20 to 30 minutes for the suite plus 10 to 15 minutes of setup on this host.
-    timeout-minutes: 60
+    # Each browser project runs in its own job. Basis: on the test host one project needs 20 to 22 minutes of test
+    # time (chromium 22, tablet-chromium 22, mobile-chromium 20) plus about 6 minutes of setup; 40 minutes leaves room.
+    # A run of all three projects in one job took about 51 minutes of suite time and was too close to the 60 minute
+    # limit.
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        project: [chromium, tablet-chromium, mobile-chromium]
     steps:
       - name: Check out repository
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
@@ -122,8 +129,20 @@ jobs:
         run: |
           set -eu
           ./hippo run --class ephemeral --resource-tier heavy --disk-path . -- \
-            ./rhino gate run --surface scheduled --entry test-e2e-fe
+            ./rhino gate run --surface scheduled --entry test-e2e-fe-${{ matrix.project }}
 
       - name: Print failing scenarios from the run summary
         if: failure()
         run: node scripts/e2e-failure-summary.mjs apps/bnest-app-fe-e2e/test-results/e2e-summary.json
+
+      - name: Upload end-to-end output, report, traces and screenshots
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-frontend-${{ matrix.project }}
+          path: |
+            apps/bnest-app-fe-e2e/test-results/
+            apps/bnest-app-fe-e2e/playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { spawn } from "node:child_process";
+import { createWriteStream, existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import {
   cleanupTestRuntime,
@@ -25,35 +25,63 @@ const runPaths = runConfigPaths({
 const testControlSecret = generateTestControlSecret();
 const port = Number(process.env["BNEST_E2E_PORT"] ?? "4010");
 
-try {
-  const result = spawnSync(
-    "npm",
-    [
-      "exec",
-      "--",
-      "playwright",
-      "test",
-      "--config",
-      "apps/bnest-app-fe-e2e/playwright.config.mts",
-      ...process.argv.slice(2),
-    ],
-    {
-      cwd: repositoryRoot,
-      env: {
-        ...process.env,
-        BNEST_E2E_RUNTIME_ROOT: runtime.path,
-        BNEST_E2E_RUN_ID: runtime.runId,
-        BNEST_E2E_STORAGE_CONFIG: runPaths.storageConfig,
-        BNEST_E2E_BACKUP_CONFIG: runPaths.backupConfig,
-        BNEST_E2E_PORT: String(port),
-        BNEST_TEST_CONTROL_SECRET: testControlSecret,
-      },
-      stdio: "inherit",
-    },
-  );
+// RHINO discards the output of a failing child gate, so the CI log of a failed scheduled run would show no
+// scenario. This file keeps the whole Playwright output. The workflow uploads it as an artifact. Playwright's own
+// output directory is the repository-root test-results, which it clears at the start of a run, so the log lives
+// beside the JSON summary instead.
+const outputLogPath = path.resolve(
+  import.meta.dirname,
+  "../test-results/e2e-output.log",
+);
 
-  if (result.error) throw result.error;
-  process.exitCode = result.status ?? 1;
+// Streams the child's output to this process and to the log while it runs, so a run that is killed on a timeout
+// still leaves what it printed. Resolves with the child's exit status, and 1 when a signal ended it.
+const runPlaywright = (env: NodeJS.ProcessEnv): Promise<number> =>
+  new Promise((resolve, reject) => {
+    mkdirSync(path.dirname(outputLogPath), { recursive: true });
+    const outputLog = createWriteStream(outputLogPath);
+    const child = spawn(
+      "npm",
+      [
+        "exec",
+        "--",
+        "playwright",
+        "test",
+        "--config",
+        "apps/bnest-app-fe-e2e/playwright.config.mts",
+        ...process.argv.slice(2),
+      ],
+      { cwd: repositoryRoot, env, stdio: ["inherit", "pipe", "pipe"] },
+    );
+    child.stdout.on("data", (chunk: Buffer) => {
+      process.stdout.write(chunk);
+      outputLog.write(chunk);
+    });
+    child.stderr.on("data", (chunk: Buffer) => {
+      process.stderr.write(chunk);
+      outputLog.write(chunk);
+    });
+    child.on("error", (error) => {
+      outputLog.end();
+      reject(error);
+    });
+    child.on("close", (status) => {
+      outputLog.end(() => {
+        resolve(status ?? 1);
+      });
+    });
+  });
+
+try {
+  process.exitCode = await runPlaywright({
+    ...process.env,
+    BNEST_E2E_RUNTIME_ROOT: runtime.path,
+    BNEST_E2E_RUN_ID: runtime.runId,
+    BNEST_E2E_STORAGE_CONFIG: runPaths.storageConfig,
+    BNEST_E2E_BACKUP_CONFIG: runPaths.backupConfig,
+    BNEST_E2E_PORT: String(port),
+    BNEST_TEST_CONTROL_SECRET: testControlSecret,
+  });
 } finally {
   // Playwright, the primary server and the rollout candidates have exited here, so nothing can still
   // write. Any instance left under either root is a teardown bug: report it, fail the run, then remove

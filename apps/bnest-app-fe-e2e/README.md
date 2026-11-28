@@ -62,10 +62,20 @@ names with `@scenario` lines, through the same steps as `test:e2e`, against the 
 Caddy), on the desktop Chromium project. It fails when no integration binding exists, and it is not part of
 `test:quick`.
 
-`test:e2e` runs in the scheduled job `bnest-test-e2e-fe`, which has a 60-minute timeout. That timeout is an estimate,
-not a measurement: the suite is estimated at 20 to 30 minutes, and setup (npm ci, mix deps, Playwright, and Caddy) at 10
-to 15 minutes. Its `test:integration` alone took 18 to 21 minutes locally with `--workers=1`, and the Caddy-routed
-`test:e2e` run cannot be measured on this host.
+`test:e2e` runs in the scheduled job `bnest-test-e2e-fe`, a matrix job with one run per browser project: the registry
+entries `test-e2e-fe-chromium`, `test-e2e-fe-tablet-chromium` and `test-e2e-fe-mobile-chromium` each pass one
+`--project` to the target, so together they cover every project. A single serial run of all three took about 51 minutes
+of suite time (1475 tests), too close to a 60-minute limit. The projects are independent of one another, so each runs in
+its own job with a 40-minute timeout. The timeout rests on measured figures: on the test host one project needs 20 to 22
+minutes of test time (chromium 22, tablet-chromium 22, mobile-chromium 20), and setup (npm ci, mix deps, Playwright, and
+Caddy) takes about 6 minutes. Each run also runs the one-time setup scenario. A single worker is required inside one
+run, because the server, the SQLite state and the Caddy candidate slots are shared.
+
+RHINO discards the output of a failing child gate. So `tools/run-e2e.mts` also writes the whole Playwright output to
+`test-results/e2e-output.log` in this directory, and the config adds an HTML report in `playwright-report/` and keeps
+a trace and a screenshot of each failed test. The scheduled job uploads these files, with the repository-root
+`test-results/` directory (error-context snapshots, traces and screenshots), as the artifact
+`e2e-frontend-<project>`, which is kept for 7 days.
 
 ## Authoring Behaviours
 

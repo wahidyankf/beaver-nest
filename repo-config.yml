@@ -1055,7 +1055,7 @@ gates:
           - { literal: --workers=1 }
       run-on:
         scheduled: {}
-    - id: test-e2e-fe
+    - id: test-e2e-fe-chromium
       type: check
       command:
         executable: npm
@@ -1071,6 +1071,45 @@ gates:
           - { literal: test:e2e }
           - { literal: -- }
           - { literal: --workers=1 }
+          - { literal: --project=chromium }
+      run-on:
+        scheduled: {}
+    - id: test-e2e-fe-tablet-chromium
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-fe-e2e }
+          - { literal: -t }
+          - { literal: test:e2e }
+          - { literal: -- }
+          - { literal: --workers=1 }
+          - { literal: --project=tablet-chromium }
+      run-on:
+        scheduled: {}
+    - id: test-e2e-fe-mobile-chromium
+      type: check
+      command:
+        executable: npm
+        args:
+          - { literal: exec }
+          - { literal: --no }
+          - { literal: -- }
+          - { literal: nx }
+          - { literal: run }
+          - { literal: -p }
+          - { literal: bnest-app-fe-e2e }
+          - { literal: -t }
+          - { literal: test:e2e }
+          - { literal: -- }
+          - { literal: --workers=1 }
+          - { literal: --project=mobile-chromium }
       run-on:
         scheduled: {}
 

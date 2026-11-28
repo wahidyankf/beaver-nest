@@ -94,9 +94,17 @@ export default defineConfig({
   timeout: 120_000,
   workers: 1,
   // The console reporter keeps the job log readable. The JSON summary is written at run end, after Playwright has
-  // cleared its output directory, and the failure step reads it (scripts/e2e-failure-summary.mjs).
+  // cleared its output directory, and the failure step reads it (scripts/e2e-failure-summary.mjs). The HTML report
+  // is the browsable record of a failed run; the scheduled workflow uploads it with the traces and screenshots.
   reporter: [
     [process.env["CI"] ? "dot" : "list"],
+    [
+      "html",
+      {
+        open: "never",
+        outputFolder: path.resolve(import.meta.dirname, "playwright-report"),
+      },
+    ],
     [
       "json",
       {
@@ -116,7 +124,10 @@ export default defineConfig({
     baseURL,
     // Browsers get no test-control secret; the servers and the test steps keep it.
     launchOptions: { env: browserEnvironment(process.env) },
-    trace: "on-first-retry",
+    // The suite runs with retries 0, so an "on-first-retry" trace or screenshot would never exist. Keep both for a
+    // failed test only, which bounds the size of the uploaded artifact.
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: [
     {
