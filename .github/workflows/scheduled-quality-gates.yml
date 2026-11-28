@@ -76,8 +76,8 @@ jobs:
   bnest-test-e2e-fe:
     name: Bnest test e2e frontend (${{ matrix.project }})
     runs-on: ubuntu-24.04
-    # Each browser project runs in its own job. Basis: on the test host one project needs 20 to 22 minutes of test
-    # time (chromium 22, tablet-chromium 22, mobile-chromium 20) plus about 6 minutes of setup; 40 minutes leaves room.
+    # Each browser project runs in its own job. Basis: on the test host one project needs 22 to 25 minutes of test
+    # time (chromium 25, tablet-chromium 22, mobile-chromium 22) plus about 6 minutes of setup; 40 minutes leaves room.
     # A run of all three projects in one job took about 51 minutes of suite time and was too close to the 60 minute
     # limit.
     timeout-minutes: 40
