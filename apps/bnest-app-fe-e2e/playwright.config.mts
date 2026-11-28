@@ -93,6 +93,11 @@ export default defineConfig({
   fullyParallel: false,
   timeout: 120_000,
   workers: 1,
+  // The scheduled end-to-end legs run in CI with one retry: a failed test is re-run once with a trace, and a test that
+  // passes on the retry is reported as flaky and still fails the run, so nothing is hidden. The integration layer (the
+  // pull-request gate) and local runs keep retries 0.
+  retries: process.env["CI"] && !integrationLayer ? 1 : 0,
+  failOnFlakyTests: Boolean(process.env["CI"]) && !integrationLayer,
   // The console reporter keeps the job log readable. The JSON summary is written at run end, after Playwright has
   // cleared its output directory, and the failure step reads it (scripts/e2e-failure-summary.mjs). The HTML report
   // is the browsable record of a failed run; the scheduled workflow uploads it with the traces and screenshots.
@@ -124,9 +129,10 @@ export default defineConfig({
     baseURL,
     // Browsers get no test-control secret; the servers and the test steps keep it.
     launchOptions: { env: browserEnvironment(process.env) },
-    // The suite runs with retries 0, so an "on-first-retry" trace or screenshot would never exist. Keep both for a
-    // failed test only, which bounds the size of the uploaded artifact.
-    trace: "retain-on-failure",
+    // A trace of every passing test costs about 30 percent of the run time (55 chromium tests: 131 s against 102 s with
+    // the trace off), and one project needs about 22 minutes without it. The retry gives a trace of a failure at no cost
+    // to a green run. The screenshot is cheap and is kept for a failed test only, which bounds the uploaded artifact.
+    trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
   webServer: [

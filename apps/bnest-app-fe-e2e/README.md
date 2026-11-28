@@ -73,7 +73,10 @@ run, because the server, the SQLite state and the Caddy candidate slots are shar
 
 RHINO discards the output of a failing child gate. So `tools/run-e2e.mts` also writes the whole Playwright output to
 `test-results/e2e-output.log` in this directory, and the config adds an HTML report in `playwright-report/` and keeps
-a trace and a screenshot of each failed test. The scheduled job uploads these files, with the repository-root
+a screenshot of each failed test. In CI the end-to-end layer retries a failed test once and records a trace on that retry
+(`trace: "on-first-retry"`); a test that passes on the retry is reported as flaky and still fails the run. A trace of
+every passing test would cost about 30 percent of the run time, so a green run records none. The pull-request
+integration layer and local runs do not retry. The scheduled job uploads these files, with the repository-root
 `test-results/` directory (error-context snapshots, traces and screenshots), as the artifact
 `e2e-frontend-<project>`, which is kept for 7 days.
 
