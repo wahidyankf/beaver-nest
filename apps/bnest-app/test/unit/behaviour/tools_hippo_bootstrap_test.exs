@@ -185,20 +185,20 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapModel do
 
   # Mirrors acquire_install_guard (hippo:208-211): the guard file sits at the cache
   # root, so its path depends on the cache root alone and never on the release.
-  def install_guard_path(cache_root, _release), do: Path.join(cache_root, ".install-guard.lock")
+  def install_guard_path(cache_root, _release), do: "#{cache_root}/.install-guard.lock"
 
   # One install takes the guard, then publishes the release directory. The guard
   # file outlives the install (release_install_guard, hippo:238-243).
   def install_release(cache, cache_root, release) do
     cache
     |> Map.put_new(install_guard_path(cache_root, release), :guard)
-    |> Map.put(Path.join(cache_root, release), :release)
+    |> Map.put("#{cache_root}/#{release}", :release)
   end
 
   # Stands for prune_cache (hippo:435-476) keeping only the current release. Release
   # directories are removed; the guard file is not a release directory and stays.
   def prune_superseded(cache, cache_root, current) do
-    current_dir = Path.join(cache_root, current)
+    current_dir = "#{cache_root}/#{current}"
 
     for {path, kind} <- cache,
         not (kind == :release and path != current_dir),
@@ -384,7 +384,7 @@ defmodule BnestApp.Behaviour.Tools.HippoBootstrapTest do
 
     assert guards == [guard]
     assert Enum.uniq(keys_per_version) == [guard]
-    assert pruned == %{guard => :guard, Path.join(cache_root, current) => :release}
+    assert pruned == %{guard => :guard, "#{cache_root}/#{current}" => :release}
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
