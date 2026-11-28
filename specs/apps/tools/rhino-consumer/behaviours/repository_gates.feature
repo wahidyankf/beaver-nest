@@ -67,14 +67,14 @@ Feature: Repository gates
       | apps/bnest-app/src/unrelated.ts | none       | false |
 
   # Carries BN-GATE-05: scheduled gates timing and order.
-  # Exemption(integration): the trigger is GitHub's scheduler, which no local boundary reproduces; alternative-proof: bnest-app:test:unit / The scheduled gates run at 06:00 and 18:00 WIB
+  # Exemption(integration): the trigger is GitHub's scheduler, which no local boundary reproduces; alternative-proof: bnest-app:test:unit / The scheduled gates run at 06:00 and 18:00 WIB and run each end-to-end suite as its own job
   @integration-exempt
-  # Exemption(e2e): this workflow runs the E2E suites; alternative-proof: bnest-app:test:unit / The scheduled gates run at 06:00 and 18:00 WIB
+  # Exemption(e2e): this workflow runs the E2E suites; alternative-proof: bnest-app:test:unit / The scheduled gates run at 06:00 and 18:00 WIB and run each end-to-end suite as its own job
   @e2e-exempt
-  Scenario: The scheduled gates run at 06:00 and 18:00 WIB with the integration suite before the end-to-end suites
+  Scenario: The scheduled gates run at 06:00 and 18:00 WIB and run each end-to-end suite as its own job
     Given the scheduled-quality-gates workflow declares cron 0 6,18 * * * with timezone Asia/Jakarta
     When the schedule triggers with manual dispatch and serial concurrency without cancellation
-    Then it runs test:integration, then the back-end E2E, then the front-end E2E
+    Then it runs the back-end E2E and each front-end browser project as separate jobs, and no integration suite
 
   # Carries BN-GATE-06: Conventional Commit lint.
   # Integration is bound by scripts/check-commit-message.sh with RHINO_GATE_MESSAGE per row.

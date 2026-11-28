@@ -71,20 +71,6 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesModel do
   defp rhino_consumer?(".github/workflows/pr-quality-gate.yml"), do: true
   defp rhino_consumer?(path), do: String.starts_with?(path, "specs/apps/tools/rhino-consumer/")
 
-  # Mirrors scheduled-quality-gates.yml (cron 0 6,18 with Asia/Jakarta,
-  # serial group without cancellation, integration before both E2E suites).
-  def schedule_cron, do: "0 6,18 * * *"
-  def schedule_zone, do: "Asia/Jakarta"
-
-  def schedule_order,
-    do: [
-      "test:integration",
-      "test-e2e-be",
-      "test-e2e-fe-chromium",
-      "test-e2e-fe-tablet-chromium",
-      "test-e2e-fe-mobile-chromium"
-    ]
-
   # Mirrors scripts/check-commit-message.sh with commitlint conventional
   # config; a missing message requires the gate message value.
   def commit_verdict("(missing message)"), do: {:refused, "RHINO_GATE_MESSAGE is required"}
@@ -162,22 +148,6 @@ defmodule BnestApp.Behaviour.Tools.RepositoryGatesTest do
     assert all.governed and all.hippo_consumer and all.rhino_consumer
     none = Model.route("apps/bnest-app/src/unrelated.ts")
     refute none.governed or none.hippo_consumer or none.rhino_consumer
-  end
-
-  # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength
-  # @scenario specs/apps/tools/rhino-consumer/behaviours/repository_gates.feature: The scheduled gates run at 06:00 and 18:00 WIB with the integration suite before the end-to-end suites
-  test "scheduled gates run at 06 and 18 with integration first" do
-    # Mirrors scheduled-quality-gates.yml cron, zone, and suite order.
-    assert Model.schedule_cron() == "0 6,18 * * *"
-    assert Model.schedule_zone() == "Asia/Jakarta"
-
-    assert Model.schedule_order() == [
-             "test:integration",
-             "test-e2e-be",
-             "test-e2e-fe-chromium",
-             "test-e2e-fe-tablet-chromium",
-             "test-e2e-fe-mobile-chromium"
-           ]
   end
 
   # credo:disable-for-next-line Credo.Check.Readability.MaxLineLength

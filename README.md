@@ -176,8 +176,9 @@ npm exec -- nx run -p bnest-app-fe-e2e -t test:e2e -- --grep "An automatic LiveV
 directories; public-boundary E2E tests live in dedicated Nx apps. Bnest's unit, integration, and browser adapters
 consume the same recursively discovered feature corpus; each project's `test:behaviour:verify` proves that the adapters
 it owns bind that corpus completely, and `test:behaviour:coverage` statically checks the declared corpus with RHINO. Run
-only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs each
-application's integration suite before its complete E2E suite; ExBdd's own engine coverage runs in its own repository.
+only affected end-to-end cases during development. At 06:00 and 18:00 WIB, scheduled GitHub Actions runs the back-end
+E2E suite and each front-end browser project as separate jobs; integration runs on every pull request, and ExBdd's own
+engine coverage runs in its own repository.
 
 ## Repository layout
 
