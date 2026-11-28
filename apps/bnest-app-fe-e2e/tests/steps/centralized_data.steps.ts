@@ -180,7 +180,11 @@ When(
     await page.context().clearCookies({ name: "_bnest_identity" });
     await page.goto(`http://localhost:${candidatePort}/data-migration`);
     // No wait for a connected LiveView here: the local user is redirected to
-    // the home page, which has none. The Then steps check where it landed.
+    // the home page, which has none. Wait for the home page itself instead --
+    // its URL and its own heading -- so a Then that expects a control to be
+    // absent never runs against the page being left.
+    await expect(page).toHaveURL(`http://localhost:${candidatePort}/`);
+    await expect(page.locator("#home-title")).toBeVisible();
   },
 );
 

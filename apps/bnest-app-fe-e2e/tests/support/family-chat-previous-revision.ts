@@ -30,6 +30,8 @@ const PREVIOUS_REVISION = JSON.parse(
 export const previousRevisionTraffic = {
   /** Documents sent as the previous bundle's text, counted by operation name. */
   rewritten: new Map<string, number>(),
+  /** Documents judged against the frozen rolled-back schema, counted by operation name; cleared when judging is armed. */
+  judged: new Map<string, number>(),
   /** Each refused document, with its operation and the reason. */
   floorRefusals: [] as Refusal[],
   /** Each document, or subscription push, the live server answered wrongly, over HTTP or the socket. */
@@ -120,6 +122,11 @@ function onTheWire(body: Partial<Request>, wire: Wire): Request {
     previousRevisionTraffic.rewritten.set(replayed, count + 1);
   }
   if (wire.judge) {
+    const judgedAs = operation === "" ? "(unnamed)" : operation;
+    previousRevisionTraffic.judged.set(
+      judgedAs,
+      (previousRevisionTraffic.judged.get(judgedAs) ?? 0) + 1,
+    );
     const reasons = judgeDocument(
       sent.query,
       sent.variables,
@@ -248,8 +255,19 @@ export function judgeAgainstRolledBackSlot(page: Page): void {
     throw new Error(
       "install the wire before the page loads (routeGraphqlWire): a route added to a loaded page never sees its sockets, so nothing would be judged",
     );
+  previousRevisionTraffic.judged.clear();
   previousRevisionTraffic.floorRefusals = [];
   previousRevisionTraffic.liveErrors = [];
   previousRevisionTraffic.answered.clear();
   wire.judge = true;
+}
+
+/**
+ * Forgets which operations the live server has answered, and nothing else. The rollback scenario judges from before
+ * its history loads, so the answers so far belong to the newer slot: the wait for the re-subscribed subscription must
+ * be satisfied by the rolled-back slot's answer, not by the first subscription's. The refusals, live errors and judged
+ * counts of the earlier phase stay, so a refusal then is not hidden.
+ */
+export function forgetAnsweredBeforeRollback(): void {
+  previousRevisionTraffic.answered.clear();
 }
